@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { Alert, Button, Card, Field, Input } from '../components/ui.jsx';
+import { Alert, Button, Card, Field, Input, PasswordInput } from '../components/ui.jsx';
 
 const EMPTY = {
   company: { name: '', rccm: '', phone: '', email: '', address: '', city: 'Daloa' },
@@ -94,7 +94,7 @@ export default function RegisterPage() {
               </div>
               <Field label="Mot de passe" htmlFor="u-password" error={fields['user.password']} required
                 hint="Au moins 10 caractères, avec une lettre et un chiffre.">
-                <Input id="u-password" type="password" autoComplete="new-password" value={form.user.password}
+                <PasswordInput id="u-password" autoComplete="new-password" value={form.user.password}
                   onChange={(e) => setUser('password', e.target.value)} error={fields['user.password']} />
               </Field>
             </fieldset>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { Alert, Button, Card, Field, Input } from '../components/ui.jsx';
+import { Alert, Button, Card, Field, Input, PasswordInput } from '../components/ui.jsx';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -53,8 +53,8 @@ export default function LoginPage() {
               />
             </Field>
             <Field label="Mot de passe" htmlFor="password" error={fields.password} required>
-              <Input
-                id="password" type="password" name="password" autoComplete="current-password" required
+              <PasswordInput
+                id="password" name="password" autoComplete="current-password" required
                 placeholder="••••••••••" value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 error={fields.password}

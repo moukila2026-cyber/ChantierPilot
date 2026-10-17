@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
 import { formatDate } from '../lib/format.js';
 import {
-  Alert, Button, Card, Field, Input, LoadingPage, PageHeader, Spinner, Toast,
+  Alert, Button, Card, Field, Input, LoadingPage, PageHeader, PasswordInput, Spinner, Toast,
 } from '../components/ui.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -122,11 +122,11 @@ export default function SettingsPage() {
             <form className="mt-4 space-y-4" onSubmit={changePassword} noValidate>
               {pwError && <Alert type="error">{pwError}</Alert>}
               <Field label="Mot de passe actuel" htmlFor="pw-current" required>
-                <Input id="pw-current" type="password" autoComplete="current-password" value={pw.current_password}
+                <PasswordInput id="pw-current" autoComplete="current-password" value={pw.current_password}
                   onChange={(e) => setPw({ ...pw, current_password: e.target.value })} />
               </Field>
               <Field label="Nouveau mot de passe" htmlFor="pw-new" required hint="Au moins 10 caractères, avec une lettre et un chiffre.">
-                <Input id="pw-new" type="password" autoComplete="new-password" value={pw.new_password}
+                <PasswordInput id="pw-new" autoComplete="new-password" value={pw.new_password}
                   onChange={(e) => setPw({ ...pw, new_password: e.target.value })} />
               </Field>
               <Button type="submit" loading={pwBusy} variant="secondary">Changer le mot de passe</Button>
