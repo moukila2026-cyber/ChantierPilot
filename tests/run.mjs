@@ -176,7 +176,11 @@ async function main() {
     name: 'Villa Cocody — lot 3', client_name: 'M. Traoré', location: 'Cocody',
     budget: 15000000, start_date: '2026-01-05', end_date: '2026-06-30', status: 'en_cours', notes: 'Construction villa R+1',
   });
-  check('Création chantier A', projA.status === 201, projA.data);
+  const activeProjectsPage = await A.get('/api/projects?status=actifs&limit=1&offset=0');
+  check('Création chantier A + pagination des chantiers actifs', projA.status === 201 && activeProjectsPage.status === 200
+    && activeProjectsPage.data.projects.length === 1
+    && activeProjectsPage.data.pagination.total === 1
+    && activeProjectsPage.data.pagination.hasMore === false, projA.data);
   const projId = projA.data.project.id;
 
   const projB = await B.post('/api/projects', {
@@ -218,7 +222,10 @@ async function main() {
     project_id: projId, category: 'main_oeuvre', amount: 1200000, expense_date: '2026-01-20',
     supplier: 'Équipe Diabaté', description: 'Avance main d\'œuvre janvier', receipt: null,
   });
-  check('Dépense sans justificatif créée', exp2.status === 201 && exp2.data.expense.has_receipt === false);
+  const expensePage = await A.get('/api/expenses?limit=1&offset=0');
+  check('Dépense sans justificatif créée + pagination', exp2.status === 201 && exp2.data.expense.has_receipt === false
+    && expensePage.status === 200 && expensePage.data.expenses.length === 1
+    && expensePage.data.pagination.total === 2 && expensePage.data.pagination.hasMore === true);
 
   const badExp = await A.post('/api/expenses', {
     project_id: projId, category: 'materiaux', amount: 0, expense_date: '2026-01-10',
@@ -250,7 +257,10 @@ async function main() {
     reference: 'REC-2026-002', payment_method: 'mobile_money', memo: '',
     proof: { filename: 'recu.png', mime: 'image/png', data: PNG_1PX.toString('base64') },
   });
-  check('Encaissement avec justificatif → marqué prouvé', payProof.status === 201 && payProof.data.payment.has_proof === true);
+  const paymentPage = await A.get('/api/payments?limit=1&offset=1');
+  check('Encaissement avec justificatif → prouvé + pagination', payProof.status === 201 && payProof.data.payment.has_proof === true
+    && paymentPage.status === 200 && paymentPage.data.payments.length === 1
+    && paymentPage.data.pagination.total === 2 && paymentPage.data.pagination.hasMore === false);
 
   // --- Calculs (dashboard) ---
   const dash = await A.get('/api/dashboard');
@@ -345,10 +355,12 @@ async function main() {
   check('Origine étrangère refusée (403 anti-CSRF)', csrf.status === 403, `status ${csrf.status}`);
 
   // --- Journal d'audit ---
-  const audit = await A.get('/api/audit');
-  check('Journal d\'audit rempli (créations tracées)', audit.status === 200
-    && audit.data.audit.length >= 5
-    && audit.data.audit.some((r) => r.summary.includes('Villa Cocody')));
+  const audit = await A.get('/api/audit?limit=1&offset=0');
+  check('Journal d\'audit rempli et paginé (créations tracées)', audit.status === 200
+    && audit.data.audit.length === 1
+    && audit.data.pagination.total >= 5
+    && audit.data.pagination.hasMore === true
+    && audit.data.audit.some((r) => String(r.summary).includes('Villa Cocody')));
   const auditB = await B.get('/api/audit');
   check('Journal de B ne contient pas les actions de A',
     !auditB.data.audit.some((r) => String(r.summary).includes('Villa Cocody')));

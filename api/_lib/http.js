@@ -115,6 +115,23 @@ export function parseQuery(req, url) {
   return q;
 }
 
+/** Pagination bornée côté serveur : un client ne peut pas demander des lots sans limite. */
+export function parsePagination(query, defaultLimit = 25, maxLimit = 100) {
+  const asInt = (value, fallback) => {
+    if (value === undefined || value === '') return fallback;
+    const parsed = Number(value);
+    return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : fallback;
+  };
+  const limit = Math.min(maxLimit, Math.max(1, asInt(query.limit, defaultLimit)));
+  const offset = asInt(query.offset, 0);
+  return { limit, offset };
+}
+
+export function paginationMeta(limit, offset, total) {
+  const count = Number(total) || 0;
+  return { limit, offset, total: count, hasMore: offset + limit < count };
+}
+
 /** Enveloppe standard : contrôle d'origine, erreurs traduites, journal. */
 export async function handle(req, res, fn) {
   try {

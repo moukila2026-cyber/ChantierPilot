@@ -5,7 +5,7 @@ import { formatFcfa, formatDate, todayIso } from '../lib/format.js';
 import { STATUSES, STATUS_LABELS, STATUS_STYLES } from '../lib/constants.js';
 import {
   Alert, Badge, Button, Card, ConfirmDialog, EmptyState, Field, Input, LoadingPage,
-  Modal, PageHeader, Select, Spinner, Textarea, Toast,
+  Modal, PageHeader, Pagination, Select, Spinner, Textarea, Toast,
 } from '../components/ui.jsx';
 
 const EMPTY_PROJECT = {
@@ -87,21 +87,24 @@ export default function ProjectsPage() {
   const [fields, setFields] = useState({});
   const [toast, setToast] = useState(null);
   const [archiveTarget, setArchiveTarget] = useState(null);
+  const [page, setPage] = useState(1);
 
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true }));
     try {
       const params = new URLSearchParams();
-      if (statusFilter !== 'tous' && statusFilter !== 'actifs') params.set('status', statusFilter);
+      if (statusFilter !== 'tous') params.set('status', statusFilter);
       if (search.trim()) params.set('q', search.trim());
+      params.set('limit', '25');
+      params.set('offset', String((page - 1) * 25));
       const data = await api(`/api/projects?${params.toString()}`);
-      let projects = data.projects;
-      if (statusFilter === 'actifs') projects = projects.filter((p) => p.status !== 'archive');
-      setState({ loading: false, projects });
+      const lastPage = Math.max(1, Math.ceil(data.pagination.total / 25));
+      if (page > lastPage) { setPage(lastPage); return; }
+      setState({ loading: false, projects: data.projects, pagination: data.pagination });
     } catch (e) {
-      setState({ loading: false, projects: [], error: e.message });
+      setState({ loading: false, projects: [], pagination: null, error: e.message });
     }
-  }, [statusFilter, search]);
+  }, [statusFilter, search, page]);
 
   useEffect(() => {
     const t = setTimeout(load, search ? 300 : 0);
@@ -158,7 +161,7 @@ export default function ProjectsPage() {
         <div className="relative flex-1">
           <Input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Rechercher par nom ou client…"
             aria-label="Rechercher un chantier"
             className="pl-10"
@@ -167,7 +170,7 @@ export default function ProjectsPage() {
             <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.45 4.39l3.15 3.15a1 1 0 01-1.42 1.42l-3.15-3.15A7 7 0 012 9z" clipRule="evenodd" />
           </svg>
         </div>
-        <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="sm:w-48" aria-label="Filtrer par statut">
+        <Select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className="sm:w-48" aria-label="Filtrer par statut">
           <option value="actifs">Chantiers actifs</option>
           <option value="tous">Tous les statuts</option>
           {STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -269,6 +272,8 @@ export default function ProjectsPage() {
           </div>
         </>
       )}
+
+      <Pagination pagination={state.pagination} onPageChange={setPage} />
 
       <Modal
         open={modalOpen}

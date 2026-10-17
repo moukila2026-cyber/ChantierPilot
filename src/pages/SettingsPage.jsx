@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
 import { formatDate } from '../lib/format.js';
 import {
-  Alert, Button, Card, Field, Input, LoadingPage, PageHeader, PasswordInput, Spinner, Toast,
+  Alert, Button, Card, Field, Input, LoadingPage, PageHeader, Pagination, PasswordInput, Spinner, Toast,
 } from '../components/ui.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -28,6 +28,8 @@ export default function SettingsPage() {
   const [fields, setFields] = useState({});
   const [toast, setToast] = useState(null);
   const [auditRows, setAuditRows] = useState(null);
+  const [auditPagination, setAuditPagination] = useState(null);
+  const [auditPage, setAuditPage] = useState(1);
   const [health, setHealth] = useState(null);
   const [pw, setPw] = useState({ current_password: '', new_password: '' });
   const [pwBusy, setPwBusy] = useState(false);
@@ -47,9 +49,16 @@ export default function SettingsPage() {
   }, [company]);
 
   useEffect(() => {
-    api('/api/audit').then((d) => setAuditRows(d.audit)).catch(() => setAuditRows([]));
+    api(`/api/audit?limit=25&offset=${(auditPage - 1) * 25}`)
+      .then((d) => {
+        const lastPage = Math.max(1, Math.ceil(d.pagination.total / 25));
+        if (auditPage > lastPage) { setAuditPage(lastPage); return; }
+        setAuditRows(d.audit);
+        setAuditPagination(d.pagination);
+      })
+      .catch(() => { setAuditRows([]); setAuditPagination(null); });
     api('/api/health').then(setHealth).catch(() => setHealth(null));
-  }, []);
+  }, [auditPage]);
 
   if (!form) return <LoadingPage />;
 
@@ -171,7 +180,7 @@ export default function SettingsPage() {
           <p className="py-6 text-center text-sm text-slate-500">Aucune activité enregistrée.</p>
         ) : (
           <ul className="mt-4 divide-y divide-slate-100">
-            {auditRows.slice(0, 25).map((row) => (
+            {auditRows.map((row) => (
               <li key={row.id} className="flex items-start justify-between gap-3 py-2.5">
                 <div>
                   <p className="text-sm text-slate-800">
@@ -185,6 +194,10 @@ export default function SettingsPage() {
             ))}
           </ul>
         )}
+        <Pagination
+          pagination={auditPagination}
+          onPageChange={(nextPage) => { setAuditRows(null); setAuditPage(nextPage); }}
+        />
       </Card>
 
       <Toast toast={toast} onClose={() => setToast(null)} />

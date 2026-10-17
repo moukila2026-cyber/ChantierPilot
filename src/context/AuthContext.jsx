@@ -19,6 +19,12 @@ export function AuthProvider({ children }) {
     refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const onUnauthorized = () => setState({ status: 'anon', user: null, company: null });
+    window.addEventListener('chantierpilot:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('chantierpilot:unauthorized', onUnauthorized);
+  }, []);
+
   const login = useCallback(async (email, password) => {
     await api('/api/auth/login', { method: 'POST', body: { email, password } });
     await refresh();

@@ -5,7 +5,7 @@ import { formatFcfa, formatDate } from '../lib/format.js';
 import { CATEGORIES, CATEGORY_LABELS } from '../lib/constants.js';
 import {
   Alert, Badge, Button, Card, ConfirmDialog, EmptyState, Input, LoadingPage,
-  Modal, PageHeader, Select, Spinner, Toast,
+  Modal, PageHeader, Pagination, Select, Spinner, Toast,
 } from '../components/ui.jsx';
 import { ExpenseForm } from '../components/forms.jsx';
 
@@ -18,6 +18,7 @@ export default function ExpensesPage() {
   const [fields, setFields] = useState({});
   const [toast, setToast] = useState(null);
   const [confirm, setConfirm] = useState(null);
+  const [page, setPage] = useState(1);
 
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true }));
@@ -27,19 +28,24 @@ export default function ExpensesPage() {
       if (filters.category) params.set('category', filters.category);
       if (filters.from) params.set('from', filters.from);
       if (filters.to) params.set('to', filters.to);
+      params.set('limit', '25');
+      params.set('offset', String((page - 1) * 25));
       const [expensesData, projectsData] = await Promise.all([
         api(`/api/expenses?${params.toString()}`),
-        api('/api/projects?status=tous'),
+        api('/api/projects?status=tous&limit=100'),
       ]);
+      const lastPage = Math.max(1, Math.ceil(expensesData.pagination.total / 25));
+      if (page > lastPage) { setPage(lastPage); return; }
       setState({
         loading: false,
         expenses: expensesData.expenses,
+        pagination: expensesData.pagination,
         projects: projectsData.projects.filter((p) => p.status !== 'archive' || filters.project_id === p.id),
       });
     } catch (e) {
-      setState({ loading: false, expenses: [], projects: [], error: e.message });
+      setState({ loading: false, expenses: [], projects: [], pagination: null, error: e.message });
     }
-  }, [filters]);
+  }, [filters, page]);
 
   useEffect(() => {
     const t = setTimeout(load, 250);
@@ -109,16 +115,16 @@ export default function ExpensesPage() {
 
       <Card className="mb-4">
         <div className="grid gap-3 sm:grid-cols-4">
-          <Select value={filters.project_id} onChange={(e) => setFilters({ ...filters, project_id: e.target.value })} aria-label="Filtrer par chantier">
+          <Select value={filters.project_id} onChange={(e) => { setFilters({ ...filters, project_id: e.target.value }); setPage(1); }} aria-label="Filtrer par chantier">
             <option value="">Tous les chantiers</option>
             {state.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </Select>
-          <Select value={filters.category} onChange={(e) => setFilters({ ...filters, category: e.target.value })} aria-label="Filtrer par catégorie">
+          <Select value={filters.category} onChange={(e) => { setFilters({ ...filters, category: e.target.value }); setPage(1); }} aria-label="Filtrer par catégorie">
             <option value="">Toutes les catégories</option>
             {CATEGORIES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </Select>
-          <Input type="date" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} aria-label="Date de début" />
-          <Input type="date" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} aria-label="Date de fin" />
+          <Input type="date" value={filters.from} onChange={(e) => { setFilters({ ...filters, from: e.target.value }); setPage(1); }} aria-label="Date de début" />
+          <Input type="date" value={filters.to} onChange={(e) => { setFilters({ ...filters, to: e.target.value }); setPage(1); }} aria-label="Date de fin" />
         </div>
       </Card>
 
@@ -213,6 +219,8 @@ export default function ExpensesPage() {
           </div>
         </>
       )}
+
+      <Pagination pagination={state.pagination} onPageChange={setPage} />
 
       <Modal open={modalOpen} title={editTarget ? 'Modifier la dépense' : 'Nouvelle dépense'} onClose={() => { setModalOpen(false); setEditTarget(null); }}>
         <ExpenseForm

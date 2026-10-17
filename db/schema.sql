@@ -212,7 +212,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
   CONSTRAINT audit_summary_len CHECK (char_length(summary) <= 500)
 );
 
-CREATE INDEX IF NOT EXISTS audit_company_idx ON audit_log (company_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS audit_company_created_id_idx ON audit_log (company_id, created_at DESC, id DESC);
 
 -- ---------------------------------------------------------------------
 -- updated_at automatique
