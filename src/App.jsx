@@ -12,6 +12,7 @@ import PaymentsPage from './pages/PaymentsPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import PricingPage from './pages/PricingPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
+import TermsPage from './pages/TermsPage.jsx';
 
 function RequireAuth({ children }) {
   const { status } = useAuth();
@@ -41,6 +42,7 @@ export default function App() {
       <Route path="/connexion" element={<PublicOnly><LoginPage /></PublicOnly>} />
       <Route path="/inscription" element={<PublicOnly><RegisterPage /></PublicOnly>} />
       <Route path="/offres" element={<PricingRoute />} />
+      <Route path="/cgu" element={<TermsPage />} />
       <Route path="/" element={<RequireAuth><DashboardPage /></RequireAuth>} />
       <Route path="/chantiers" element={<RequireAuth><ProjectsPage /></RequireAuth>} />
       <Route path="/chantiers/:id" element={<RequireAuth><ProjectDetailPage /></RequireAuth>} />

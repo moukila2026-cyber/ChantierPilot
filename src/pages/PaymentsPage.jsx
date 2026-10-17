@@ -5,7 +5,7 @@ import { formatFcfa, formatDate } from '../lib/format.js';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../lib/constants.js';
 import {
   Alert, Badge, Button, Card, ConfirmDialog, EmptyState, Input, Modal, PageHeader,
-  Select, Spinner, Toast,
+  Pagination, Select, Spinner, Toast,
 } from '../components/ui.jsx';
 import { PaymentForm } from '../components/forms.jsx';
 
@@ -18,6 +18,7 @@ export default function PaymentsPage() {
   const [fields, setFields] = useState({});
   const [toast, setToast] = useState(null);
   const [confirm, setConfirm] = useState(null);
+  const [page, setPage] = useState(1);
 
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true }));
@@ -27,19 +28,24 @@ export default function PaymentsPage() {
       if (filters.method) params.set('method', filters.method);
       if (filters.from) params.set('from', filters.from);
       if (filters.to) params.set('to', filters.to);
+      params.set('limit', '25');
+      params.set('offset', String((page - 1) * 25));
       const [paymentsData, projectsData] = await Promise.all([
         api(`/api/payments?${params.toString()}`),
-        api('/api/projects?status=tous'),
+        api('/api/projects?status=tous&limit=100'),
       ]);
+      const lastPage = Math.max(1, Math.ceil(paymentsData.pagination.total / 25));
+      if (page > lastPage) { setPage(lastPage); return; }
       setState({
         loading: false,
         payments: paymentsData.payments,
+        pagination: paymentsData.pagination,
         projects: projectsData.projects.filter((p) => p.status !== 'archive' || filters.project_id === p.id),
       });
     } catch (e) {
-      setState({ loading: false, payments: [], projects: [], error: e.message });
+      setState({ loading: false, payments: [], projects: [], pagination: null, error: e.message });
     }
-  }, [filters]);
+  }, [filters, page]);
 
   useEffect(() => {
     const t = setTimeout(load, 250);
@@ -110,16 +116,16 @@ export default function PaymentsPage() {
 
       <Card className="mb-4">
         <div className="grid gap-3 sm:grid-cols-4">
-          <Select value={filters.project_id} onChange={(e) => setFilters({ ...filters, project_id: e.target.value })} aria-label="Filtrer par chantier">
+          <Select value={filters.project_id} onChange={(e) => { setFilters({ ...filters, project_id: e.target.value }); setPage(1); }} aria-label="Filtrer par chantier">
             <option value="">Tous les chantiers</option>
             {state.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </Select>
-          <Select value={filters.method} onChange={(e) => setFilters({ ...filters, method: e.target.value })} aria-label="Filtrer par mode">
+          <Select value={filters.method} onChange={(e) => { setFilters({ ...filters, method: e.target.value }); setPage(1); }} aria-label="Filtrer par mode">
             <option value="">Tous les modes</option>
             {PAYMENT_METHODS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </Select>
-          <Input type="date" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} aria-label="Date de début" />
-          <Input type="date" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} aria-label="Date de fin" />
+          <Input type="date" value={filters.from} onChange={(e) => { setFilters({ ...filters, from: e.target.value }); setPage(1); }} aria-label="Date de début" />
+          <Input type="date" value={filters.to} onChange={(e) => { setFilters({ ...filters, to: e.target.value }); setPage(1); }} aria-label="Date de fin" />
         </div>
       </Card>
 
@@ -216,6 +222,8 @@ export default function PaymentsPage() {
           </div>
         </>
       )}
+
+      <Pagination pagination={state.pagination} onPageChange={setPage} />
 
       <Modal open={modalOpen} title={editTarget ? 'Modifier l\'encaissement' : 'Nouvel encaissement'} onClose={() => { setModalOpen(false); setEditTarget(null); }}>
         <PaymentForm

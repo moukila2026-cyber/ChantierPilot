@@ -6,7 +6,7 @@
 import { withTenant } from '../_lib/db.js';
 import { paymentSchema, parseOrThrow, PAYMENT_METHOD_LABELS } from '../_lib/validate.js';
 import { decodeFileAttachment } from '../_lib/files.js';
-import { readJsonBody, sendJson, methodNotAllowed, handle, parseQuery } from '../_lib/http.js';
+import { readJsonBody, sendJson, methodNotAllowed, handle, parseQuery, parsePagination, paginationMeta } from '../_lib/http.js';
 import { requireAuth, run, audit } from '../_lib/pipeline.js';
 
 export default async function handler(req, res) {
@@ -22,29 +22,39 @@ export default async function handler(req, res) {
         const method = q.method && q.method !== 'tous' ? q.method : null;
         const from = q.from || null;
         const to = q.to || null;
+        const page = parsePagination(q);
 
-        const rows = await withTenant(ctx, async (client) => {
-          const { rows } = await client.query(
-            `SELECT p.id, p.company_id, p.project_id, p.client_name, p.amount, p.payment_date,
-                    p.reference, p.payment_method, p.memo,
-                    (p.proof IS NOT NULL) AS has_proof, p.proof_filename, p.proof_mime,
-                    p.created_by, p.created_at, p.updated_at,
-                    pr.name AS project_name, u.full_name AS created_by_name
-             FROM payments p
-             JOIN projects pr ON pr.id = p.project_id
-             LEFT JOIN app_users u ON u.id = p.created_by
-             WHERE ($1::uuid IS NULL OR p.project_id = $1)
-               AND ($2::text IS NULL OR p.payment_method = $2)
-               AND ($3::date IS NULL OR p.payment_date >= $3)
-               AND ($4::date IS NULL OR p.payment_date <= $4)
-             ORDER BY p.payment_date DESC, p.created_at DESC
-             LIMIT 500`,
-            [projectId, method, from, to],
-          );
-          return rows;
+        const result = await withTenant(ctx, async (client) => {
+          const where = `($1::uuid IS NULL OR p.project_id = $1)
+            AND ($2::text IS NULL OR p.payment_method = $2)
+            AND ($3::date IS NULL OR p.payment_date >= $3)
+            AND ($4::date IS NULL OR p.payment_date <= $4)`;
+          const params = [projectId, method, from, to];
+          const [{ rows }, countResult] = await Promise.all([
+            client.query(
+              `SELECT p.id, p.company_id, p.project_id, p.client_name, p.amount, p.payment_date,
+                      p.reference, p.payment_method, p.memo,
+                      (p.proof IS NOT NULL) AS has_proof, p.proof_filename, p.proof_mime,
+                      p.created_by, p.created_at, p.updated_at,
+                      pr.name AS project_name, u.full_name AS created_by_name
+               FROM payments p
+               JOIN projects pr ON pr.id = p.project_id
+               LEFT JOIN app_users u ON u.id = p.created_by
+               WHERE ${where}
+               ORDER BY p.payment_date DESC, p.created_at DESC, p.id DESC
+               LIMIT $5 OFFSET $6`,
+              [...params, page.limit, page.offset],
+            ),
+            client.query(`SELECT COUNT(*)::int AS total FROM payments p WHERE ${where}`, params),
+          ]);
+          return { rows, total: countResult.rows[0].total };
         });
 
-        return sendJson(res, 200, { payments: rows, labels: { payment_method: PAYMENT_METHOD_LABELS } });
+        return sendJson(res, 200, {
+          payments: result.rows,
+          pagination: paginationMeta(page.limit, page.offset, result.total),
+          labels: { payment_method: PAYMENT_METHOD_LABELS },
+        });
       }
 
       if (req.method === 'POST') {

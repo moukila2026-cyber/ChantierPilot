@@ -4,7 +4,7 @@
 import { withTenant } from '../_lib/db.js';
 import { expenseSchema, parseOrThrow, CATEGORY_LABELS } from '../_lib/validate.js';
 import { decodeFileAttachment } from '../_lib/files.js';
-import { readJsonBody, sendJson, methodNotAllowed, handle, parseQuery, fail } from '../_lib/http.js';
+import { readJsonBody, sendJson, methodNotAllowed, handle, parseQuery, parsePagination, paginationMeta, fail } from '../_lib/http.js';
 import { requireAuth, run, audit } from '../_lib/pipeline.js';
 
 export default async function handler(req, res) {
@@ -20,29 +20,39 @@ export default async function handler(req, res) {
         const category = q.category && q.category !== 'toutes' ? q.category : null;
         const from = q.from || null;
         const to = q.to || null;
+        const page = parsePagination(q);
 
-        const rows = await withTenant(ctx, async (client) => {
-          const { rows } = await client.query(
-            `SELECT e.id, e.company_id, e.project_id, e.category, e.amount, e.expense_date,
-                    e.supplier, e.description,
-                    (e.receipt IS NOT NULL) AS has_receipt, e.receipt_filename, e.receipt_mime,
-                    e.created_by, e.created_at, e.updated_at,
-                    p.name AS project_name, u.full_name AS created_by_name
-             FROM expenses e
-             JOIN projects p ON p.id = e.project_id
-             LEFT JOIN app_users u ON u.id = e.created_by
-             WHERE ($1::uuid IS NULL OR e.project_id = $1)
-               AND ($2::text IS NULL OR e.category = $2)
-               AND ($3::date IS NULL OR e.expense_date >= $3)
-               AND ($4::date IS NULL OR e.expense_date <= $4)
-             ORDER BY e.expense_date DESC, e.created_at DESC
-             LIMIT 500`,
-            [projectId, category, from, to],
-          );
-          return rows;
+        const result = await withTenant(ctx, async (client) => {
+          const where = `($1::uuid IS NULL OR e.project_id = $1)
+            AND ($2::text IS NULL OR e.category = $2)
+            AND ($3::date IS NULL OR e.expense_date >= $3)
+            AND ($4::date IS NULL OR e.expense_date <= $4)`;
+          const params = [projectId, category, from, to];
+          const [{ rows }, countResult] = await Promise.all([
+            client.query(
+              `SELECT e.id, e.company_id, e.project_id, e.category, e.amount, e.expense_date,
+                      e.supplier, e.description,
+                      (e.receipt IS NOT NULL) AS has_receipt, e.receipt_filename, e.receipt_mime,
+                      e.created_by, e.created_at, e.updated_at,
+                      p.name AS project_name, u.full_name AS created_by_name
+               FROM expenses e
+               JOIN projects p ON p.id = e.project_id
+               LEFT JOIN app_users u ON u.id = e.created_by
+               WHERE ${where}
+               ORDER BY e.expense_date DESC, e.created_at DESC, e.id DESC
+               LIMIT $5 OFFSET $6`,
+              [...params, page.limit, page.offset],
+            ),
+            client.query(`SELECT COUNT(*)::int AS total FROM expenses e WHERE ${where}`, params),
+          ]);
+          return { rows, total: countResult.rows[0].total };
         });
 
-        return sendJson(res, 200, { expenses: rows, labels: { category: CATEGORY_LABELS } });
+        return sendJson(res, 200, {
+          expenses: result.rows,
+          pagination: paginationMeta(page.limit, page.offset, result.total),
+          labels: { category: CATEGORY_LABELS },
+        });
       }
 
       if (req.method === 'POST') {

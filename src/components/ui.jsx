@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 export function Spinner({ className = 'h-5 w-5' }) {
   return (
@@ -153,24 +153,65 @@ export function Alert({ type = 'error', children, onClose }) {
 }
 
 export function Modal({ open, title, onClose, children, wide = false }) {
+  const dialogRef = useRef(null);
+  const closeRef = useRef(onClose);
+  const titleId = useId();
+  closeRef.current = onClose;
+
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKey);
+    const previouslyFocused = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    const dialog = dialogRef.current;
     document.body.style.overflow = 'hidden';
+
+    const focusable = () => [...dialog.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )].filter((el) => el.getAttribute('aria-hidden') !== 'true' && el.getClientRects().length > 0);
+
+    requestAnimationFrame(() => (focusable()[0] || dialog).focus());
+    const onKey = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeRef.current?.();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const items = focusable();
+      if (!items.length) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!dialog.contains(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialog)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
+      document.body.style.overflow = previousOverflow;
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={title}>
-      <div className={`animate-fade-in flex max-h-[92vh] w-full flex-col rounded-t-2xl bg-white shadow-xl sm:rounded-2xl ${wide ? 'sm:max-w-2xl' : 'sm:max-w-lg'}`}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4">
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId}
+        className={`animate-fade-in flex max-h-[92vh] w-full flex-col rounded-t-2xl bg-white shadow-xl outline-none sm:rounded-2xl ${wide ? 'sm:max-w-2xl' : 'sm:max-w-lg'}`}>
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-          <h2 className="text-lg font-bold text-slate-900">{title}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label="Fermer">
+          <h2 id={titleId} className="text-lg font-bold text-slate-900">{title}</h2>
+          <button type="button" onClick={() => closeRef.current?.()} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label="Fermer">
             <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
           </button>
         </div>
@@ -190,6 +231,28 @@ export function EmptyState({ title, message, action }) {
       <p className="mt-1 max-w-sm text-sm text-slate-500">{message}</p>
       {action && <div className="mt-4">{action}</div>}
     </div>
+  );
+}
+
+export function Pagination({ pagination, onPageChange }) {
+  if (!pagination || (pagination.total <= pagination.limit && pagination.offset === 0)) return null;
+  const pages = Math.max(1, Math.ceil(pagination.total / pagination.limit));
+  const requestedPage = Math.floor(pagination.offset / pagination.limit) + 1;
+  const currentPage = Math.min(requestedPage, pages);
+  const firstItem = pagination.total ? Math.min(pagination.offset + 1, pagination.total) : 0;
+  return (
+    <nav className="mt-4 flex items-center justify-between gap-3" aria-label="Pagination">
+      <p className="text-xs text-slate-500" aria-live="polite">
+        {firstItem}–{Math.min(pagination.offset + pagination.limit, pagination.total)} sur {pagination.total}
+      </p>
+      <div className="flex items-center gap-2">
+        <Button variant="secondary" className="min-h-9 px-3 py-1 text-xs" disabled={pagination.offset === 0}
+          onClick={() => onPageChange(requestedPage - 1)} aria-label="Page précédente">Précédent</Button>
+        <span className="min-w-20 text-center text-xs text-slate-600">Page {currentPage} / {pages}</span>
+        <Button variant="secondary" className="min-h-9 px-3 py-1 text-xs" disabled={!pagination.hasMore}
+          onClick={() => onPageChange(currentPage + 1)} aria-label="Page suivante">Suivant</Button>
+      </div>
+    </nav>
   );
 }
 
@@ -223,11 +286,16 @@ export function Footer({ dark = false }) {
       }`}
     >
       <p>
-        <span className={`font-bold tracking-wide ${dark ? 'text-amber-400' : 'text-slate-800'}`}>Shopin30</span>
+        <span className={`font-bold tracking-wide ${dark ? 'text-amber-400' : 'text-slate-800'}`}>Conçu par SHOPIN30</span>
         <span className="mx-2 opacity-50" aria-hidden="true">·</span>
         <span>ChantierPilot © {new Date().getFullYear()}</span>
       </p>
       <p className="mt-1 text-xs opacity-75">Gestion de chantiers BTP — Côte d'Ivoire</p>
+      <p className="mt-1 text-xs">
+        <a className="underline underline-offset-2 hover:opacity-80" href="tel:+2250501303343">+225 05 01 30 33 43</a>
+        <span className="mx-2 opacity-50" aria-hidden="true">·</span>
+        <a className="underline underline-offset-2 hover:opacity-80" href="/cgu">Conditions générales d’utilisation</a>
+      </p>
     </footer>
   );
 }

@@ -3,6 +3,7 @@
 // Le rapport est explicite sur la nature « déclarée » des encaissements.
 
 import PDFDocument from 'pdfkit';
+import { amountInWordsFcfa } from './money.js';
 
 export function formatFcfa(n) {
   return `${new Intl.NumberFormat('fr-FR').format(Math.round(Number(n) || 0))} FCFA`;
@@ -20,7 +21,13 @@ const LIGHT = '#e8ecf1';
 const ACCENT = '#b45309';
 
 function header(doc, company, title, subtitle) {
-  doc.fillColor(INK).font('Helvetica-Bold').fontSize(18).text(company.name || 'Entreprise', 48, 48);
+  // Signe ChantierPilot vectoriel : aucun fichier externe à embarquer dans le PDF.
+  doc.save();
+  doc.roundedRect(48, 42, 28, 28, 6).fill(INK);
+  doc.moveTo(54, 63).lineTo(62, 48).lineTo(70, 63).lineWidth(2).lineJoin('round').strokeColor('#f59e0b').stroke();
+  doc.rect(59, 59, 6, 4).fill('#f59e0b');
+  doc.restore();
+  doc.fillColor(INK).font('Helvetica-Bold').fontSize(18).text(company.name || 'Entreprise', 84, 45);
   doc.fillColor(GRAY).font('Helvetica').fontSize(8.5);
   const contact = [
     company.rccm ? `RCCM : ${company.rccm}` : null,
@@ -28,9 +35,9 @@ function header(doc, company, title, subtitle) {
     company.email ? `E-mail : ${company.email}` : null,
     [company.address, company.city].filter(Boolean).join(' — ') || null,
   ].filter(Boolean);
-  let y = 70;
+  let y = 68;
   for (const line of contact) {
-    doc.text(line, 48, y);
+    doc.text(line, 84, y, { width: 463 });
     y += 11;
   }
   doc.moveTo(48, y + 6).lineTo(547, y + 6).lineWidth(1.2).strokeColor(ACCENT).stroke();
@@ -46,12 +53,20 @@ function sectionTitle(doc, text, y) {
 
 function keyValueTable(doc, y, rows, labelWidth = 160) {
   for (const [k, v] of rows) {
-    if (y > 760) { doc.addPage(); y = 56; }
+    const valueWidth = 440 - labelWidth;
+    const text = String(v);
+    doc.font('Helvetica-Bold').fontSize(9);
+    const height = Math.max(15, doc.heightOfString(text, { width: valueWidth }));
+    if (y + height > 760) { doc.addPage(); y = 56; }
     doc.fillColor(GRAY).font('Helvetica').fontSize(9).text(k, 48, y, { width: labelWidth });
-    doc.fillColor(INK).font('Helvetica-Bold').fontSize(9).text(String(v), 48 + labelWidth + 8, y, { width: 440 - labelWidth });
-    y += 15;
+    doc.fillColor(INK).font('Helvetica-Bold').fontSize(9).text(text, 48 + labelWidth + 8, y, { width: valueWidth });
+    y += height + 3;
   }
   return y + 6;
+}
+
+function formatFcfaInWords(amount) {
+  return `${formatFcfa(amount)} — ${amountInWordsFcfa(Math.round(Number(amount) || 0))}`;
 }
 
 function table(doc, y, columns, rows, footerRow) {
@@ -141,16 +156,16 @@ export function buildProjectReport(data) {
         ['Statut', statusLabel],
         ['Date de début', formatDateFr(project.start_date)],
         ['Date de fin', project.end_date ? formatDateFr(project.end_date) : 'Non définie'],
-        ['Budget prévisionnel', formatFcfa(project.budget)],
+        ['Budget prévisionnel', formatFcfaInWords(project.budget)],
       ]);
 
       y = sectionTitle(doc, 'Synthèse financière', y);
       y = keyValueTable(doc, y, [
-        ['Budget prévisionnel', formatFcfa(totals.budget)],
-        ['Total des dépenses', formatFcfa(totals.expenses_total)],
-        ['Total des encaissements déclarés', formatFcfa(totals.payments_total)],
-        ['Solde client (reste à encaisser)', formatFcfa(totals.reste_a_encaisser)],
-        ['Résultat provisoire (encaissements − dépenses)', formatFcfa(totals.resultat_provisionnel)],
+        ['Budget prévisionnel', formatFcfaInWords(totals.budget)],
+        ['Total des dépenses', formatFcfaInWords(totals.expenses_total)],
+        ['Total des encaissements déclarés', formatFcfaInWords(totals.payments_total)],
+        ['Solde client (reste à encaisser)', formatFcfaInWords(totals.reste_a_encaisser)],
+        ['Résultat provisoire (encaissements − dépenses)', formatFcfaInWords(totals.resultat_provisionnel)],
       ]);
 
       y = sectionTitle(doc, `Dépenses (${expenses.length})`, y);

@@ -39,6 +39,12 @@ export async function api(path, { method = 'GET', body } = {}) {
 
   if (!res.ok) {
     const err = data.error || {};
+    // Les endpoints publics de session/connexion retournent légitimement 401.
+    // Tout autre 401 signifie que la session active a expiré ou a été révoquée.
+    const publicAuthEndpoint = /^\/api\/auth\/(session|login|register)(?:\?|$)/.test(path);
+    if (res.status === 401 && err.code === 'non_authentifie' && !publicAuthEndpoint && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('chantierpilot:unauthorized'));
+    }
     throw new ApiError(res.status, err.code || 'erreur', err.message || 'Une erreur est survenue.', err.fields);
   }
   return data;
