@@ -1,0 +1,22 @@
+# Dépendances
+node_modules/
+
+# Build
+dist/
+.vite/
+
+# Environnement — JAMAIS de secret dans Git
+.env
+.env.local
+.env.*.local
+
+# Bases PostgreSQL embarquées (développement / tests)
+.pgdata/
+.pgdata-rlstest/
+.pgdata-apitest/
+*.pgdata/
+
+# Divers
+.DS_Store
+*.log
+coverage/
