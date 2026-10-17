@@ -28,12 +28,19 @@ function PublicOnly({ children }) {
   return children;
 }
 
+function PricingRoute() {
+  const { status } = useAuth();
+  if (status === 'loading') return <LoadingPage />;
+  if (status === 'auth') return <RequireAuth><PricingPage /></RequireAuth>;
+  return <PricingPage standalone />;
+}
+
 export default function App() {
   return (
     <Routes>
       <Route path="/connexion" element={<PublicOnly><LoginPage /></PublicOnly>} />
       <Route path="/inscription" element={<PublicOnly><RegisterPage /></PublicOnly>} />
-      <Route path="/offres" element={<PricingPage standalone />} />
+      <Route path="/offres" element={<PricingRoute />} />
       <Route path="/" element={<RequireAuth><DashboardPage /></RequireAuth>} />
       <Route path="/chantiers" element={<RequireAuth><ProjectsPage /></RequireAuth>} />
       <Route path="/chantiers/:id" element={<RequireAuth><ProjectDetailPage /></RequireAuth>} />

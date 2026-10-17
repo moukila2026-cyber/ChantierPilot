@@ -214,6 +214,24 @@ export function LoadingPage({ label = 'Chargement…' }) {
   );
 }
 
+/** Pied de page commun — présent sur TOUTES les pages (marque Shopin30). */
+export function Footer({ dark = false }) {
+  return (
+    <footer
+      className={`mt-10 border-t px-4 py-5 text-center text-sm ${
+        dark ? 'border-white/10 text-slate-400' : 'border-slate-200 text-slate-500'
+      }`}
+    >
+      <p>
+        <span className={`font-bold tracking-wide ${dark ? 'text-amber-400' : 'text-slate-800'}`}>Shopin30</span>
+        <span className="mx-2 opacity-50" aria-hidden="true">·</span>
+        <span>ChantierPilot © {new Date().getFullYear()}</span>
+      </p>
+      <p className="mt-1 text-xs opacity-75">Gestion de chantiers BTP — Côte d'Ivoire</p>
+    </footer>
+  );
+}
+
 export function Toast({ toast, onClose }) {
   useEffect(() => {
     if (!toast) return undefined;

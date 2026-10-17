@@ -83,7 +83,7 @@ Détail complet : [docs/SECURITE.md](docs/SECURITE.md).
 2. Exécuter `node db/migrate.mjs` avec l'URL d'administration (crée schéma, RLS et le rôle `chantierpilot_app`).
 3. Déployer sur **Vercel** avec `DATABASE_URL` = URL du rôle **limité** `chantierpilot_app`.
 
-Guide pas à pas : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md) · [docs/INSTALLATION.md](docs/INSTALLATION.md).
+Guide pas à pas complet (de zéro au produit fini) : [docs/VERCEL_PAS_A_PAS.md](docs/VERCEL_PAS_A_PAS.md) · Détails : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md) · [docs/INSTALLATION.md](docs/INSTALLATION.md).
 Sauvegardes & exports : [docs/SAUVEGARDES.md](docs/SAUVEGARDES.md).
 Authentification managée (Neon Auth, optionnel) : [docs/NEON_AUTH.md](docs/NEON_AUTH.md).
 

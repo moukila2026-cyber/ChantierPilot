@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { Alert, Button, Card, Field, Input, PasswordInput } from '../components/ui.jsx';
+import { Alert, Button, Card, Field, Footer, Input, PasswordInput } from '../components/ui.jsx';
 
 const EMPTY = {
   company: { name: '', rccm: '', phone: '', email: '', address: '', city: 'Daloa' },
@@ -109,6 +109,7 @@ export default function RegisterPage() {
           Déjà un compte ?{' '}
           <Link to="/connexion" className="font-semibold text-amber-400 hover:text-amber-300">Se connecter</Link>
         </p>
+        <Footer dark />
       </div>
     </div>
   );

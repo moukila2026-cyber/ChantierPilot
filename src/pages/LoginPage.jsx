@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { Alert, Button, Card, Field, Input, PasswordInput } from '../components/ui.jsx';
+import { Alert, Button, Card, Field, Footer, Input, PasswordInput } from '../components/ui.jsx';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -75,6 +75,7 @@ export default function LoginPage() {
         <p className="mt-4 text-center text-xs text-slate-500">
           Vos données sont cloisonnées par entreprise et protégées par des politiques de sécurité au niveau de la base de données.
         </p>
+        <Footer dark />
       </div>
     </div>
   );

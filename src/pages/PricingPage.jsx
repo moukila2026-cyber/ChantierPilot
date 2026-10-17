@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Button } from '../components/ui.jsx';
+import { Button, Footer } from '../components/ui.jsx';
 
 const OFFERS = [
   {
@@ -104,6 +104,7 @@ export default function PricingPage({ standalone = false }) {
           <Link to="/connexion"><Button variant="secondary">Se connecter</Button></Link>
         </div>
       </div>
+      {!standalone && <Footer />}
     </div>
   );
 
@@ -123,6 +124,7 @@ export default function PricingPage({ standalone = false }) {
           </div>
         </header>
         {content}
+        <Footer />
       </div>
     );
   }

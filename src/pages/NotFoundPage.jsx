@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Button } from '../components/ui.jsx';
+import { Button, Footer } from '../components/ui.jsx';
 
 export default function NotFoundPage() {
   return (
@@ -12,6 +12,7 @@ export default function NotFoundPage() {
       <Link to="/" className="mt-6">
         <Button>Retour au tableau de bord</Button>
       </Link>
+      <Footer />
     </div>
   );
 }
