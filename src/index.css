@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --color-brand-50: #fffbeb;
+  --color-brand-100: #fef3c7;
+  --color-brand-200: #fde68a;
+  --color-brand-500: #f59e0b;
+  --color-brand-600: #d97706;
+  --color-brand-700: #b45309;
+  --color-ink: #0f172a;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  @apply bg-slate-100 text-slate-800 antialiased;
+  font-family: var(--font-sans);
+}
+
+/* Chiffres alignés dans les tableaux */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Barres de progression */
+.progress-track {
+  @apply h-2.5 w-full overflow-hidden rounded-full bg-slate-200;
+}
+.progress-fill {
+  @apply h-full rounded-full transition-all duration-500;
+}
+
+/* Accessibilité : focus visible */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-brand-600);
+  outline-offset: 2px;
+}
+
+/* Animation légère pour les modales */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in-up 0.18s ease-out;
+}
