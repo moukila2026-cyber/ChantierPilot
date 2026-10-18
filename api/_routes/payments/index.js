@@ -3,11 +3,11 @@
 // Un encaissement est une DÉCLARATION documentée : la référence (n° de reçu,
 // réf. de virement…) est exigée, et un justificatif peut être joint.
 
-import { withTenant } from '../_lib/db.js';
-import { paymentSchema, parseOrThrow, PAYMENT_METHOD_LABELS } from '../_lib/validate.js';
-import { decodeFileAttachment } from '../_lib/files.js';
-import { readJsonBody, sendJson, methodNotAllowed, handle, parseQuery, parsePagination, paginationMeta } from '../_lib/http.js';
-import { requireAuth, run, audit } from '../_lib/pipeline.js';
+import { withTenant } from '../../_lib/db.js';
+import { paymentSchema, parseOrThrow, PAYMENT_METHOD_LABELS } from '../../_lib/validate.js';
+import { decodeFileAttachment } from '../../_lib/files.js';
+import { readJsonBody, sendJson, methodNotAllowed, handle, parseQuery, parsePagination, paginationMeta } from '../../_lib/http.js';
+import { requireAuth, run, audit } from '../../_lib/pipeline.js';
 
 export default async function handler(req, res) {
   await handle(req, res, async () => {

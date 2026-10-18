@@ -1,10 +1,10 @@
 // GET /api/projects — liste des chantiers (avec totaux calculés en SQL).
 // POST /api/projects — création d'un chantier.
 
-import { withTenant } from '../_lib/db.js';
-import { projectCreateSchema, parseOrThrow, STATUS_LABELS, CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '../_lib/validate.js';
-import { readJsonBody, sendJson, methodNotAllowed, handle, parseQuery, parsePagination, paginationMeta } from '../_lib/http.js';
-import { requireAuth, run, audit } from '../_lib/pipeline.js';
+import { withTenant } from '../../_lib/db.js';
+import { projectCreateSchema, parseOrThrow, STATUS_LABELS, CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '../../_lib/validate.js';
+import { readJsonBody, sendJson, methodNotAllowed, handle, parseQuery, parsePagination, paginationMeta } from '../../_lib/http.js';
+import { requireAuth, run, audit } from '../../_lib/pipeline.js';
 
 export default async function handler(req, res) {
   await handle(req, res, async () => {

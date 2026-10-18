@@ -3,7 +3,9 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "regions": ["fra1"],
   "rewrites": [
+    { "source": "/api/:route*", "destination": "/api?__route=:route*" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [

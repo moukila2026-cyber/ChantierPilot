@@ -1,11 +1,11 @@
 // POST /api/auth/password — changement de mot de passe (vérifie l'ancien).
 
-import { withTenant } from '../_lib/db.js';
-import { hashPassword, verifyPassword } from '../_lib/auth.js';
-import { parseOrThrow, loginSchema } from '../_lib/validate.js';
+import { withTenant } from '../../_lib/db.js';
+import { hashPassword, verifyPassword } from '../../_lib/auth.js';
+import { parseOrThrow, loginSchema } from '../../_lib/validate.js';
 import { z } from 'zod';
-import { readJsonBody, sendJson, methodNotAllowed, handle, fail } from '../_lib/http.js';
-import { requireAuth, run, audit } from '../_lib/pipeline.js';
+import { readJsonBody, sendJson, methodNotAllowed, handle, fail } from '../../_lib/http.js';
+import { requireAuth, run, audit } from '../../_lib/pipeline.js';
 
 const passwordChangeSchema = z.object({
   current_password: z.string().min(1, 'Mot de passe actuel requis.').max(200),

@@ -1,9 +1,9 @@
 // GET /api/files?kind=expense|proof&id=uuid — téléchargement d'un justificatif.
 // Strictement limité aux pièces de l'entreprise connectée (RLS).
 
-import { withTenant } from './_lib/db.js';
-import { securityHeaders, fail, methodNotAllowed, handle } from './_lib/http.js';
-import { requireAuth, run } from './_lib/pipeline.js';
+import { withTenant } from '../_lib/db.js';
+import { securityHeaders, fail, methodNotAllowed, handle } from '../_lib/http.js';
+import { requireAuth, run } from '../_lib/pipeline.js';
 
 const KINDS = {
   expense: { table: 'expenses', column: 'receipt', nameCol: 'receipt_filename', mimeCol: 'receipt_mime' },

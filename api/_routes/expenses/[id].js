@@ -1,10 +1,10 @@
 // PATCH/DELETE /api/expenses/:id — modification ou suppression d'une dépense.
 
-import { withTenant } from '../_lib/db.js';
-import { expenseUpdateSchema, parseOrThrow, CATEGORY_LABELS } from '../_lib/validate.js';
-import { readJsonBody, sendJson, methodNotAllowed, handle, fail } from '../_lib/http.js';
-import { requireAuth, run, audit } from '../_lib/pipeline.js';
-import { decodeFileAttachment } from '../_lib/files.js';
+import { withTenant } from '../../_lib/db.js';
+import { expenseUpdateSchema, parseOrThrow, CATEGORY_LABELS } from '../../_lib/validate.js';
+import { readJsonBody, sendJson, methodNotAllowed, handle, fail } from '../../_lib/http.js';
+import { requireAuth, run, audit } from '../../_lib/pipeline.js';
+import { decodeFileAttachment } from '../../_lib/files.js';
 
 export default async function handler(req, res) {
   await handle(req, res, async () => {

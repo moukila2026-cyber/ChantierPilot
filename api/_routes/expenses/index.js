@@ -1,11 +1,11 @@
 // GET /api/expenses — liste des dépenses (filtres : chantier, catégorie, période).
 // POST /api/expenses — enregistrement d'une dépense (justificatif facultatif).
 
-import { withTenant } from '../_lib/db.js';
-import { expenseSchema, parseOrThrow, CATEGORY_LABELS } from '../_lib/validate.js';
-import { decodeFileAttachment } from '../_lib/files.js';
-import { readJsonBody, sendJson, methodNotAllowed, handle, parseQuery, parsePagination, paginationMeta, fail } from '../_lib/http.js';
-import { requireAuth, run, audit } from '../_lib/pipeline.js';
+import { withTenant } from '../../_lib/db.js';
+import { expenseSchema, parseOrThrow, CATEGORY_LABELS } from '../../_lib/validate.js';
+import { decodeFileAttachment } from '../../_lib/files.js';
+import { readJsonBody, sendJson, methodNotAllowed, handle, parseQuery, parsePagination, paginationMeta, fail } from '../../_lib/http.js';
+import { requireAuth, run, audit } from '../../_lib/pipeline.js';
 
 export default async function handler(req, res) {
   await handle(req, res, async () => {

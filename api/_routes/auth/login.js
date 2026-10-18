@@ -2,11 +2,11 @@
 // Lutte contre le force brute : limitation de débit + verrouillage de compte
 // persistant en base (failed_login_attempts / locked_until).
 
-import { bootQuery, withTenant } from '../_lib/db.js';
-import { verifyPassword, setSessionCookie, sha256hex, newSessionToken, SESSION_TTL_MS } from '../_lib/auth.js';
-import { loginSchema, parseOrThrow } from '../_lib/validate.js';
-import { readJsonBody, rateLimit, sendJson, fail, methodNotAllowed, handle } from '../_lib/http.js';
-import { run } from '../_lib/pipeline.js';
+import { bootQuery, withTenant } from '../../_lib/db.js';
+import { verifyPassword, setSessionCookie, sha256hex, newSessionToken, SESSION_TTL_MS } from '../../_lib/auth.js';
+import { loginSchema, parseOrThrow } from '../../_lib/validate.js';
+import { readJsonBody, rateLimit, sendJson, fail, methodNotAllowed, handle } from '../../_lib/http.js';
+import { run } from '../../_lib/pipeline.js';
 
 const GENERIC_ERROR = 'Adresse e-mail ou mot de passe incorrect.';
 

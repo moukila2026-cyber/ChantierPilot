@@ -51,11 +51,24 @@ async function createPool() {
     if (!neonConfig.webSocketConstructor && globalThis.WebSocket) {
       neonConfig.webSocketConstructor = globalThis.WebSocket;
     }
-    return new Pool({ connectionString: url, max: 5 });
+    return watchIdleErrors(new Pool({ connectionString: url, max: 5 }));
   }
 
   const ssl = /localhost|127\.0\.0\.1/.test(url) ? undefined : { rejectUnauthorized: true };
-  return new pg.Pool({ connectionString: url, max: 5, ssl });
+  return watchIdleErrors(new pg.Pool({ connectionString: url, max: 5, ssl }));
+}
+
+/**
+ * Neon met la base en veille après quelques minutes d'inactivité et coupe
+ * alors les connexions inactives. Sans écouteur, l'événement « error » du
+ * pool ferait planter l'instance serverless : on le journalise, le pool
+ * ouvrira une nouvelle connexion à la prochaine requête.
+ */
+function watchIdleErrors(pool) {
+  pool.on('error', (err) => {
+    console.warn('[db] connexion inactive fermée par le serveur :', err.message);
+  });
+  return pool;
 }
 
 export async function getPool() {

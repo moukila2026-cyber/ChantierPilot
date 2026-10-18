@@ -1,11 +1,11 @@
 // POST /api/auth/register — crée une entreprise + son compte administrateur.
 // Une seule transaction : entreprise, utilisateur, session, audit.
 
-import { withTenant } from '../_lib/db.js';
-import { hashPassword, setSessionCookie, sha256hex, newSessionToken, SESSION_TTL_MS } from '../_lib/auth.js';
-import { registerSchema, parseOrThrow } from '../_lib/validate.js';
-import { readJsonBody, rateLimit, sendJson, fail, methodNotAllowed, handle } from '../_lib/http.js';
-import { run, audit } from '../_lib/pipeline.js';
+import { withTenant } from '../../_lib/db.js';
+import { hashPassword, setSessionCookie, sha256hex, newSessionToken, SESSION_TTL_MS } from '../../_lib/auth.js';
+import { registerSchema, parseOrThrow } from '../../_lib/validate.js';
+import { readJsonBody, rateLimit, sendJson, fail, methodNotAllowed, handle } from '../../_lib/http.js';
+import { run, audit } from '../../_lib/pipeline.js';
 import crypto from 'node:crypto';
 
 export default async function handler(req, res) {

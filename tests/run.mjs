@@ -96,7 +96,11 @@ async function main() {
   process.env.NODE_ENV = 'test';
 
   await new Promise((resolve, reject) => {
-    const m = spawn(process.execPath, ['db/migrate.mjs'], { cwd: ROOT, stdio: 'inherit', env: process.env });
+    // Cible imposée explicitement : un éventuel DATABASE_URL_ADMIN du .env
+    // (base réelle) ne doit JAMAIS être migré par les tests.
+    const m = spawn(process.execPath, ['db/migrate.mjs'], {
+      cwd: ROOT, stdio: 'inherit', env: { ...process.env, DATABASE_URL_ADMIN: pgInst.url },
+    });
     m.on('exit', (code) => (code === 0 ? resolve() : reject(new Error('migration échouée'))));
   });
 
@@ -364,6 +368,21 @@ async function main() {
   const auditB = await B.get('/api/audit');
   check('Journal de B ne contient pas les actions de A',
     !auditB.data.audit.some((r) => String(r.summary).includes('Villa Cocody')));
+
+  // --- Profil entreprise (Paramètres → coordonnées reprises sur les PDF) ---
+  const compA = await A.get('/api/company');
+  check('Profil entreprise lisible (GET /api/company)', compA.status === 200
+    && compA.data.company.name === 'BTP Daloa Construction', `status ${compA.status}`);
+  const updA = await A.patch('/api/company', { phone: '+225 07 00 00 00 99', address: 'Quartier Commerce, Daloa' });
+  check('Profil entreprise modifiable (PATCH /api/company)', updA.status === 200
+    && updA.data.company.phone === '+225 07 00 00 00 99'
+    && updA.data.company.address === 'Quartier Commerce, Daloa', `status ${updA.status}`);
+  const compB = await B.get('/api/company');
+  check('Profil de B intact après la modification de A', compB.status === 200
+    && compB.data.company.name === 'Ets Kouassi Bâtiment'
+    && compB.data.company.phone !== '+225 07 00 00 00 99');
+  const badComp = await A.patch('/api/company', { email: 'pas-un-email' });
+  check('Profil entreprise : e-mail invalide refusé (422 + message FR)', badComp.status === 422 && !!badComp.data.error.message);
 
   // --- Verrouillage anti force brute ---
   const lockClient = new Client();

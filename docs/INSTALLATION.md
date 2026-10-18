@@ -29,7 +29,10 @@ L'API tourne avec le rôle **limité** `chantierpilot_app` (le RLS est donc rée
 
 ### Mode B — avec une base Neon (recommandé pour coller à la production)
 
-1. Créez un projet Neon, notez l'URL de connexion (format `postgresql://…neon.tech/…?sslmode=require`).
+> Utilisez une **branche Neon de développement** (ex. `dev`), jamais la production.
+> Le fichier `.env` est ignoré par Git ; il ne doit jamais être partagé.
+
+1. Créez une branche Neon `dev` et copiez son URL **propriétaire** en connexion directe (Neon → Connect, pooling désactivé).
 2. Créez le fichier `.env` (voir `.env.example`) :
 
 ```env
@@ -37,24 +40,16 @@ DATABASE_URL_ADMIN=postgresql://<propriétaire>:<motdepasse>@<ep>.neon.tech/neon
 APP_DB_PASSWORD=<mot_de_passe_solide_pour_le_rôle_app>
 ```
 
-3. Appliquez le schéma, les politiques RLS et créez le rôle applicatif :
-
-```bash
-node db/migrate.mjs
-```
-
-La migration est **idempotente** (relançable sans risque) et vérifie que le RLS est bien activé **et forcé** sur toutes les tables. Elle affiche l'URL à utiliser pour l'API :
-
-```env
-DATABASE_URL=postgresql://chantierpilot_app:<APP_DB_PASSWORD>@<ep>.neon.tech/neondb?sslmode=require
-API_PORT=8787
-```
-
-4. Lancez l'application :
+3. Lancez l'application :
 
 ```bash
 npm run dev
 ```
+
+`npm run dev` applique la migration avec `DATABASE_URL_ADMIN`, puis connecte l'API avec le
+rôle limité `chantierpilot_app` (URL construite avec `APP_DB_PASSWORD`). Pour migrer sans
+lancer l'application : `node db/migrate.mjs`. La migration est **idempotente**, vérifie que le
+RLS est activé **et forcé** partout, et n'affiche jamais de mot de passe.
 
 > **Jamais** mettez l'URL du propriétaire/superuser dans `DATABASE_URL` : l'API refuse
 > catégoriquement un rôle qui pourrait contourner le cloisonnement des entreprises
@@ -63,12 +58,14 @@ npm run dev
 ## 3. Tests
 
 ```bash
-npm run db:test-rls   # 22 tests d'isolation RLS (deux entreprises fictives)
-npm run test          # 55 tests d'intégration API (CRUD, calculs, permissions, exports, PDF…)
-npm run test:all      # les deux
+npm run db:test-rls     # 22 tests d'isolation RLS (deux entreprises fictives)
+npm run test:migration  # migration avec un propriétaire non superuser (comme Neon)
+npm run test:unit       # montants, pagination, PDF, routeur API, limite de fonctions Vercel
+npm run test            # 59 tests d'intégration API (CRUD, calculs, permissions, exports, PDF…)
+npm run test:all        # tout (obligatoire avant toute livraison)
 ```
 
-Les tests démarrent leur propre PostgreSQL isolé — ils ne touchent à aucune donnée existante.
+Les tests démarrent leur propre PostgreSQL isolé et imposent explicitement leur cible : ils ne touchent jamais la base indiquée dans `.env`.
 
 ## 4. Scripts disponibles
 
@@ -76,7 +73,7 @@ Les tests démarrent leur propre PostgreSQL isolé — ils ne touchent à aucune
 | --- | --- |
 | `npm run dev` | PostgreSQL local (si besoin) + migration + API + interface |
 | `npm run build` | Build de production (dans `dist/`) |
-| `npm run migrate` | Applique `db/schema.sql` + `db/rls.sql` sur `DATABASE_URL(_ADMIN)` |
+| `npm run migrate` | Applique `db/schema.sql` + `db/rls.sql` sur `DATABASE_URL_ADMIN` (à défaut `DATABASE_URL`) |
 | `npm run db:test-rls` | Vérifie l'isolation multi-entreprise au niveau SQL |
 | `npm run test` | Tests d'intégration de bout en bout |
 
@@ -84,9 +81,9 @@ Les tests démarrent leur propre PostgreSQL isolé — ils ne touchent à aucune
 
 | Variable | Usage | En production |
 | --- | --- | --- |
-| `DATABASE_URL` | Connexion de l'API — rôle **limité** `chantierpilot_app` | Obligatoire |
-| `DATABASE_URL_ADMIN` | Migrations uniquement (propriétaire) | Uniquement au déploiement/migration |
-| `APP_DB_PASSWORD` | Mot de passe du rôle applicatif (migration) | Migration uniquement |
+| `DATABASE_URL` | Connexion de l'API — rôle **limité** `chantierpilot_app` | **Seule** variable de base dans Vercel |
+| `DATABASE_URL_ADMIN` | Migrations uniquement (propriétaire) | Jamais dans Vercel — terminal de migration uniquement |
+| `APP_DB_PASSWORD` | Mot de passe du rôle applicatif (migration) | Jamais dans Vercel — terminal de migration uniquement |
 | `ALLOWED_ORIGINS` | Origines CSRF supplémentaires (CSV) | Optionnel |
 | `DB_DRIVER` | `neon` ou `pg` (auto-détection sinon) | Optionnel |
 
@@ -94,7 +91,8 @@ Les tests démarrent leur propre PostgreSQL isolé — ils ne touchent à aucune
 
 | Symptôme | Cause / solution |
 | --- | --- |
-| `DATABASE_URL est absente` | Créez `.env` (mode B) ou laissez `npm run dev` démarrer le PostgreSQL local (mode A) |
+| `DATABASE_URL_ADMIN est absente` (migration) | Exportez l'URL propriétaire dans le terminal ou renseignez `.env` (mode B) |
+| `permission denied for schema public` (migration) | Code antérieur à la V1.2 : mettez à jour le dépôt (`db/rls.sql` corrigé pour les propriétaires non superuser) |
 | `SÉCURITÉ — connexion refusée : … superuser ou BYPASSRLS` | `DATABASE_URL` utilise le propriétaire de la base. Utilisez le rôle `chantierpilot_app` créé par la migration |
 | `relation … does not exist` | Lancez `npm run migrate` |
 | Port déjà utilisé (55432, 8787, 5173) | Une ancienne session tourne encore : arrêtez-la ou changez `PG_PORT` / `API_PORT` |

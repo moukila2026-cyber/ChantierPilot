@@ -1,61 +1,65 @@
-# Déploiement sur Vercel + Neon
+# Déploiement sur Vercel + Neon (référence technique)
 
-## Étape 1 — Base Neon
+Procédure détaillée, écran par écran : [VERCEL_PAS_A_PAS.md](VERCEL_PAS_A_PAS.md).
+Plan d'ensemble (préproduction, sécurité, juridique, budget) : [PLAN_MISE_EN_PRODUCTION.md](PLAN_MISE_EN_PRODUCTION.md).
 
-1. Créez un projet sur [neon.tech](https://neon.tech) (région la plus proche, ex. `us-east-1` ou `eu-central-1`).
-2. Récupérez l'URL de connexion du **propriétaire** (`DATABASE_URL_ADMIN`).
-3. Créez un mot de passe solide pour le rôle applicatif (`APP_DB_PASSWORD`).
-4. Localement (ou dans une CI), appliquez la migration :
+## Architecture déployée
+
+| Élément | Détail |
+| --- | --- |
+| Interface | Build Vite statique (`dist/`), servie par le CDN Vercel |
+| API | **Une seule** fonction serverless : `api/index.js` → routeur `api/_lib/router.js` → gestionnaires `api/_routes/**` (dossier préfixé `_`, jamais déployé comme fonction). Compatible avec la limite de 12 fonctions du plan Hobby ; un test unitaire bloque tout dépassement |
+| Réécritures | `/api/:route*` → `/api?__route=:route*` ; tout le reste → `/index.html` (SPA) |
+| Région | `fra1` (Francfort), à aligner avec Neon `aws-eu-central-1` |
+| Base | Neon PostgreSQL, RLS activé **et forcé** sur toutes les tables |
+
+## Base Neon
 
 ```bash
-DATABASE_URL_ADMIN="postgresql://…neon.tech/neondb?sslmode=require" \
-APP_DB_PASSWORD="…" \
+# Saisie masquée — voir VERCEL_PAS_A_PAS.md, étape 4
+read -rs DATABASE_URL_ADMIN; export DATABASE_URL_ADMIN   # URL du propriétaire (neondb_owner), connexion directe
+read -rs APP_DB_PASSWORD;   export APP_DB_PASSWORD      # mot de passe du rôle limité
 node db/migrate.mjs
+unset DATABASE_URL_ADMIN APP_DB_PASSWORD
 ```
 
-La migration crée : les tables, les contraintes, les politiques RLS (activées **et forcées**), les rôles `chantierpilot_app` (connexion applicative) et `chantierpilot_definer` (fonctions d'authentification), et vérifie que rien n'échappe au RLS.
+La migration :
+- crée les tables, contraintes, politiques RLS et les rôles `chantierpilot_app` (connexion de l'API) et `chantierpilot_definer` (fonctions d'authentification) ;
+- vérifie que le RLS est forcé partout ;
+- n'affiche jamais de mot de passe. Elle affiche la cible (hôte, rôle) et un modèle d'URL applicative.
 
-Notez l'URL applicative affichée en fin de migration :
-`postgresql://chantierpilot_app:<APP_DB_PASSWORD>@…neon.tech/neondb?sslmode=require`
+Elle est testée en CI avec un propriétaire **non superuser** (`npm run test:migration`), comme sur Neon.
 
-## Étape 2 — Projet Vercel
+## Variables Vercel
 
-1. Poussez ce dépôt sur GitHub, puis « Import Project » sur [vercel.com](https://vercel.com).
-2. Framework détecté : **Vite** — aucune configuration de build à changer (`vercel.json` est fourni : rewrite SPA + en-têtes de sécurité).
-3. Dans *Settings → Environment Variables*, définissez :
+| Variable | Production | Preview |
+| --- | --- | --- |
+| `DATABASE_URL` | URL `chantierpilot_app` de la base de production (Sensitive) | URL `chantierpilot_app` de la branche `preprod` (Sensitive) |
+| `ALLOWED_ORIGINS` | optionnel (intégrations tierces uniquement) | optionnel |
 
-| Variable | Valeur |
-| --- | --- |
-| `DATABASE_URL` | URL du rôle **limité** `chantierpilot_app` (avec `sslmode=require`) |
-| `DATABASE_URL_ADMIN` | *(optionnel, oubliez-la si vous migrez depuis votre machine)* |
-| `APP_DB_PASSWORD` | *(idem)* |
+Aucune URL administrateur dans Vercel. L'intégration marketplace Neon n'est pas utilisée,
+car elle injecterait le rôle propriétaire.
 
-4. Déployez (`vercel --prod` ou le bouton Deploy).
+## Vérifications post-déploiement
 
-Vérifications post-déploiement :
+- `GET /api/health` → `{"status":"ok","database":"ok","driver":"neon",…}`
+- Parcours complet et test de cloisonnement en préproduction : [VERCEL_PAS_A_PAS.md](VERCEL_PAS_A_PAS.md), étape 8.
+- `npm run test:all` reste la référence du comportement (RLS, migration, unitaires, intégration).
 
-- `https://votre-app.vercel.app/api/health` → `{"status":"ok","database":"ok","driver":"neon"}`
-- Créez deux comptes de test (deux entreprises) et confirmez que chacun ne voit que ses chantiers.
-- `npm run db:test-rls` localement reste la référence du comportement RLS.
+## Sécurité envoyée par Vercel et par l'API
 
-## Étape 3 — Domaine & HTTPS
-
-- Ajoutez votre domaine dans Vercel (ex. `app.votre-entreprise.ci`) — HTTPS est automatique (HSTS est déjà envoyé par `vercel.json`).
-- Si vous ajoutez des origines spécifiques (intégrations), listez-les dans `ALLOWED_ORIGINS` (séparées par des virgules).
-
-## Ce qui est déjà configuré dans vercel.json
-
-- Rewrite SPA (`/index.html` sauf `/api/*`)
-- En-têtes de sécurité : CSP stricte, `X-Frame-Options: DENY`, HSTS 2 ans, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-*`
+- `vercel.json` (toutes les réponses) : CSP stricte, `X-Frame-Options: DENY`, HSTS 2 ans, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.
+- API, en plus : `Cross-Origin-Opener-Policy` et `Cross-Origin-Resource-Policy` (`same-origin`), `Cache-Control: no-store`.
+- Cookie de session `__Host-cp_session` (`Secure`, `HttpOnly`, `SameSite=Lax`) sur les déploiements Vercel, en production comme en prévisualisation.
 
 ## Mises à jour
 
-- **Code** : push sur la branche principale → déploiement automatique.
-- **Schéma** : relancez `node db/migrate.mjs` avec `DATABASE_URL_ADMIN` (idempotent).
-- **Mot de passe de la base** : `ALTER ROLE chantierpilot_app WITH PASSWORD '…'` puis mettez à jour `DATABASE_URL` sur Vercel.
+- **Code** : Pull Request → CI verte → vérification sur la prévisualisation → fusion dans `main` → production.
+- **Schéma** : migration sur `preprod`, puis production, **avant** de fusionner le code qui en dépend (idempotente).
+- **Mot de passe applicatif** : relancer la migration avec le nouvel `APP_DB_PASSWORD`, mettre à jour `DATABASE_URL` dans Vercel, redéployer.
 
 ## Limites connues (volontaires)
 
-- Pas de module lotissement, comptabilité complète ou paiement automatique dans la V1.
-- Les pièces jointes (justificatifs) sont stockées en base (2 Mo max) : comptez ~2,7 Mo en base64 dans les exports JSON ; pour de gros volumes, migrez vers un stockage objet et gardez l'URL en base.
-- La limitation de débit en mémoire est par instance serverless ; le verrouillage de compte, lui, est persistant en base (couvre le multi-instances).
+- Pas de module lotissement, comptabilité complète ou paiement automatique.
+- Justificatifs stockés en base (2 Mo max, JPEG/PNG/PDF). Pour de gros volumes, il faudra migrer vers un stockage objet en gardant une référence en base.
+- La limitation de débit en mémoire est propre à chaque instance ; le verrouillage de compte, lui, est persistant en base.

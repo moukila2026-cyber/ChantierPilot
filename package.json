@@ -12,9 +12,10 @@
     "preview": "vite preview",
     "migrate": "node db/migrate.mjs",
     "db:test-rls": "node db/test-rls.mjs",
+    "test:migration": "node tests/migration-neon.mjs",
     "test": "node tests/run.mjs",
     "test:unit": "node tests/unit.mjs",
-    "test:all": "npm run db:test-rls && npm run test:unit && npm run test"
+    "test:all": "npm run db:test-rls && npm run test:migration && npm run test:unit && npm run test"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.0",

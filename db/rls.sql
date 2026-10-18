@@ -187,11 +187,16 @@ END;
 $$;
 
 -- Propriétaire des fonctions = rôle défineur (porte d'accès minimale).
+-- PostgreSQL ≥ 15 exige que le NOUVEAU propriétaire ait CREATE sur le schéma.
+-- Un superuser contourne ce contrôle, pas le propriétaire Neon (neondb_owner) :
+-- le droit est accordé le temps du transfert puis retiré aussitôt.
+GRANT CREATE ON SCHEMA public TO chantierpilot_definer;
 ALTER FUNCTION api_lookup_user(TEXT)          OWNER TO chantierpilot_definer;
 ALTER FUNCTION api_lookup_session(TEXT)       OWNER TO chantierpilot_definer;
 ALTER FUNCTION api_fail_login(TEXT)           OWNER TO chantierpilot_definer;
 ALTER FUNCTION api_succeed_login(TEXT)        OWNER TO chantierpilot_definer;
 ALTER FUNCTION api_cleanup_sessions()         OWNER TO chantierpilot_definer;
+REVOKE CREATE ON SCHEMA public FROM chantierpilot_definer;
 
 REVOKE ALL ON FUNCTION api_lookup_user(TEXT)    FROM PUBLIC;
 REVOKE ALL ON FUNCTION api_lookup_session(TEXT) FROM PUBLIC;

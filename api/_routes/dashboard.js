@@ -1,9 +1,9 @@
 // GET /api/dashboard — indicateurs de l'entreprise, calculés CÔTÉ SQL.
 // Aucun montant n'est jamais calculé depuis le navigateur : la base fait foi.
 
-import { withTenant } from './_lib/db.js';
-import { sendJson, methodNotAllowed, handle } from './_lib/http.js';
-import { requireAuth, run } from './_lib/pipeline.js';
+import { withTenant } from '../_lib/db.js';
+import { sendJson, methodNotAllowed, handle } from '../_lib/http.js';
+import { requireAuth, run } from '../_lib/pipeline.js';
 
 export default async function handler(req, res) {
   await handle(req, res, async () => {
