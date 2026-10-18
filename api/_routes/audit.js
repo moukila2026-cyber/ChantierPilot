@@ -1,8 +1,8 @@
 // GET /api/audit — journal d'audit de l'entreprise (lecture seule).
 
-import { withTenant } from './_lib/db.js';
-import { sendJson, methodNotAllowed, handle, parseQuery, parsePagination, paginationMeta } from './_lib/http.js';
-import { requireAuth, run } from './_lib/pipeline.js';
+import { withTenant } from '../_lib/db.js';
+import { sendJson, methodNotAllowed, handle, parseQuery, parsePagination, paginationMeta } from '../_lib/http.js';
+import { requireAuth, run } from '../_lib/pipeline.js';
 
 export default async function handler(req, res) {
   await handle(req, res, async () => {

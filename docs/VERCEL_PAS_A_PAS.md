@@ -1,190 +1,231 @@
-# Vercel pas à pas — de zéro au produit fini
+# Vercel + Neon pas à pas — de zéro à l'application en ligne
 
-Ce guide mène **du dépôt GitHub vide jusqu'à l'application en production**, sans étape sautée. Comptez environ 45 minutes la première fois.
+Ce guide mène **d'aucun compte jusqu'à l'application en production**, avec une
+**préproduction** séparée. Comptez 1 h 30 la première fois.
+
+> Vue d'ensemble, budget, sécurité et obligations légales :
+> [PLAN_MISE_EN_PRODUCTION.md](PLAN_MISE_EN_PRODUCTION.md). Ce guide-ci est la partie technique.
+
+## Règles de sécurité (valables à chaque étape)
+
+- Un mot de passe, une URL de base de données ou un jeton ne se colle **que** dans :
+  la console Neon, la console Vercel, votre gestionnaire de mots de passe, ou votre
+  terminal au moment de la migration. **Jamais** dans un chat, un e-mail, WhatsApp,
+  un ticket, un document partagé ou Git.
+- Deux URL, deux usages :
+  - **URL administrateur** (rôle `neondb_owner`) → **uniquement** pour lancer la migration
+    depuis votre poste. Elle ne va **pas** dans Vercel.
+  - **URL applicative** (rôle limité `chantierpilot_app`) → **seule** valeur de `DATABASE_URL` dans Vercel.
+    L'API refuse de démarrer avec un rôle superuser ou BYPASSRLS.
+- **N'installez pas** l'intégration automatique « Neon » depuis la marketplace Vercel :
+  elle crée une `DATABASE_URL` avec le rôle propriétaire. On relie Neon à Vercel **à la main**.
 
 ---
 
-## Étape 0 — Ce qu'il faut avoir sous la main
+## Étape 0 — Comptes et outils
 
-| Élément | Rôle |
+| Élément | Rôle | Offre |
+| --- | --- | --- |
+| **GitHub** | Code (`moukila2026-cyber/ChantierPilot`) | existant |
+| **Neon** (https://console.neon.tech) | Base PostgreSQL | Free pour la préproduction ; **Launch** (payant à l'usage) avant les vrais clients pour 7 jours de restauration |
+| **Vercel** (https://vercel.com) | Hébergement | **Pro** pour un usage commercial (Hobby = usage personnel non commercial selon les conditions Vercel) |
+| **Node.js 22** sur votre poste | Lancer la migration | https://nodejs.org |
+| **Gestionnaire de mots de passe** (Bitwarden, 1Password, KeePassXC…) | Générer et garder les secrets | gratuit possible |
+
+---
+
+## Étape 1 — Le code
+
+- La branche `main` est celle que Vercel déploie en production.
+- On ne pousse **jamais** directement sur `main` : chaque évolution passe par une
+  Pull Request, avec CI verte (`npm ci`, `npm run build`, `npm run test:all`), puis fusion.
+- Chaque Pull Request reçoit automatiquement une **URL de prévisualisation** Vercel,
+  branchée sur la base de **préproduction** (étape 6).
+
+---
+
+## Étape 2 — Créer la base Neon (production + préproduction)
+
+1. https://console.neon.tech → **New project**.
+   - *Project name* : `chantierpilot`
+   - *Postgres version* : celle proposée par défaut (17 au moment de l'écriture)
+   - *Cloud provider / Region* : **AWS — Europe Central 1 (Frankfurt)**.
+     C'est la région la plus proche de la Côte d'Ivoire ; `vercel.json` place les
+     fonctions Vercel au même endroit (`fra1`).
+2. Le projet contient une branche principale (nommée `production` ou `main`) : c'est la **production**.
+3. **Branches → Create branch** → nom `preprod`, à partir de la branche principale.
+   C'est la **préproduction** (base séparée, mêmes réglages).
+
+---
+
+## Étape 3 — Préparer deux mots de passe applicatifs
+
+Dans votre gestionnaire de mots de passe, générez **deux** mots de passe différents :
+
+| Nom dans le gestionnaire | Usage |
 | --- | --- |
-| Un compte **GitHub** | Hébergement du code |
-| Un compte **Neon** (https://neon.tech) | Base PostgreSQL (offre gratuite suffisante pour démarrer) |
-| Un compte **Vercel** (https://vercel.com) | Hébergement de l'application (offre gratuite suffisante) |
-| Node.js ≥ 20 installé en local | Pour lancer la migration SQL |
+| `ChantierPilot — chantierpilot_app — PREPROD` | rôle limité, base `preprod` |
+| `ChantierPilot — chantierpilot_app — PROD` | rôle limité, base production |
+
+Règles : **24 caractères ou plus**, uniquement **lettres, chiffres, `-` et `_`**.
+Pas de `@`, `#`, `/`, `:`, `?` ni espace : ils casseraient l'URL de connexion.
 
 ---
 
-## Étape 1 — Le code sur GitHub
+## Étape 4 — Initialiser chaque base (migration)
 
-Le dépôt `moukila2026-cyber/ChantierPilot` contient **tout le code nécessaire** :
+La migration crée tables, contraintes, politiques RLS (activées **et forcées**) et les
+rôles `chantierpilot_app` / `chantierpilot_definer`. Elle est **idempotente** et
+vérifiée en CI avec un propriétaire non superuser, comme sur Neon.
 
-```
-api/        src/        db/        server/        tests/        docs/
-vercel.json  vite.config.js  package.json  package-lock.json  index.html
-.env.example  .gitignore  README.md
-```
+**4.1 — Récupérer l'URL administrateur de `preprod`** (à ne copier que dans le terminal) :
+Neon → **Connect** → *Branch* `preprod`, *Database* `neondb`, *Role* `neondb_owner`,
+**Connection pooling désactivé** (connexion directe) → copiez la chaîne.
 
-Vérification rapide : sur GitHub, le dépôt doit afficher ces dossiers à la racine
-et le fichier `vercel.json`. S'il manque quelque chose :
-
-```bash
-git status                # ne doit rien rester d'important non commité
-git push origin main      # le code complet est sur la branche principale
-```
-
-> `node_modules/`, `.env` et `.pgdata/` sont volontairement ignorés (`.gitignore`) :
-> jamais de secret ni de base de données dans Git.
-
----
-
-## Étape 2 — Créer la base de données (Neon)
-
-1. Allez sur **https://console.neon.tech** → **Create project**.
-2. Choisissez :
-   - **Region** : la plus proche de vos clients (`us-east-1` ou `eu-central-1`).
-   - **PostgreSQL** : version proposée par défaut.
-3. Cliquez sur **Connection Details** et notez l'URL de connexion
-   (elle ressemble à `postgresql://neondb_owner:XXXX@ep-xxxx.aws.neon.tech/neondb?sslmode=require`).
-   C'est votre **`DATABASE_URL_ADMIN`** — la clé d'administration, **réservée aux migrations**.
-4. Inventez un mot de passe solide pour le rôle applicatif : c'est votre **`APP_DB_PASSWORD`**
-   (12 caractères minimum : lettres, chiffres, `- _ . ! @ #`).
-
----
-
-## Étape 3 — Initialiser la base (migration)
-
-Depuis votre machine (ou n'importe quel poste avec le code) :
+**4.2 — Lancer la migration sur votre poste**
 
 ```bash
 git clone https://github.com/moukila2026-cyber/ChantierPilot.git
 cd ChantierPilot
-npm install
+npm ci
 
-DATABASE_URL_ADMIN="postgresql://neondb_owner:XXXX@ep-xxxx.aws.neon.tech/neondb?sslmode=require" \
-APP_DB_PASSWORD="VotreMotDePasseSolide" \
+# Saisie masquée : rien n'apparaît à l'écran ni dans l'historique du terminal.
+read -rs -p "URL administrateur Neon : " DATABASE_URL_ADMIN; echo; export DATABASE_URL_ADMIN
+read -rs -p "Mot de passe chantierpilot_app : " APP_DB_PASSWORD; echo; export APP_DB_PASSWORD
 node db/migrate.mjs
+unset DATABASE_URL_ADMIN APP_DB_PASSWORD
 ```
 
-✅ La migration est **idempotente** : vous pouvez la relancer sans risque à chaque
-évolution du schéma. À la fin, elle affiche l'URL **applicative** à utiliser :
+> Windows (PowerShell) : `$env:DATABASE_URL_ADMIN = Read-Host "URL administrateur Neon"`,
+> puis `$env:APP_DB_PASSWORD = Read-Host "Mot de passe chantierpilot_app"`, puis
+> `node db/migrate.mjs`, puis fermez la fenêtre PowerShell.
+
+**Contrôlez la ligne `· Cible :`** avant tout : elle affiche l'hôte et le rôle, sans mot de passe.
+L'hôte de `preprod` est différent de celui de la production.
+
+Le script se termine par une URL du type :
 
 ```
-DATABASE_URL=postgresql://chantierpilot_app:VotreMotDePasseSolide@ep-xxxx.aws.neon.tech/neondb?sslmode=require
+DATABASE_URL=postgresql://chantierpilot_app:<APP_DB_PASSWORD>@ep-xxxx.eu-central-1.aws.neon.tech/neondb?sslmode=require
 ```
 
-**Copiez-la précieusement** — c'est elle qui va dans Vercel. Elle utilise le rôle
-**limité** `chantierpilot_app` : même avec cette clé, impossible de contourner le
-cloisonnement entre entreprises (et l'API refuse de démarrer avec une clé
-superuser, par sécurité).
+**4.3 — Recommencer 4.1 et 4.2 pour la branche de production**, avec le mot de passe `PROD`.
+
+**4.4 — Construire les deux URL applicatives** (dans le gestionnaire de mots de passe, pas ailleurs) :
+- Neon → **Connect** → branche voulue, rôle `neondb_owner`, **Connection pooling activé**
+  (l'hôte contient `-pooler`, recommandé pour Vercel).
+- Remplacez `neondb_owner:<mot de passe du propriétaire>` par
+  `chantierpilot_app:<mot de passe PREPROD ou PROD>`.
+- Gardez le reste à l'identique (`?sslmode=require…`).
+- Enregistrez-les sous `DATABASE_URL — PREPROD` et `DATABASE_URL — PROD`.
 
 ---
 
-## Étape 4 — Créer le projet sur Vercel
+## Étape 5 — Créer le projet Vercel
 
-1. Allez sur **https://vercel.com/new**.
-2. **Import Git Repository** → sélectionnez `ChantierPilot` (autorisez Vercel
-   à accéder au dépôt GitHub si demandé).
-3. Vercel détecte automatiquement **Vite** — ne changez rien :
-   - *Framework Preset* : Vite
-   - *Build Command* : `npm run build`
-   - *Output Directory* : `dist`
-   - (*vercel.json* configure déjà les rewrites SPA et les en-têtes de sécurité)
-4. **Ne cliquez pas encore sur Deploy** : d'abord les variables d'environnement.
+1. https://vercel.com/new → **Import Git Repository** → GitHub.
+   Si Vercel demande d'installer son application GitHub, choisissez
+   **Only select repositories** → `ChantierPilot` (accès minimal).
+2. Réglages détectés (ne rien changer) : *Framework* **Vite**, *Root Directory* `./`,
+   *Build Command* `npm run build`, *Output Directory* `dist`.
+3. **Ne cliquez pas encore sur Deploy** : ouvrez *Environment Variables* (étape 6).
 
 ---
 
-## Étape 5 — Variables d'environnement (l'étape qui ne doit pas être oubliée)
+## Étape 6 — Variables d'environnement (le point critique)
 
-Dans le projet Vercel : **Settings → Environment Variables**, ajoutez :
+| Name | Value | Environnement | Option |
+| --- | --- | --- | --- |
+| `DATABASE_URL` | `DATABASE_URL — PROD` (rôle `chantierpilot_app`) | **Production** uniquement | **Sensitive** |
+| `DATABASE_URL` | `DATABASE_URL — PREPROD` (rôle `chantierpilot_app`) | **Preview** uniquement | **Sensitive** |
 
-| Name | Value | Environments |
-| --- | --- | --- |
-| `DATABASE_URL` | l'URL `chantierpilot_app` de l'étape 3 | Production, Preview, Development |
-| `APP_DB_PASSWORD` | le mot de passe de l'étape 2 *(optionnel, utile pour migrer depuis la CI)* | Production |
-| `DATABASE_URL_ADMIN` | *(optionnel — seulement si vous lancez les migrations depuis Vercel)* | — **jamais en Production si vous ne l'utilisez pas** |
+**Rien d'autre.** Pas de `DATABASE_URL_ADMIN`, pas de `APP_DB_PASSWORD` dans Vercel :
+les migrations se lancent depuis votre poste (étape 4).
 
-Puis **Save**.
+Si le projet a déjà été créé, passez par **Settings → Environment Variables** pour ajouter ces variables,
+puis redéployez.
 
-> 🔐 Rappel : `DATABASE_URL_ADMIN` est une clé d'administration. Idéalement, elle
-> ne vit que sur votre machine de migration. Le navigateur de vos utilisateurs ne
-> reçoit **aucune** de ces clés : les requêtes passent par les fonctions serverless.
-
----
-
-## Étape 6 — Premier déploiement
-
-1. Cliquez sur **Deploy** (ou `vercel --prod` depuis la CLI).
-2. Vercel installe les dépendances, build `dist/`, publie les fonctions `api/*`.
-3. Environ 1 minute plus tard, l'URL `https://chantierpilot-xxxx.vercel.app` est en ligne.
+Réglages complémentaires :
+- **Settings → Build and Deployment → Node.js Version** : `22.x`.
+- **Settings → Deployment Protection** : laissez **Vercel Authentication** actif pour les
+  prévisualisations. La préproduction n'est alors visible que par les membres du projet.
 
 ---
 
-## Étape 7 — Vérifications « produit fini » (10 minutes)
+## Étape 7 — Déployer
 
-Ouvrez l'URL et validez chaque point :
+1. Cliquez sur **Deploy**. Vercel installe, construit `dist/` et publie **une seule
+   fonction** `api/index.js` qui sert toutes les URL `/api/...` (compatible avec
+   la limite de 12 fonctions du plan Hobby).
+2. Une Pull Request ouverte produit une **prévisualisation** (base `preprod`).
+   La fusion dans `main` déclenche la **production**.
+
+---
+
+## Étape 8 — Vérifications
+
+### En préproduction (URL de prévisualisation d'une Pull Request) — parcours complet, données fictives
 
 | # | Vérification | Attendu |
 | --- | --- | --- |
-| 1 | `https://votre-app.vercel.app/api/health` | `{"status":"ok","database":"ok","driver":"neon"}` |
-| 2 | Créer le compte de **l'entreprise A** (inscription) | Accès au tableau de bord |
-| 3 | Créer un chantier + une dépense + un encaissement | Tout s'affiche, montants en FCFA |
-| 4 | Télécharger le **rapport PDF** du chantier | PDF avec le nom et les coordonnées de l'entreprise A |
-| 5 | Exporter un **CSV** (Paramètres) | Fichier s'ouvre dans Excel avec les bonnes colonnes |
-| 6 | Se déconnecter, créer le compte de **l'entreprise B** avec un autre e-mail | B ne voit **aucun** chantier de A |
-| 7 | Noter l'URL d'un chantier de A, la coller en étant connecté sur B | Message « Chantier introuvable » |
-| 8 | Test sur téléphone (ou redimensionner le navigateur) | Menu mobile, tableaux lisibles |
-| 9 | Essayez 10 mauvais mots de passe | Compte temporairement verrouillé (anti-force brute) |
-| 10 | `npm run test:all` en local (si évolution du code) | 55 + 22 tests verts |
+| 1 | `…/api/health` | `{"status":"ok","database":"ok","driver":"neon",…}` |
+| 2 | Inscription de **l'entreprise A** (données fictives) | Accès au tableau de bord |
+| 3 | Chantier + dépense + encaissement **sans** justificatif | L'encaissement est affiché « Déclaré », **pas** « Prouvé » |
+| 4 | Joindre un justificatif (PDF/JPG/PNG, 2 Mo max) à l'encaissement | Il passe à « Prouvé » ; le fichier se rouvre |
+| 5 | Rapport **PDF** du chantier | Coordonnées de A, montants en FCFA entiers et en lettres |
+| 6 | Exports **CSV** et **JSON** (Paramètres) | S'ouvrent dans Excel ; seulement les données de A |
+| 7 | Déconnexion → inscription de **l'entreprise B** | B ne voit **aucune** donnée de A |
+| 8 | Coller l'URL d'un chantier de A en étant connecté sur B | « Chantier introuvable » |
+| 9 | Pied de page sur chaque page | « SHOPIN30 » et `+225 05 01 30 33 43` cliquable |
+| 10 | Téléphone (ou fenêtre étroite) | Menu mobile, tableaux lisibles |
+| 11 | 10 mauvais mots de passe | Verrouillage temporaire |
+| 12 | Outils du navigateur → cookie de session | `__Host-cp_session`, `Secure`, `HttpOnly` |
 
-Les points 6 et 7 sont **le test d'isolation entre entreprises** : ne passez pas
-en production sans les avoir faits.
+Les points 7 et 8 sont **le test de cloisonnement entre entreprises** : pas de
+production sans eux.
 
----
+### En production (après fusion)
 
-## Étape 8 — Domaine personnalisé (optionnel mais recommandé)
-
-1. Vercel → **Settings → Domains** → ajoutez `app.votre-entreprise.ci` (ou `.com`).
-2. Chez votre registrar (ou votre hébergeur de domaine), créez le **CNAME**
-   indiqué par Vercel (`cname.vercel-dns.com`) ou l'enregistrement **A** proposé.
-3. Attendez la propagation DNS (quelques minutes à quelques heures).
-4. HTTPS est automatique (certificat Let's Encrypt) et **HSTS est déjà activé**
-   par `vercel.json`.
+1. `https://<projet>.vercel.app/api/health` → `"database":"ok"`, `"driver":"neon"`.
+2. Page d'accueil, connexion, CGU et pied de page s'affichent.
+3. Le premier compte réel est créé **après** les étapes juridiques du plan.
 
 ---
 
-## Étape 9 — Exploitation au quotidien
+## Étape 9 — Domaine personnalisé (recommandé)
+
+1. Vercel → **Settings → Domains** → ajoutez par exemple `app.votre-domaine.ci`.
+2. Chez le gestionnaire du domaine, créez l'enregistrement **exactement** indiqué par
+   Vercel (CNAME pour un sous-domaine, A pour le domaine nu).
+3. Attendez la propagation, puis vérifiez le cadenas HTTPS. HSTS est déjà envoyé.
+4. Le contrôle anti-CSRF compare l'origine à l'hôte appelé : rien à configurer pour
+   un domaine servi par Vercel. `ALLOWED_ORIGINS` ne sert qu'aux intégrations tierces.
+
+---
+
+## Étape 10 — Exploitation
 
 | Action | Comment |
 | --- | --- |
-| Mettre à jour l'application | `git push` sur `main` → déploiement automatique |
-| Évoluer le schéma SQL | Modifier `db/schema.sql` / `db/rls.sql`, relancer `node db/migrate.mjs` avec `DATABASE_URL_ADMIN` |
-| Sauvegarder les données | `pg_dump` quotidien + PITR Neon (voir docs/SAUVEGARDES.md) |
-| Surveiller | Vercel → Observability (logs des fonctions `api/*`) ; alertez sur les pics de 401/429 |
-| Ajouter un utilisateur à une entreprise | Pour l'instant : création de compte + rattachement (V1 = 1 entreprise = 1 compte admin) |
-| Importer les données d'un client | Voir docs/SAUVEGARDES.md §4 — **après** avoir validé les tests ci-dessus |
+| Mettre à jour l'application | Pull Request → CI verte → test sur la prévisualisation → fusion |
+| Faire évoluer le schéma SQL | Migration (étape 4) sur `preprod`, vérification, **puis** production, **avant** de fusionner le code qui en dépend |
+| Sauvegarder | Voir [SAUVEGARDES.md](SAUVEGARDES.md) |
+| Surveiller | Vercel → Logs / Observability ; alerte sur les pics de 401, 429 et 5xx |
+| Changer un mot de passe de base | Relancer la migration avec le nouvel `APP_DB_PASSWORD`, puis mettre à jour `DATABASE_URL` dans Vercel et redéployer |
 
 ---
 
-## Étape 10 — Checklist finale avant de remettre à un client
-
-- [ ] `npm run test:all` vert (RLS + intégration)
-- [ ] Les 10 vérifications de l'étape 7 faites sur l'URL de production
-- [ ] Sauvegarde `pg_dump` de la base configurée (plan récurrent)
-- [ ] Identifiants du client créés, mot de passe transmis par canal sûr
-- [ ] Coordonnées de l'entreprise renseignées dans **Paramètres** (elles apparaissent sur le PDF)
-- [ ] Domaine personnalisé + HTTPS actifs
-- [ ] Aucune clé `DATABASE_URL_ADMIN` dans les variables inutiles de Vercel
-
----
-
-## Dépannage rapide
+## Dépannage
 
 | Symptôme | Cause → solution |
 | --- | --- |
-| `503` avec le message « SÉCURITÉ — connexion refusée » | `DATABASE_URL` pointe vers le propriétaire → utilisez l'URL `chantierpilot_app` |
-| `503` « DATABASE_URL est absente » | Variable non définie sur **tous** les environnements (Production + Preview) |
-| Page blanche après déploiement | `vercel.json` manquant ou build non terminé → vérifiez les logs du build |
-| `403 « origine_refusee » » | Domaine personnalisé ajouté : ajoutez-le dans `ALLOWED_ORIGINS` si besoin (rare) |
-| PDF vide ou erreur 500 | Vérifiez les logs de la fonction `api/projects/[id]/report` dans Vercel |
-| Les données d'un client n'apparaissent pas | Vérifiez qu'il est bien connecté à SA fiche entreprise (un compte = une entreprise) |
+| `503` « SÉCURITÉ — connexion refusée » | `DATABASE_URL` utilise le propriétaire → mettez l'URL `chantierpilot_app` |
+| `503` « DATABASE_URL est absente » | Variable manquante pour cet environnement (Production **ou** Preview) → ajoutez-la puis redéployez |
+| `/api/health` → `"database":"indisponible"` | Mot de passe ou hôte erroné dans l'URL, ou caractère spécial non encodé |
+| Migration : « DATABASE_URL_ADMIN est absente » | Variable non exportée dans **ce** terminal |
+| Migration : « doit utiliser l'URL du PROPRIÉTAIRE » | Vous avez fourni l'URL `chantierpilot_app` → prenez l'URL `neondb_owner` |
+| Migration : « password authentication failed » | URL administrateur incomplète ou mot de passe du propriétaire réinitialisé dans Neon |
+| Échec « No more than 12 Serverless Functions » | Un fichier a été ajouté hors de `api/_routes/` → le test unitaire le signale |
+| Page blanche | Build non terminé ou `vercel.json` modifié → logs du build |
+| `403 origine_refusee` | Appel depuis un autre domaine → ajoutez-le à `ALLOWED_ORIGINS` si c'est légitime |
+| PDF en erreur | Logs de la fonction `api/index.js` dans Vercel (chemin `/api/projects/<id>/report`) |

@@ -1,9 +1,9 @@
 // GET /api/projects/:id/report — rapport PDF du chantier (identité entreprise incluse).
 
-import { withTenant } from '../../_lib/db.js';
-import { buildProjectReport } from '../../_lib/pdf.js';
-import { securityHeaders, fail, methodNotAllowed, handle } from '../../_lib/http.js';
-import { requireAuth, run } from '../../_lib/pipeline.js';
+import { withTenant } from '../../../_lib/db.js';
+import { buildProjectReport } from '../../../_lib/pdf.js';
+import { securityHeaders, fail, methodNotAllowed, handle } from '../../../_lib/http.js';
+import { requireAuth, run } from '../../../_lib/pipeline.js';
 
 export default async function handler(req, res) {
   await handle(req, res, async () => {

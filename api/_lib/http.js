@@ -1,7 +1,17 @@
 // Pipeline HTTP commun : en-têtes de sécurité, réponses JSON, contrôle
 // d'origine (anti-CSRF), limitation de débit, lecture de corps.
 
-const IS_PROD = process.env.NODE_ENV === 'production';
+/**
+ * Environnement déployé ? NODE_ENV=production, ou déploiement Vercel
+ * (production comme préproduction) : cookie Secure/__Host-, HSTS et CSP.
+ */
+export function isProductionEnv(env = process.env) {
+  return env.NODE_ENV === 'production'
+    || env.VERCEL_ENV === 'production'
+    || env.VERCEL_ENV === 'preview';
+}
+
+const IS_PROD = isProductionEnv();
 
 export const MAX_BODY_BYTES = 3 * 1024 * 1024; // corps JSON max (justificatifs inclus)
 

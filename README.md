@@ -31,25 +31,27 @@ npm install
 npm run dev
 ```
 
-Sans `DATABASE_URL`, `npm run dev` démarre un **PostgreSQL embarqué local** (binaires officiels, données dans `.pgdata/`), applique le schéma et les politiques RLS, puis lance l'API et l'interface. Pour un développement réel sur Neon, renseignez `.env` (voir [docs/INSTALLATION.md](docs/INSTALLATION.md)).
+Sans base configurée (ni `DATABASE_URL` ni `DATABASE_URL_ADMIN`), `npm run dev` démarre un **PostgreSQL embarqué local** (binaires officiels, données dans `.pgdata/`), applique le schéma et les politiques RLS, puis lance l'API et l'interface. Pour un développement réel sur Neon, renseignez `.env` (voir [docs/INSTALLATION.md](docs/INSTALLATION.md)).
 
 ```bash
-npm run test        # 55 tests d'intégration API (deux entreprises, permissions, calculs, exports, PDF…)
-npm run db:test-rls # 22 tests d'isolation RLS avec deux entreprises fictives
-npm run build       # build de production (Vite)
+npm run test:all        # toutes les suites ci-dessous (à lancer avant toute livraison)
+npm run db:test-rls     # 22 tests d'isolation RLS avec deux entreprises fictives
+npm run test:migration  # migration avec un propriétaire NON superuser, comme sur Neon
+npm run test:unit       # montants en lettres, pagination, PDF, routeur et limites Vercel
+npm run test            # 59 tests d'intégration API (deux entreprises, permissions, calculs, exports, PDF…)
+npm run build           # build de production (Vite)
 ```
 
-> Les deux suites de tests tournent sur un vrai PostgreSQL — pas de simulateur.
+> Les suites tournent sur un vrai PostgreSQL — pas de simulateur.
 
 ## Architecture
 
 ```
-├── api/                    # Fonctions serverless (Vercel) — UNIQUE accès à la base
-│   ├── _lib/               #   db, auth (scrypt), validation (zod), PDF, CSV, sécurité
-│   ├── auth/               #   inscription, connexion, session, mot de passe
-│   ├── projects/           #   chantiers + rapport PDF
-│   ├── expenses/ payments/ #   dépenses et encaissements
-│   └── …                   #   tableau de bord, exports, fichiers, audit, santé
+├── api/                    # API serverless (Vercel) — UNIQUE accès à la base
+│   ├── index.js            #   la seule fonction déployée (toutes les URL /api/…)
+│   ├── _lib/               #   routeur, db, auth (scrypt), validation (zod), PDF, CSV, sécurité
+│   └── _routes/            #   gestionnaires : auth, chantiers + PDF, dépenses, encaissements,
+│                           #   tableau de bord, exports, fichiers, audit, santé
 ├── src/                    # Application React (Vite + Tailwind) — aucun secret
 ├── db/
 │   ├── schema.sql          # Schéma PostgreSQL (contraintes CHECK, relations)
@@ -57,7 +59,7 @@ npm run build       # build de production (Vite)
 │   ├── migrate.mjs         # Migration idempotente + vérification RLS forcée
 │   └── test-rls.mjs        # Test d'isolation : deux entreprises, accès croisés
 ├── server/                 # Serveur API local + PostgreSQL embarqué (dev/tests)
-├── tests/run.mjs           # Tests d'intégration de bout en bout
+├── tests/                  # Intégration de bout en bout, unitaires, migration « comme Neon »
 └── docs/                   # Installation, déploiement, sécurité, sauvegardes
 ```
 
@@ -79,10 +81,11 @@ Détail complet : [docs/SECURITE.md](docs/SECURITE.md).
 
 ## Déploiement (production)
 
-1. Créer une base **Neon** (PostgreSQL).
-2. Exécuter `node db/migrate.mjs` avec l'URL d'administration (crée schéma, RLS et le rôle `chantierpilot_app`).
-3. Déployer sur **Vercel** avec `DATABASE_URL` = URL du rôle **limité** `chantierpilot_app`.
+1. Créer une base **Neon** (PostgreSQL) — sans l'intégration automatique Vercel, qui injecterait l'URL du propriétaire.
+2. Exécuter `node db/migrate.mjs` avec `DATABASE_URL_ADMIN` (crée schéma, RLS et le rôle `chantierpilot_app`).
+3. Déployer sur **Vercel** avec `DATABASE_URL` = URL du rôle **limité** `chantierpilot_app` — jamais l'URL administrateur.
 
+**Plan complet (préproduction, sécurité, juridique, sauvegardes, budget) : [docs/PLAN_MISE_EN_PRODUCTION.md](docs/PLAN_MISE_EN_PRODUCTION.md).**
 Guide pas à pas complet (de zéro au produit fini) : [docs/VERCEL_PAS_A_PAS.md](docs/VERCEL_PAS_A_PAS.md) · Détails : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md) · [docs/INSTALLATION.md](docs/INSTALLATION.md).
 Sauvegardes & exports : [docs/SAUVEGARDES.md](docs/SAUVEGARDES.md).
 Authentification managée (Neon Auth, optionnel) : [docs/NEON_AUTH.md](docs/NEON_AUTH.md).
@@ -101,7 +104,7 @@ Services complémentaires : site web professionnel à partir de **100 000 FCFA**
 ## Technologies
 
 - **Frontend** : React 19 + Vite, Tailwind CSS v4, React Router — responsive mobile/tablette/ordinateur
-- **Backend** : fonctions serverless Vercel (Node.js), validation zod, rapports PDF (pdfkit)
+- **Backend** : une fonction serverless Vercel (Node.js 22) avec routeur interne, validation zod, rapports PDF (pdfkit)
 - **Base** : Neon PostgreSQL — `@neondatabase/serverless` (WebSocket) ou `pg` (TCP), RLS forcée
 - **Devise** : FCFA (XOF), montants en entiers — aucune décimale
 - **Langue** : français (interface, messages d'erreur, rapports)

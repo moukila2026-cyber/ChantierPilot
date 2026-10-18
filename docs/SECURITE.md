@@ -107,7 +107,7 @@ Double barrière — serveur (zod, messages français) **et** base (contraintes 
 
 ```bash
 npm run db:test-rls   # isolation multi-entreprise (22 assertions SQL)
-npm run test          # parcours complet API (55 assertions, dont permissions croisées)
+npm run test          # parcours complet API (59 assertions, dont permissions croisées)
 ```
 
 Ces deux suites doivent rester **vertes avant toute mise en production et avant

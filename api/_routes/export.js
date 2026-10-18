@@ -3,11 +3,11 @@
 // scope=all&format=json produit une sauvegarde structurée complète
 // (hors binaires de justificatifs — voir docs/SAUVEGARDES.md).
 
-import { withTenant } from './_lib/db.js';
-import { toCsv, sendCsv } from './_lib/csv.js';
-import { securityHeaders, fail, methodNotAllowed, handle } from './_lib/http.js';
-import { requireAuth, run } from './_lib/pipeline.js';
-import { CATEGORY_LABELS, STATUS_LABELS, PAYMENT_METHOD_LABELS } from './_lib/validate.js';
+import { withTenant } from '../_lib/db.js';
+import { toCsv, sendCsv } from '../_lib/csv.js';
+import { securityHeaders, fail, methodNotAllowed, handle } from '../_lib/http.js';
+import { requireAuth, run } from '../_lib/pipeline.js';
+import { CATEGORY_LABELS, STATUS_LABELS, PAYMENT_METHOD_LABELS } from '../_lib/validate.js';
 
 function fmtDate(d) {
   return d ? new Date(d).toISOString().slice(0, 10) : '';

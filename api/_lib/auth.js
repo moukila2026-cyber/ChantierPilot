@@ -6,6 +6,7 @@
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 import { bootQuery, withTenant } from './db.js';
+import { isProductionEnv } from './http.js';
 
 const scrypt = promisify(crypto.scrypt);
 
@@ -18,7 +19,7 @@ export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 jours, glissant
 
 export function cookieName() {
   // Préfixe __Host- exige Secure + Path=/ + pas de Domain → durcissement réel.
-  return process.env.NODE_ENV === 'production' ? SESSION_COOKIE : SESSION_COOKIE_DEV;
+  return isProductionEnv() ? SESSION_COOKIE : SESSION_COOKIE_DEV;
 }
 
 export async function hashPassword(password) {
@@ -65,13 +66,13 @@ export function parseCookies(req) {
 
 export function setSessionCookie(res, token) {
   const maxAge = Math.floor(SESSION_TTL_MS / 1000);
-  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  const secure = isProductionEnv() ? '; Secure' : '';
   res.setHeader('Set-Cookie',
     `${cookieName()}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`);
 }
 
 export function clearSessionCookie(res) {
-  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  const secure = isProductionEnv() ? '; Secure' : '';
   res.setHeader('Set-Cookie', `${cookieName()}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`);
 }
 

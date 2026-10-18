@@ -1,8 +1,8 @@
 // GET /api/health — état du service (aucune donnée sensible).
 // Permet de savoir si la base est configurée et quel pilote est actif.
 
-import { bootQuery, driverName } from './_lib/db.js';
-import { sendJson, methodNotAllowed, handle } from './_lib/http.js';
+import { bootQuery, driverName } from '../_lib/db.js';
+import { sendJson, methodNotAllowed, handle } from '../_lib/http.js';
 
 export default async function handler(req, res) {
   await handle(req, res, async () => {

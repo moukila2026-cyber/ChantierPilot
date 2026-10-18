@@ -1,10 +1,10 @@
 // GET /api/projects/:id — fiche complète (infos, totaux, historique chronologique).
 // PATCH /api/projects/:id — modification / archivage / réouverture.
 
-import { withTenant } from '../_lib/db.js';
-import { projectUpdateSchema, parseOrThrow, STATUS_LABELS, CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '../_lib/validate.js';
-import { readJsonBody, sendJson, methodNotAllowed, handle, fail } from '../_lib/http.js';
-import { requireAuth, run, audit } from '../_lib/pipeline.js';
+import { withTenant } from '../../_lib/db.js';
+import { projectUpdateSchema, parseOrThrow, STATUS_LABELS, CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '../../_lib/validate.js';
+import { readJsonBody, sendJson, methodNotAllowed, handle, fail } from '../../_lib/http.js';
+import { requireAuth, run, audit } from '../../_lib/pipeline.js';
 
 function computeTotals(project, expenses, payments) {
   const budget = Number(project.budget);
