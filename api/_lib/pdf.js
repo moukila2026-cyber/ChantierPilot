@@ -21,11 +21,15 @@ const LIGHT = '#e8ecf1';
 const ACCENT = '#b45309';
 
 function header(doc, company, title, subtitle) {
-  // Signe ChantierPilot vectoriel : aucun fichier externe à embarquer dans le PDF.
+  // Signe ChantierPilot vectoriel (toit, flèche et coches), sans fichier externe.
   doc.save();
   doc.roundedRect(48, 42, 28, 28, 6).fill(INK);
-  doc.moveTo(54, 63).lineTo(62, 48).lineTo(70, 63).lineWidth(2).lineJoin('round').strokeColor('#f59e0b').stroke();
-  doc.rect(59, 59, 6, 4).fill('#f59e0b');
+  doc.moveTo(52, 55).lineTo(62, 47).lineTo(72, 55).lineWidth(1.7).lineJoin('round').strokeColor('#f4a340').stroke();
+  doc.moveTo(54, 55).lineTo(54, 65).lineTo(59, 65).lineTo(59, 60).lineTo(65, 60).lineTo(65, 65).lineTo(70, 65).lineTo(70, 55)
+    .lineWidth(1.3).lineJoin('round').strokeColor('#f4a340').stroke();
+  doc.moveTo(57, 59).lineTo(58.5, 60.5).lineTo(61, 57.5).moveTo(64, 59).lineTo(65.5, 60.5).lineTo(68, 57.5)
+    .lineWidth(0.8).lineCap('round').lineJoin('round').strokeColor('#f7f4ed').stroke();
+  doc.moveTo(62, 50).lineTo(65, 52.5).lineTo(62, 55).lineWidth(1).lineCap('round').lineJoin('round').strokeColor('#f7f4ed').stroke();
   doc.restore();
   doc.fillColor(INK).font('Helvetica-Bold').fontSize(18).text(company.name || 'Entreprise', 84, 45);
   doc.fillColor(GRAY).font('Helvetica').fontSize(8.5);

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Button, Footer } from '../components/ui.jsx';
+import Logo from '../components/Logo.jsx';
 
 const OFFERS = [
   {
@@ -113,13 +114,7 @@ export default function PricingPage({ standalone = false }) {
       <div className="min-h-screen bg-slate-100">
         <header className="bg-slate-900 px-4 py-4">
           <div className="mx-auto flex max-w-5xl items-center justify-between">
-            <Link to="/connexion" className="flex items-center gap-2.5">
-              <svg className="h-9 w-9 rounded-lg bg-slate-800 p-1.5" viewBox="0 0 32 32" aria-hidden="true">
-                <path d="M8 22 L16 8 L24 22 Z" fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinejoin="round" />
-                <rect x="12" y="18" width="8" height="4" fill="#f59e0b" />
-              </svg>
-              <span className="font-bold text-white">ChantierPilot</span>
-            </Link>
+            <Logo compact inverted to="/" />
             <Link to="/connexion" className="text-sm font-medium text-slate-300 hover:text-white">Connexion</Link>
           </div>
         </header>

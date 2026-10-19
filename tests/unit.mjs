@@ -91,9 +91,25 @@ await test('PDF : intègre le logo vectoriel et les montants financiers en lettr
   const content = streams(pdf);
   assert.ok(content.includes('756e206d696c6c696f6e'), 'Le PDF inclut le montant en lettres (un million).');
   // Le symbole est dessiné comme une forme vectorielle indépendante des polices/images distantes.
-  assert.ok(content.includes('54 63 m\n62 48 l\n70 63 l'), 'Le PDF contient le tracé vectoriel du logo.');
+  assert.ok(content.includes('52 55 m\n62 47 l\n72 55 l'), 'Le PDF contient le tracé du toit du logo.');
+  assert.ok(content.includes('62 50 m\n65 52.5 l\n62 55 l'), 'Le PDF contient la flèche du logo.');
 });
 
+await test('Logo : le composant, les favicons et les pages partagent la nouvelle identité', () => {
+  const logo = readFileSync(path.join(ROOT, 'src', 'components', 'Logo.jsx'), 'utf8');
+  const logoSvg = readFileSync(path.join(ROOT, 'public', 'logo.svg'), 'utf8');
+  const favicon = readFileSync(path.join(ROOT, 'public', 'favicon.svg'), 'utf8');
+  assert.match(logo, /LogoMark/);
+  assert.match(logo, /compact = false/);
+  assert.match(logo, /f4a340/);
+  assert.match(logo, /ChantierPilot/);
+  assert.match(logoSvg, /ChantierPilot/);
+  assert.match(favicon, /f4a340/);
+  for (const file of ['Layout.jsx', 'LoginPage.jsx', 'RegisterPage.jsx', 'PricingPage.jsx', 'TermsPage.jsx', 'NotFoundPage.jsx']) {
+    const source = readFileSync(path.join(ROOT, 'src', file.startsWith('Layout') ? 'components' : 'pages', file), 'utf8');
+    assert.match(source, /Logo/ , `${file} doit utiliser le composant partagé`);
+  }
+});
 
 console.log('══ Tests unitaires — déploiement Vercel et migration ══');
 
