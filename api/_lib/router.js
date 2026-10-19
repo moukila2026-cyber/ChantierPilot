@@ -30,6 +30,8 @@ import paymentById from '../_routes/payments/[id].js';
 import files from '../_routes/files.js';
 import exportData from '../_routes/export.js';
 import audit from '../_routes/audit.js';
+import teamIndex from '../_routes/team/index.js';
+import teamById from '../_routes/team/[id].js';
 import { fail, securityHeaders } from './http.js';
 
 const ID = '(?<id>[^/]+)';
@@ -54,6 +56,8 @@ export const ROUTES = [
   [['GET'], /^\/api\/files$/, files],
   [['GET'], /^\/api\/export$/, exportData],
   [['GET'], /^\/api\/audit$/, audit],
+  [['GET', 'POST'], /^\/api\/team$/, teamIndex],
+  [['PATCH'], new RegExp(`^/api/team/${ID}$`), teamById],
 ];
 
 /**

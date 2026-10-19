@@ -3,7 +3,7 @@
 import { withTenant } from '../../../_lib/db.js';
 import { buildProjectReport } from '../../../_lib/pdf.js';
 import { securityHeaders, fail, methodNotAllowed, handle } from '../../../_lib/http.js';
-import { requireAuth, run } from '../../../_lib/pipeline.js';
+import { requireAuth, ensureAdmin, run } from '../../../_lib/pipeline.js';
 
 export default async function handler(req, res) {
   await handle(req, res, async () => {
@@ -11,6 +11,7 @@ export default async function handler(req, res) {
     await run(res, async () => {
       const ctx = await requireAuth(req, res);
       if (!ctx) return;
+      if (!ensureAdmin(ctx, res)) return;
       const id = req.query?.id || req.url.split('/').filter(Boolean).pop()?.split('?')[0];
       const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidRe.test(id || '')) return fail(res, 404, 'introuvable', 'Chantier introuvable.');

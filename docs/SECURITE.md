@@ -50,6 +50,32 @@ Les fonctions `SECURITY DEFINER` (`api_lookup_user`, `api_lookup_session`,
 - ne sont exécutables que par `chantierpilot_app` (REVOKEd FROM PUBLIC) ;
 - ne contournent le RLS que via `app_is_definer()` (vrai uniquement pour ce rôle).
 
+## 2 bis. Rôles applicatifs : administrateur et agent
+
+| Action | Administrateur (`admin`) | Agent (`member`) |
+| --- | --- | --- |
+| Voir tableau de bord, chantiers, dépenses, encaissements de **son entreprise** | oui | oui |
+| Saisir / modifier dépenses et encaissements, joindre des justificatifs | oui | oui |
+| Créer / modifier / archiver un chantier | oui | **non (403)** |
+| Supprimer une dépense ou un encaissement | oui | **non (403)** |
+| Rapport PDF, exports CSV/JSON, journal d'activité | oui | **non (403)** |
+| Modifier le profil de l'entreprise | oui | **non (403)** |
+| Créer / désactiver / réactiver un compte, réinitialiser son mot de passe | oui | **non (403)** |
+| Changer **son propre** mot de passe | oui | oui |
+
+Contrôle **côté serveur** sur chaque route (`ensureAdmin` / `requireAdmin` dans
+`api/_lib/pipeline.js`) : masquer un bouton dans l'interface ne suffirait pas.
+La gestion des comptes passe uniquement par `/api/team` (jamais de création
+manuelle en base) : création réservée à l'administrateur, mot de passe haché
+(scrypt), journalisation dans `audit_log`. La désactivation d'un compte coupe
+immédiatement ses sessions (`api_lookup_session` exige `is_active`) ; la
+réinitialisation du mot de passe révoque en plus ses sessions via la fonction
+`api_admin_revoke_sessions` (SECURITY DEFINER, limitée à la même entreprise et
+au rôle admin). Aucune suppression définitive de compte : désactivation seule,
+pour conserver la traçabilité. Le cloisonnement RLS par entreprise s'applique
+de la même façon aux agents : un agent ne voit que les données de son entreprise,
+et l'administrateur d'une autre entreprise ne peut ni voir ni modifier ses comptes (404).
+
 ## 3. Authentification & sessions
 
 - **Mots de passe** : scrypt (N=16384, r=8, p=1, sel 128 bits par mot de passe), comparaison `timingSafeEqual`. Stockage `scrypt$N$r$p$sel$hash` — jamais en clair.

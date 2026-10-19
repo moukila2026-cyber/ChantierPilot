@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { formatFcfa, formatDate, todayIso } from '../lib/format.js';
 import { STATUSES, STATUS_LABELS, STATUS_STYLES } from '../lib/constants.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import {
   Alert, Badge, Button, Card, ConfirmDialog, EmptyState, Field, Input, LoadingPage,
   Modal, PageHeader, Pagination, Select, Spinner, Textarea, Toast,
@@ -78,6 +79,8 @@ export function ProjectForm({ initial, onSubmit, onCancel, busy, fields }) {
 }
 
 export default function ProjectsPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [state, setState] = useState({ loading: true, projects: [] });
   const [statusFilter, setStatusFilter] = useState('actifs');
   const [search, setSearch] = useState('');
@@ -153,8 +156,8 @@ export default function ProjectsPage() {
     <div>
       <PageHeader
         title="Chantiers"
-        subtitle="Créez, modifiez et archivez vos chantiers."
-        actions={<Button onClick={() => { setEditTarget(null); setFields({}); setModalOpen(true); }}>+ Nouveau chantier</Button>}
+        subtitle={isAdmin ? "Créez, modifiez et archivez vos chantiers." : "Consultez les chantiers de votre entreprise et saisissez les opérations de terrain."}
+        actions={isAdmin ? <Button onClick={() => { setEditTarget(null); setFields({}); setModalOpen(true); }}>+ Nouveau chantier</Button> : null}
       />
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -185,7 +188,7 @@ export default function ProjectsPage() {
         <EmptyState
           title="Aucun chantier trouvé"
           message={search || statusFilter !== 'actifs' ? 'Ajustez vos filtres ou créez un nouveau chantier.' : 'Créez votre premier chantier pour démarrer.'}
-          action={<Button onClick={() => { setEditTarget(null); setModalOpen(true); }}>+ Nouveau chantier</Button>}
+          action={isAdmin ? <Button onClick={() => { setEditTarget(null); setModalOpen(true); }}>+ Nouveau chantier</Button> : null}
         />
       ) : (
         <>
@@ -218,7 +221,7 @@ export default function ProjectsPage() {
                     <td className="px-3 py-3 text-right tabular text-rose-700">{formatFcfa(p.expenses_total)}</td>
                     <td className="px-3 py-3 text-right tabular text-emerald-700">{formatFcfa(p.payments_total)}</td>
                     <td className="px-5 py-3 text-right">
-                      <div className="flex justify-end gap-1">
+                      {isAdmin && (<div className="flex justify-end gap-1">
                         <Button variant="ghost" className="min-h-9 px-2.5 py-1 text-xs"
                           onClick={() => { setEditTarget(p); setFields({}); setModalOpen(true); }}>
                           Modifier
@@ -227,7 +230,7 @@ export default function ProjectsPage() {
                           onClick={() => setArchiveTarget(p)}>
                           {p.status === 'archive' ? 'Rouvrir' : 'Archiver'}
                         </Button>
-                      </div>
+                      </div>)}
                     </td>
                   </tr>
                 ))}
@@ -258,7 +261,7 @@ export default function ProjectsPage() {
                     <p className="font-semibold tabular text-emerald-700">{formatFcfa(p.payments_total)}</p>
                   </div>
                 </div>
-                <div className="mt-3 flex gap-2">
+                {isAdmin && (<div className="mt-3 flex gap-2">
                   <Button variant="secondary" className="min-h-9 flex-1 py-1 text-xs"
                     onClick={() => { setEditTarget(p); setFields({}); setModalOpen(true); }}>
                     Modifier
@@ -266,7 +269,7 @@ export default function ProjectsPage() {
                   <Button variant="secondary" className="min-h-9 flex-1 py-1 text-xs" onClick={() => setArchiveTarget(p)}>
                     {p.status === 'archive' ? 'Rouvrir' : 'Archiver'}
                   </Button>
-                </div>
+                </div>)}
               </Card>
             ))}
           </div>

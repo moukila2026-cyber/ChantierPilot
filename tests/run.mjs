@@ -412,6 +412,76 @@ async function main() {
   const newLogin = await new Client().post('/api/auth/login', { email: 'koffi@btp-daloa.ci', password: 'NouveauMot2026!' });
   check('Nouveau mot de passe accepté', newLogin.status === 200);
 
+
+  // --- Comptes agents (rôle member, matrice B) ---
+  const teamCreate = await A3.post('/api/team', {
+    full_name: 'Agent Terrain A', email: 'agent@btp-daloa.ci', password: 'AgentTerrain2026',
+  });
+  check('Équipe : l’administrateur crée un compte agent', teamCreate.status === 201 && teamCreate.data.user.role === 'member', teamCreate.data);
+  const agentId = teamCreate.data.user.id;
+  const dupAgent = await A3.post('/api/team', {
+    full_name: 'Doublon', email: 'agent@btp-daloa.ci', password: 'AgentTerrain2026',
+  });
+  check('Équipe : e-mail déjà utilisé refusé (409)', dupAgent.status === 409);
+  const teamList = await A3.get('/api/team');
+  check('Équipe : liste réservée et complète pour l’admin', teamList.status === 200 && teamList.data.users.length >= 2
+    && !('password_hash' in teamList.data.users[0]));
+
+  const M = new Client();
+  const agentLogin = await M.post('/api/auth/login', { email: 'agent@btp-daloa.ci', password: 'AgentTerrain2026' });
+  check('Agent : connexion avec son propre compte', agentLogin.status === 200 && agentLogin.data.user.role === 'member');
+  const mDash = await M.get('/api/dashboard');
+  check('Agent : voit le tableau de bord de son entreprise', mDash.status === 200 && mDash.data.totals.budget_total === 16000000);
+  const mExp = await M.post('/api/expenses', {
+    project_id: projId, category: 'transport', amount: 50000, expense_date: '2026-02-15',
+    supplier: 'Transporteur agent', description: 'Saisie terrain par l’agent', receipt: null,
+  });
+  check('Agent : peut saisir une dépense de terrain', mExp.status === 201, mExp.data);
+  const mPay = await M.post('/api/payments', {
+    project_id: projId, client_name: 'M. Traoré', amount: 100000, payment_date: '2026-02-16',
+    reference: 'REC-AGENT-001', payment_method: 'especes', memo: 'Saisi par l’agent', proof: null,
+  });
+  check('Agent : peut déclarer un encaissement (sans justificatif = déclaré, pas prouvé)', mPay.status === 201 && mPay.data.payment.has_proof === false);
+  const mForbidden = [
+    ['créer un chantier', await M.post('/api/projects', { name: 'Interdit', client_name: 'X', location: '', budget: 1000, start_date: '2026-01-01', end_date: null, status: 'en_cours', notes: '' })],
+    ['modifier un chantier', await M.patch(`/api/projects/${projId}`, { budget: 1 })],
+    ['supprimer une dépense', await M.del(`/api/expenses/${mExp.data.expense.id}`)],
+    ['supprimer un encaissement', await M.del(`/api/payments/${mPay.data.payment.id}`)],
+    ['modifier l’entreprise', await M.patch('/api/company', { name: 'Piratage' })],
+    ['lire les exports', await M.get('/api/export?scope=all&format=json')],
+    ['lire le journal', await M.get('/api/audit')],
+    ['lire l’équipe', await M.get('/api/team')],
+    ['créer un compte', await M.post('/api/team', { full_name: 'Intrus', email: 'intrus@btp-daloa.ci', password: 'AgentTerrain2026' })],
+  ];
+  for (const [label, r] of mForbidden) check(`Agent INTERDIT : ${label} → 403`, r.status === 403, `${label} -> ${r.status}`);
+  const mReport = await fetch(`${BASE}/api/projects/${projId}/report`, { headers: M.header() });
+  check('Agent INTERDIT : rapport PDF → 403', mReport.status === 403, `-> ${mReport.status}`);
+  const crossTeam = await B.patch(`/api/team/${agentId}`, { is_active: false });
+  check('Équipe : l’admin d’une autre entreprise ne voit pas cet agent (404)', crossTeam.status === 404, `-> ${crossTeam.status}`);
+
+  const deact = await A3.patch(`/api/team/${agentId}`, { is_active: false });
+  check('Équipe : désactivation par l’admin', deact.status === 200 && deact.data.user.is_active === false);
+  const afterDeact = await M.get('/api/auth/session');
+  check('Équipe : session de l’agent désactivé coupée immédiatement (401)', afterDeact.status === 401);
+  const loginDeact = await new Client().post('/api/auth/login', { email: 'agent@btp-daloa.ci', password: 'AgentTerrain2026' });
+  check('Équipe : connexion refusée pour un compte désactivé (403)', loginDeact.status === 403);
+  const react = await A3.patch(`/api/team/${agentId}`, { is_active: true });
+  const resetPw = await A3.patch(`/api/team/${agentId}`, { password: 'NouvelAgent2026' });
+  check('Équipe : réactivation + réinitialisation du mot de passe', react.status === 200 && resetPw.status === 200);
+  // IP distincte déclarée : on isole ces deux vérifications de la limite
+  // anti-force brute par IP (12/min) déjà sollicitée par les tests précédents.
+  async function loginFromFreshIp(email, password, ip) {
+    return new Client().req('POST', '/api/auth/login', { email, password }, { headers: { 'x-forwarded-for': ip } });
+  }
+  const oldAgentLogin = await loginFromFreshIp('agent@btp-daloa.ci', 'AgentTerrain2026', '10.9.9.1');
+  check('Équipe : ancien mot de passe refusé après réinitialisation', oldAgentLogin.status === 401, `-> ${oldAgentLogin.status}`);
+  const newAgentLogin = await loginFromFreshIp('agent@btp-daloa.ci', 'NouvelAgent2026', '10.9.9.2');
+  check('Équipe : nouveau mot de passe accepté', newAgentLogin.status === 200, `-> ${newAgentLogin.status}`);
+  // Nettoyage des montants créés par l'agent pour la suite des vérifications :
+  // (suppressions réservées à l'administrateur)
+  await A3.del(`/api/expenses/${mExp.data.expense.id}`);
+  await A3.del(`/api/payments/${mPay.data.payment.id}`);
+
   // --- Métadonnées honnêtes ---
   const health = await new Client().get('/api/health');
   check('Health : base connectée, pilote déclaré', health.status === 200

@@ -4,7 +4,7 @@
 import { withTenant } from '../../_lib/db.js';
 import { projectUpdateSchema, parseOrThrow, STATUS_LABELS, CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '../../_lib/validate.js';
 import { readJsonBody, sendJson, methodNotAllowed, handle, fail } from '../../_lib/http.js';
-import { requireAuth, run, audit } from '../../_lib/pipeline.js';
+import { requireAuth, ensureAdmin, run, audit } from '../../_lib/pipeline.js';
 
 function computeTotals(project, expenses, payments) {
   const budget = Number(project.budget);
@@ -89,6 +89,7 @@ export default async function handler(req, res) {
       }
 
       if (req.method === 'PATCH') {
+        if (!ensureAdmin(ctx, res)) return;
         const data = parseOrThrow(projectUpdateSchema, await readJsonBody(req));
         const project = await withTenant(ctx, async (client) => {
           const current = (await client.query('SELECT * FROM projects WHERE id = $1', [id])).rows[0];

@@ -36,6 +36,24 @@ export async function run(res, fn) {
   }
 }
 
+/** Exige le rôle administrateur. Renvoie le contexte ou null (erreur déjà envoyée). */
+export async function requireAdmin(req, res) {
+  const ctx = await requireAuth(req, res);
+  if (!ctx) return null;
+  if (ctx.role !== 'admin') {
+    fail(res, 403, 'droits_insuffisants', 'Action réservée \u00e0 l\u2019administrateur de l\u2019entreprise.');
+    return null;
+  }
+  return ctx;
+}
+
+/** Contrôle synchrone du rôle sur un contexte déjà authentifié. */
+export function ensureAdmin(ctx, res) {
+  if (ctx.role === 'admin') return true;
+  fail(res, 403, 'droits_insuffisants', 'Action réservée \u00e0 l\u2019administrateur de l\u2019entreprise.');
+  return false;
+}
+
 /** Journal d'audit (best effort : ne casse jamais la requête principale). */
 export async function audit(client, ctx, action, entity, entityId, summary) {
   try {
