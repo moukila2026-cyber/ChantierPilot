@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Card, Footer } from '../components/ui.jsx';
+import Logo from '../components/Logo.jsx';
 
 const sections = [
   {
@@ -72,7 +73,7 @@ export default function TermsPage() {
     <div className="min-h-screen bg-slate-100">
       <header className="bg-slate-900 px-4 py-4">
         <div className="mx-auto flex max-w-4xl items-center justify-between">
-          <Link to="/connexion" className="font-bold text-white">ChantierPilot</Link>
+          <Logo compact inverted to="/" />
           <Link to="/connexion" className="text-sm font-medium text-slate-300 hover:text-white">Connexion</Link>
         </div>
       </header>

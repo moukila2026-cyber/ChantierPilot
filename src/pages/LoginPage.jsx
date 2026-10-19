@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import Logo from '../components/Logo.jsx';
 import { Alert, Button, Card, Field, Footer, Input, PasswordInput } from '../components/ui.jsx';
 
 export default function LoginPage() {
@@ -32,12 +33,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-slate-900 px-4 py-10">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <svg className="mx-auto h-14 w-14 rounded-2xl bg-slate-800 p-2.5" viewBox="0 0 32 32" aria-hidden="true">
-            <path d="M8 22 L16 8 L24 22 Z" fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinejoin="round" />
-            <rect x="12" y="18" width="8" height="4" fill="#f59e0b" />
-          </svg>
-          <h1 className="mt-4 text-2xl font-bold text-white">ChantierPilot</h1>
-          <p className="mt-1 text-sm text-slate-400">Pilotez vos chantiers, vos dépenses et vos encaissements.</p>
+          <Logo compact className="mx-auto" inverted />
+          <p className="mt-4 text-sm text-slate-400">Pilotez vos chantiers, vos dépenses et vos encaissements.</p>
         </div>
 
         <Card>

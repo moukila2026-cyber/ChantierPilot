@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import Logo from '../components/Logo.jsx';
 import { Alert, Button, Card, Field, Footer, Input, PasswordInput } from '../components/ui.jsx';
 
 const EMPTY = {
@@ -39,6 +40,7 @@ export default function RegisterPage() {
     <div className="flex min-h-screen items-center justify-center bg-slate-900 px-4 py-10">
       <div className="w-full max-w-2xl">
         <div className="mb-8 text-center">
+          <Logo compact className="mx-auto mb-5" inverted />
           <h1 className="text-2xl font-bold text-white">Créer votre entreprise sur ChantierPilot</h1>
           <p className="mt-2 text-sm text-slate-400">
             L'espace de chaque entreprise est isolé. Vous serez l'administrateur de cet espace.
