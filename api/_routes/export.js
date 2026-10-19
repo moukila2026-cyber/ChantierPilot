@@ -38,12 +38,21 @@ export default async function handler(req, res) {
         )).rows;
         const payments = (await client.query(
           `SELECT pm.id, pm.project_id, p.name AS project_name, pm.client_name, pm.amount, pm.payment_date,
-                  pm.reference, pm.payment_method, pm.memo, (pm.proof IS NOT NULL) AS has_proof,
+                  pm.reference, pm.payment_method, pm.memo, pm.invoice_id, (pm.proof IS NOT NULL) AS has_proof,
                   pm.created_at, pm.updated_at
            FROM payments pm JOIN projects p ON p.id = pm.project_id
            ORDER BY pm.payment_date DESC`,
         )).rows;
-        return { company, projects, expenses, payments };
+        const operations = {};
+        // Liste fermée : aucune interpolation d'entrée utilisateur.
+        // Les anciennes tables payroll_* sont conservées UNIQUEMENT comme archives
+        // dans la sauvegarde administrateur, sans lecture/écriture métier active.
+        for (const table of ['commercial_documents','price_items','cash_advances','advance_entries','workers','attendance','site_tasks','inventory_items','purchase_orders','stock_movements','plan_annotations','schedule_tasks','warehouses','warehouse_movements','payroll_profiles','payroll_slips']) {
+          operations[table] = (await client.query(`SELECT * FROM ${table}`)).rows;
+        }
+        operations.plan_versions=(await client.query('SELECT id,company_id,project_id,title,revision,mime,filename,sha256,created_by,created_at FROM plan_versions')).rows;
+        operations.site_journal = (await client.query('SELECT id,company_id,project_id,entry_date,title,notes,progress,photo_mime,photo_filename,(photo IS NOT NULL) AS has_photo,created_by,created_at FROM site_journal')).rows;
+        return { company, projects, expenses, payments, operations };
       });
 
       if (format === 'json') {
@@ -55,6 +64,7 @@ export default async function handler(req, res) {
           projects: data.projects,
           expenses: data.expenses,
           payments: data.payments,
+          operations: data.operations,
           mention: 'Encaissements déclarés par l\'entreprise ; preuve = justificatif joint ou référence documentaire.',
         };
         securityHeaders(res);

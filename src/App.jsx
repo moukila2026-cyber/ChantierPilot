@@ -1,3 +1,7 @@
+import AdvancedPage from './pages/AdvancedPage.jsx';
+import OperationsPage from './pages/OperationsPage.jsx';
+import DocumentsPage from './pages/DocumentsPage.jsx';
+import OperatorPage from './pages/OperatorPage.jsx';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext.jsx';
 import Layout from './components/Layout.jsx';
@@ -23,10 +27,11 @@ function HomeRoute() {
 }
 
 function RequireAuth({ children }) {
-  const { status } = useAuth();
+  const { status, offlineAccess } = useAuth();
   const location = useLocation();
   if (status === 'loading') return <LoadingPage label="Vérification de votre session…" />;
   if (status === 'anon') return <Navigate to="/connexion" state={{ from: location.pathname }} replace />;
+  if (offlineAccess && location.pathname !== '/terrain') return <Navigate to="/terrain" replace />;
   return <Layout>{children}</Layout>;
 }
 
@@ -47,6 +52,10 @@ function PricingRoute() {
 export default function App() {
   return (
     <Routes>
+      <Route path="/gestion" element={<RequireAuth><AdvancedPage /></RequireAuth>} />
+      <Route path="/terrain" element={<RequireAuth><OperationsPage /></RequireAuth>} />
+      <Route path="/documents" element={<RequireAuth><DocumentsPage /></RequireAuth>} />
+      <Route path="/shopin30" element={<RequireAuth><OperatorPage /></RequireAuth>} />
       <Route path="/connexion" element={<PublicOnly><LoginPage /></PublicOnly>} />
       <Route path="/inscription" element={<PublicOnly><RegisterPage /></PublicOnly>} />
       <Route path="/offres" element={<PricingRoute />} />

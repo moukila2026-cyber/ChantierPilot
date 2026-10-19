@@ -56,7 +56,9 @@ check('Le statut prouvé nécessite une pièce jointe', markup.includes('qu’un
 check('Aucun témoignage inventé n’est introduit', !/témoignages?|ils nous font confiance|clients satisfaits/i.test(landingSource));
 check('Aucune certification revendiquée sans preuve', !/certifi(?:é|ée|cation)|label officiel/i.test(landingSource));
 check('Pas de statistiques commerciales inventées dans le mockup', !/42 500 000|18 250 000|21 000 000|clients accompagnés|\d+\s*%/.test(landingSource));
-check('Les chiffres du tableau de bord de démonstration restent vides', landingSource.includes("['Chantiers suivis', '—'") && landingSource.includes("['Budget prévisionnel', '—'"));
+check('Le tableau de démonstration affiche les chiffres demandés', markup.includes('12 000 000') && landingSource.includes("['Chantiers suivis', '12'") && markup.includes('7 450 000') && markup.includes('9 000 000'));
+check('Les chiffres de démonstration sont explicitement fictifs', markup.includes('Données fictives') && markup.includes('chiffres fictifs, à titre de démonstration'));
+check('L’activité récente contient des mouvements illustratifs chiffrés', markup.includes('350 000 FCFA') && markup.includes('1 500 000 FCFA'));
 check('Le menu mobile est contrôlable au bouton', markup.includes('aria-expanded="false"'));
 check('Le menu mobile a un nom accessible', markup.includes('aria-label="Ouvrir le menu"'));
 check('Le pied de page SHOPIN30 est partagé', footerSource.includes('Conçu par SHOPIN30'));
@@ -68,7 +70,7 @@ check('Le lien vers les offres est rendu', markup.includes('href="/offres"'));
 check('L’illustration est servie depuis le site', markup.includes('/images/landing/chantier-abidjan.webp'));
 check('Le texte alternatif de l’illustration est utile', markup.includes('alt="Deux professionnels du BTP'));
 check('La page comporte une section d’appel à l’action finale', markup.includes('Prêt à mieux vous organiser'));
-check('Les offres restent indicatives', markup.includes('Les offres sont présentées à titre indicatif'));
+check('L’essai et le paiement SasPay sont annoncés sans promesse de prélèvement', markup.includes('14 jours d’essai sans carte') && markup.includes('paiement sécurisé via SasPay') && !markup.includes('Les offres sont présentées à titre indicatif'));
 check('Le logo partagé est compactable', logoSource.includes('compact = false') && logoSource.includes('{!compact &&'));
 check('Le logo comporte le signe de toit', logoSource.includes('M9 23 23.5 11 39 23'));
 check('Le logo comporte une flèche de navigation', logoSource.includes('m25 18 4 3.3-4 3.2'));
@@ -80,7 +82,7 @@ check('Les fichiers de marque nécessaires existent', ['public/logo.svg', 'publi
 check('Le manifeste déclare les icônes 192 et 512 pixels', JSON.parse(text('public/site.webmanifest')).icons.map((icon) => icon.sizes).join(',') === '192x192,512x512');
 check('La photo WebP locale est présente', existsSync(path.join(ROOT, 'public/images/landing/chantier-abidjan.webp')));
 
-assert.equal(checks.length, 43, `Le nombre de contrôles UI doit rester 43 (actuel : ${checks.length}).`);
+assert.equal(checks.length, 45, `Le nombre de contrôles UI doit rester 45 (actuel : ${checks.length}).`);
 for (const [name, ok] of checks) {
   if (!ok) console.error(`  ✗ ${name}`);
   else console.log(`  ✓ ${name}`);

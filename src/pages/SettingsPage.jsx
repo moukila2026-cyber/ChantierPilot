@@ -128,6 +128,8 @@ export default function SettingsPage() {
       setForm({
         name: company.name || '',
         rccm: company.rccm || '',
+        tax_number: company.tax_number || '',
+        tax_regime: company.tax_regime || '',
         phone: company.phone || '',
         email: company.email || '',
         address: company.address || '',
@@ -206,6 +208,8 @@ export default function SettingsPage() {
             <Field label="Adresse" htmlFor="s-address" error={fields.address}>
               <Input id="s-address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} error={fields.address} />
             </Field>
+            <Field label="N° de compte contribuable (NCC)" htmlFor="s-tax-number" error={fields.tax_number}><Input id="s-tax-number" maxLength={100} value={form.tax_number||''} onChange={e=>setForm({...form,tax_number:e.target.value})}/></Field>
+            <Field label="Régime fiscal" htmlFor="s-tax-regime" error={fields.tax_regime}><Input id="s-tax-regime" maxLength={160} value={form.tax_regime||''} onChange={e=>setForm({...form,tax_regime:e.target.value})}/></Field>
             <Field label="RCCM" htmlFor="s-rccm" error={fields.rccm}>
               <Input id="s-rccm" value={form.rccm} onChange={(e) => setForm({ ...form, rccm: e.target.value })} error={fields.rccm} />
             </Field>

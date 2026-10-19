@@ -1,3 +1,5 @@
+import { operationsCases } from './operations-cases.mjs';
+import { billingCases } from './billing-cases.mjs';
 // =====================================================================
 // TESTS D'INTÉGRATION API — ChantierPilot
 //
@@ -481,6 +483,12 @@ async function main() {
   // (suppressions réservées à l'administrateur)
   await A3.del(`/api/expenses/${mExp.data.expense.id}`);
   await A3.del(`/api/payments/${mPay.data.payment.id}`);
+
+  await billingCases({ A: A3, B, adminUrl: pgInst.url, check });
+
+  const memberV2 = new Client();
+  await memberV2.req('POST', '/api/auth/login', { email: 'agent@btp-daloa.ci', password: 'NouvelAgent2026' }, { headers: { 'x-forwarded-for': '10.8.8.8' } });
+  await operationsCases({ A: A3, B, M: memberV2, check });
 
   // --- Métadonnées honnêtes ---
   const health = await new Client().get('/api/health');

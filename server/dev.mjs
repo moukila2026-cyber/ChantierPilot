@@ -1,3 +1,4 @@
+import { readRawBody } from '../api/_lib/body.js';
 // Serveur API local — exécute exactement le même routeur que la fonction
 // serverless Vercel (api/index.js → api/_lib/router.js).
 
@@ -50,7 +51,8 @@ export function createApiServer() {
     // ce comportement, puis on passe par le MÊME routeur que la production.
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
       try {
-        req.body = await parseJsonBody(req);
+        if (url.pathname === '/api/billing/webhook') req.rawBody = await readRawBody(req);
+        else req.body = await parseJsonBody(req);
       } catch (e) {
         res.statusCode = e.status || 400;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');

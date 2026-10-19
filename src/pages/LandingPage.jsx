@@ -21,26 +21,27 @@ function DashboardPreview() {
       <div className="absolute -inset-5 rounded-[2rem] bg-gradient-to-br from-amber-100 via-orange-50 to-sky-100 blur-xl" />
       <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_28px_80px_-32px_rgba(15,23,42,.42)]">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6">
-          <div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700"><Icon path="M3 3v18h18M7 14l4-4 4 3 6-7" /></span><div><p className="text-sm font-bold text-slate-900">Vue d’ensemble</p><p className="text-xs text-slate-500">Espace entreprise</p></div></div>
-          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">Aperçu</span>
+          <div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700"><Icon path="M3 3v18h18M7 14l4-4 4 3 6-7" /></span><div><p className="text-sm font-bold text-slate-900">Vue d’ensemble</p><p className="text-xs text-slate-500">Exemple d’un espace entreprise</p></div></div>
+          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">Données fictives</span>
         </div>
         <div className="grid grid-cols-2 gap-3 p-4 sm:gap-4 sm:p-6">
           {[
-            ['Chantiers suivis', '—', 'Votre activité, en un regard', 'text-sky-700 bg-sky-50'],
-            ['Budget prévisionnel', '—', 'FCFA · par chantier', 'text-slate-800 bg-slate-50'],
-            ['Dépenses enregistrées', '—', 'FCFA · pièces consultables', 'text-amber-800 bg-amber-50'],
-            ['Encaissements déclarés', '—', 'FCFA · justificatifs consultables', 'text-emerald-800 bg-emerald-50'],
+            ['Chantiers suivis', '12', 'Petits travaux et rénovations', 'text-sky-700 bg-sky-50'],
+            ['Budget prévisionnel', '12 000 000', 'FCFA · budget total des chantiers', 'text-slate-800 bg-slate-50'],
+            ['Dépenses enregistrées', '7 450 000', 'FCFA · matériaux, équipes et transport', 'text-amber-800 bg-amber-50'],
+            ['Encaissements déclarés', '9 000 000', 'FCFA · avances et règlements clients', 'text-emerald-800 bg-emerald-50'],
           ].map(([label, value, hint, color]) => <div key={label} className="rounded-xl border border-slate-100 p-3.5 sm:p-4"><p className="text-[11px] font-medium text-slate-500 sm:text-xs">{label}</p><p className="mt-2 text-lg font-extrabold tracking-tight text-slate-900 sm:text-2xl">{value}</p><p className="mt-1 text-[10px] leading-4 text-slate-500 sm:text-xs">{hint}</p></div>)}
         </div>
         <div className="mx-4 mb-4 overflow-hidden rounded-xl border border-slate-100 sm:mx-6 sm:mb-6">
-          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3"><p className="text-xs font-bold text-slate-800">Activité récente</p><span className="text-[10px] text-slate-400">Exemple d’interface</span></div>
+          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3"><p className="text-xs font-bold text-slate-800">Activité récente</p><span className="text-[10px] text-slate-400">Exemple de mouvements</span></div>
           <div className="space-y-3 p-4">
             {[
-              ['Dépense enregistrée', 'Matériaux · chantier', '— FCFA', 'bg-amber-100 text-amber-700'],
-              ['Encaissement déclaré', 'Justificatif joint', '— FCFA', 'bg-emerald-100 text-emerald-700'],
+              ['Achat de matériaux', 'Rénovation · Cocody', '− 350 000 FCFA', 'bg-amber-100 text-amber-700'],
+              ['Avance client déclarée', 'Aménagement · Bingerville', '+ 1 500 000 FCFA', 'bg-emerald-100 text-emerald-700'],
             ].map(([project, detail, amount, color]) => <div key={project} className="flex items-center gap-3"><span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${color}`}><Icon className="h-4 w-4" path="M5 12h14m-7-7 7 7-7 7" /></span><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-slate-800">{project}</p><p className="text-[10px] text-slate-500">{detail}</p></div><p className="whitespace-nowrap text-xs font-bold text-slate-800">{amount}</p></div>)}
           </div>
         </div>
+        <p className="border-t border-slate-100 px-5 py-3 text-[10px] leading-4 text-slate-500 sm:px-6">Illustration du tableau de bord · chiffres fictifs, à titre de démonstration.</p>
       </div>
       <div className="absolute -bottom-5 -left-4 hidden items-center gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-lg sm:flex"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-700"><Icon path="M5 12.5 9.5 17 19 7" /></span><div><p className="text-xs font-bold text-slate-900">Justificatif joint</p><p className="text-[10px] text-slate-500">Encaissement documenté</p></div></div>
     </div>
@@ -73,7 +74,7 @@ export default function LandingPage() {
             <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">ChantierPilot rassemble le suivi de vos chantiers, dépenses et encaissements dans un espace simple, en français et en FCFA.</p>
             <ul className="mt-6 space-y-3">{checks.map((item) => <li key={item} className="flex items-center gap-2.5 text-sm font-medium text-slate-700"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><Icon className="h-3.5 w-3.5" path="m5 12 4 4L19 6" /></span>{item}</li>)}</ul>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row"><Link to="/inscription" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#102a43] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-slate-900/10 transition hover:-translate-y-0.5 hover:bg-[#193b5b]">Créer mon espace entreprise <span aria-hidden="true">→</span></Link><Link to="/offres" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-300 bg-white/70 px-6 py-3 text-sm font-bold text-slate-700 transition hover:border-slate-400 hover:bg-white">Découvrir les offres</Link></div>
-            <p className="mt-4 text-xs text-slate-500">Aucun paiement automatique. Les offres sont présentées à titre indicatif.</p>
+            <p className="mt-4 text-xs text-slate-500">14 jours d’essai sans carte. Puis dès 9 900 FCFA / 30 jours, paiement sécurisé via SasPay.</p>
           </div>
           <div className="relative z-10 py-4 sm:px-3 lg:py-8"><DashboardPreview /></div>
         </section>

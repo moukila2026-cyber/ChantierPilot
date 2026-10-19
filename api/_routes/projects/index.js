@@ -1,3 +1,4 @@
+import { checkQuota } from '../../_lib/billing.js';
 // GET /api/projects — liste des chantiers (avec totaux calculés en SQL).
 // POST /api/projects — création d'un chantier.
 
@@ -56,6 +57,7 @@ export default async function handler(req, res) {
         if (!ensureAdmin(ctx, res)) return;
         const data = parseOrThrow(projectCreateSchema, await readJsonBody(req));
         const project = await withTenant(ctx, async (client) => {
+          if (!['archive','termine'].includes(data.status)) await checkQuota(client, ctx, 'projects');
           const { rows } = await client.query(
             `INSERT INTO projects (company_id, name, client_name, location, budget, start_date, end_date, status, notes, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)

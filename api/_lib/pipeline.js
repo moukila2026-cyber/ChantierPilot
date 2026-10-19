@@ -1,3 +1,5 @@
+import { withTenant } from './db.js';
+import { companyBilling, entitlement } from './billing.js';
 // Enchaînement commun des endpoints : authentification + erreurs traduites.
 
 import { fail, handle, methodNotAllowed, sendJson } from './http.js';
@@ -12,6 +14,19 @@ export async function requireAuth(req, res) {
   if (!ctx) {
     fail(res, 401, 'non_authentifie', 'Session expirée ou absente. Veuillez vous reconnecter.');
     return null;
+  }
+  // Lecture et export restent disponibles après expiration. La facturation reste accessible.
+  const url = new URL(req.url || '/', 'http://local');
+  const path = ['/api', '/api/index'].includes(url.pathname)
+    ? `/api/${(url.searchParams.get('__route') || '').replace(/^\/+|\/+$/g, '')}`
+    : url.pathname.replace(/\/+$/, '');
+  const exempt = ['/api/billing', '/api/operator', '/api/auth/logout', '/api/auth/password'].includes(path);
+  if (!['GET', 'HEAD'].includes(req.method) && !exempt) {
+    const c = await withTenant(ctx, client => companyBilling(client, ctx));
+    if (!entitlement(c).writable) {
+      fail(res, 402, 'abonnement_requis', 'Espace en lecture seule : essai terminé, abonnement expiré ou espace suspendu. Consultez Offres & tarifs.');
+      return null;
+    }
   }
   // Expiration glissante (best effort : n'interrompt pas la requête).
   touchSession(ctx).catch(() => {});

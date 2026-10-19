@@ -1,3 +1,4 @@
+import { checkQuota } from '../../_lib/billing.js';
 // PATCH /api/team/:id — administrateur uniquement :
 //   * activer / désactiver un compte agent (la désactivation coupe
 //     immédiatement ses sessions : api_lookup_session exige is_active) ;
@@ -40,6 +41,10 @@ export default async function handler(req, res) {
           const err = new Error('Un administrateur ne peut pas modifier le compte d’un autre administrateur.');
           err.status = 403; err.code = 'droits_insuffisants';
           throw err;
+        }
+        if (data.is_active === true) {
+          const active = (await client.query('SELECT is_active FROM app_users WHERE id=$1', [id])).rows[0];
+          if (!active.is_active) await checkQuota(client, ctx, 'users');
         }
         const { rows } = await client.query(
           `UPDATE app_users SET

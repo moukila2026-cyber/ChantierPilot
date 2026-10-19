@@ -1,3 +1,4 @@
+import { projectAlerts } from '../../shared/alerts.js';
 // GET /api/dashboard — indicateurs de l'entreprise, calculés CÔTÉ SQL.
 // Aucun montant n'est jamais calculé depuis le navigateur : la base fait foi.
 
@@ -63,6 +64,7 @@ export default async function handler(req, res) {
           active_projects: data.totals.active_projects,
           all_projects: data.totals.all_projects,
         },
+        alerts: projectAlerts(data.perProject),
         projects: data.perProject,
         recent: data.recent,
         notice: 'Résultat provisoire = encaissements déclarés − dépenses enregistrées. Les encaissements sont des déclarations documentées par une référence ; ils ne sont prouvés qu\'avec un justificatif joint.',

@@ -7,7 +7,7 @@ const sections = [
     title: '1. Objet et acceptation',
     paragraphs: [
       'Les présentes conditions encadrent l’accès à ChantierPilot, un outil de suivi opérationnel de chantiers destiné aux entreprises du BTP. En créant un compte ou en utilisant le service, l’utilisateur reconnaît en avoir pris connaissance pour le compte de son entreprise.',
-      'Les conditions commerciales, le périmètre de configuration, les tarifs et les engagements de service applicables à une entreprise sont ceux qui lui sont communiqués et acceptés séparément. Les prix affichés dans la rubrique Offres sont indicatifs et ne déclenchent aucun paiement dans l’application.',
+      'Les forfaits et quotas sont affichés dans Offres & tarifs. L’essai gratuit dure 14 jours sans carte. Chaque paiement SasPay confirmé ouvre 30 jours d’accès en modification. Le renouvellement nécessite une validation du client : il ne s’agit pas d’un prélèvement récurrent. Les frais éventuels sont présentés par SasPay avant validation. Import et formation sont facultatifs, sur devis. À expiration ou suspension, l’espace passe en lecture seule avec exports disponibles, sans suppression des données.',
     ],
   },
   {
@@ -48,7 +48,7 @@ const sections = [
   {
     title: '7. Limitation du rôle du service',
     paragraphs: [
-      'ChantierPilot est un outil de gestion et de suivi. Il n’effectue pas de paiement automatique, ne tient pas une comptabilité complète, ne certifie pas les pièces et ne remplace pas les contrôles de l’entreprise ni les conseils de professionnels qualifiés.',
+      'ChantierPilot est un outil de gestion et de suivi. Les paiements d’abonnement au logiciel sont traités par SasPay ; les encaissements des chantiers restent des déclarations. Il ne tient pas une comptabilité complète, ne certifie pas les pièces et ne remplace pas les contrôles de l’entreprise ni les conseils de professionnels qualifiés.',
       'Dans les limites permises par le droit applicable, l’éditeur ne répond pas des décisions prises sur la base de données erronées ou incomplètes saisies par l’entreprise, ni de la perte indirecte résultant d’un usage non conforme. Aucune disposition n’exclut une responsabilité qui ne peut légalement l’être.',
     ],
   },

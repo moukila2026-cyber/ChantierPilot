@@ -1,3 +1,4 @@
+import { checkQuota } from '../../_lib/billing.js';
 // GET /api/team — liste des comptes de l'entreprise (administrateur uniquement).
 // POST /api/team — création d'un compte agent (« member ») par l'administrateur.
 // Aucun compte n'est créé manuellement en base : tout passe par cette API,
@@ -40,6 +41,10 @@ export default async function handler(req, res) {
         const userId = crypto.randomUUID();
         try {
           const user = await withTenant(ctx, async (client) => {
+            if ((await client.query('SELECT id FROM app_users WHERE email=$1', [data.email])).rows.length) {
+              throw Object.assign(new Error('Un compte existe déjà avec cette adresse e-mail.'), { status: 409, code: 'email_deja_utilise' });
+            }
+            await checkQuota(client, ctx, 'users');
             const { rows } = await client.query(
               `INSERT INTO app_users (id, company_id, email, password_hash, full_name, role, auth_provider)
                VALUES ($1, $2, $3, $4, $5, 'member', 'local')
