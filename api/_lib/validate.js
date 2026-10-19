@@ -90,6 +90,22 @@ export const registerSchema = z.object({
   }).strict(),
 }).strict();
 
+const passwordRule = z.string().min(10, 'Le mot de passe doit contenir au moins 10 caract\u00e8res.')
+  .max(200, 'Le mot de passe est trop long.')
+  .refine((s) => /[a-z\u00e0-\u00ff]/i.test(s) && /\d/.test(s), 'Le mot de passe doit contenir au moins une lettre et un chiffre.');
+
+export const teamCreateSchema = z.object({
+  full_name: trimmed(2, 120, 'Le nom complet'),
+  email: z.string().email('Adresse e-mail invalide.').transform((s) => s.toLowerCase().trim()),
+  password: passwordRule,
+}).strict();
+
+export const teamUpdateSchema = z.object({
+  full_name: trimmed(2, 120, 'Le nom complet').optional(),
+  is_active: z.boolean().optional(),
+  password: passwordRule.optional(),
+}).strict().refine((d) => Object.keys(d).length > 0, { message: 'Aucune modification fournie.' });
+
 export const loginSchema = z.object({
   email: z.string().email('Adresse e-mail invalide.').transform((s) => s.toLowerCase().trim()),
   password: z.string().min(1, 'Mot de passe requis.').max(200),

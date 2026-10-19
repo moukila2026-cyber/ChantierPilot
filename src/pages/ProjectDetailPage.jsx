@@ -12,9 +12,12 @@ import {
   Modal, StatCard, Toast,
 } from '../components/ui.jsx';
 import { ProjectForm } from './ProjectsPage.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function ProjectDetailPage() {
   const { id } = useParams();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [tab, setTab] = useState('historique');
@@ -153,10 +156,12 @@ export default function ProjectDetailPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {isAdmin && (<>
           <a href={`/api/projects/${project.id}/report`} download>
             <Button variant="secondary">Rapport PDF</Button>
           </a>
           <Button variant="secondary" onClick={() => { setFields({}); setModal('edit'); }}>Modifier</Button>
+          </>)}
           {!isArchived && (
             <Button onClick={() => { setFields({}); setEditExpense(null); setModal('expense'); }}>+ Dépense</Button>
           )}
@@ -300,7 +305,7 @@ export default function ProjectDetailPage() {
                               }}>
                               Modifier
                             </Button>
-                            <Button variant="ghost" className="min-h-9 px-2.5 py-1 text-xs text-rose-600"
+                            {isAdmin && (<Button variant="ghost" className="min-h-9 px-2.5 py-1 text-xs text-rose-600"
                               onClick={() => setConfirm({
                                 url: `/api/expenses/${e.id}`,
                                 title: 'Supprimer cette dépense ?',
@@ -308,7 +313,7 @@ export default function ProjectDetailPage() {
                                 doneMessage: 'Dépense supprimée.',
                               })}>
                               Supprimer
-                            </Button>
+                            </Button>)}
                           </div>
                         </td>
                       </tr>
@@ -370,7 +375,7 @@ export default function ProjectDetailPage() {
                               }}>
                               Modifier
                             </Button>
-                            <Button variant="ghost" className="min-h-9 px-2.5 py-1 text-xs text-rose-600"
+                            {isAdmin && (<Button variant="ghost" className="min-h-9 px-2.5 py-1 text-xs text-rose-600"
                               onClick={() => setConfirm({
                                 url: `/api/payments/${p.id}`,
                                 title: 'Supprimer cet encaissement ?',
@@ -378,7 +383,7 @@ export default function ProjectDetailPage() {
                                 doneMessage: 'Encaissement supprimé.',
                               })}>
                               Supprimer
-                            </Button>
+                            </Button>)}
                           </div>
                         </td>
                       </tr>

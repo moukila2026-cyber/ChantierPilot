@@ -4,7 +4,7 @@ import { withTenant } from '../../_lib/db.js';
 import { paymentUpdateSchema, parseOrThrow, PAYMENT_METHOD_LABELS } from '../../_lib/validate.js';
 import { decodeFileAttachment } from '../../_lib/files.js';
 import { readJsonBody, sendJson, methodNotAllowed, handle, fail } from '../../_lib/http.js';
-import { requireAuth, run, audit } from '../../_lib/pipeline.js';
+import { requireAuth, ensureAdmin, run, audit } from '../../_lib/pipeline.js';
 
 export default async function handler(req, res) {
   await handle(req, res, async () => {
@@ -59,6 +59,7 @@ export default async function handler(req, res) {
       }
 
       if (req.method === 'DELETE') {
+        if (!ensureAdmin(ctx, res)) return;
         const deleted = await withTenant(ctx, async (client) => {
           const current = (await client.query('SELECT amount, reference FROM payments WHERE id = $1', [id])).rows[0];
           if (!current) return null;

@@ -171,6 +171,34 @@ BEGIN
 END;
 $$;
 
+
+-- Révocation des sessions d'un compte par l'administrateur de SON entreprise.
+-- Exige le contexte (rôle admin + même entreprise) posé par withTenant :
+-- un admin ne peut révoquer que les sessions d'un membre de son entreprise.
+CREATE OR REPLACE FUNCTION api_admin_revoke_sessions(p_user_id UUID)
+RETURNS INTEGER
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  n INTEGER;
+BEGIN
+  IF app_current_role() <> 'admin' THEN
+    RAISE EXCEPTION 'droits insuffisants' USING ERRCODE = '42501';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM app_users
+    WHERE id = p_user_id AND company_id = app_current_company_id()
+  ) THEN
+    RETURN 0;
+  END IF;
+  UPDATE sessions SET revoked_at = now()
+  WHERE user_id = p_user_id AND revoked_at IS NULL;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  RETURN n;
+END;
+$$;
+
 -- Hygiène : purge des sessions expirées depuis plus de 30 jours.
 CREATE OR REPLACE FUNCTION api_cleanup_sessions()
 RETURNS INTEGER
@@ -196,6 +224,7 @@ ALTER FUNCTION api_lookup_session(TEXT)       OWNER TO chantierpilot_definer;
 ALTER FUNCTION api_fail_login(TEXT)           OWNER TO chantierpilot_definer;
 ALTER FUNCTION api_succeed_login(TEXT)        OWNER TO chantierpilot_definer;
 ALTER FUNCTION api_cleanup_sessions()         OWNER TO chantierpilot_definer;
+ALTER FUNCTION api_admin_revoke_sessions(UUID) OWNER TO chantierpilot_definer;
 REVOKE CREATE ON SCHEMA public FROM chantierpilot_definer;
 
 REVOKE ALL ON FUNCTION api_lookup_user(TEXT)    FROM PUBLIC;
@@ -203,12 +232,14 @@ REVOKE ALL ON FUNCTION api_lookup_session(TEXT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION api_fail_login(TEXT)     FROM PUBLIC;
 REVOKE ALL ON FUNCTION api_succeed_login(TEXT)  FROM PUBLIC;
 REVOKE ALL ON FUNCTION api_cleanup_sessions()   FROM PUBLIC;
+REVOKE ALL ON FUNCTION api_admin_revoke_sessions(UUID) FROM PUBLIC;
 
 GRANT EXECUTE ON FUNCTION api_lookup_user(TEXT)    TO chantierpilot_app;
 GRANT EXECUTE ON FUNCTION api_lookup_session(TEXT) TO chantierpilot_app;
 GRANT EXECUTE ON FUNCTION api_fail_login(TEXT)     TO chantierpilot_app;
 GRANT EXECUTE ON FUNCTION api_succeed_login(TEXT)  TO chantierpilot_app;
 GRANT EXECUTE ON FUNCTION api_cleanup_sessions()   TO chantierpilot_app;
+GRANT EXECUTE ON FUNCTION api_admin_revoke_sessions(UUID) TO chantierpilot_app;
 
 -- Les fonctions de contexte sont appelées PAR LES POLITIQUES : le rôle
 -- applicatif doit pouvoir les exécuter (elles ne lisent que des GUC).

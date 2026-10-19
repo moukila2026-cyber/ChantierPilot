@@ -2,10 +2,14 @@
 
 Dernière mise à jour : 19 octobre 2026.
 
+## Comptes agents (rôle `member`) — matrice B
+
+L'administrateur d'une entreprise peut créer, désactiver/réactiver et réinitialiser le mot de passe des comptes agents depuis **Paramètres → Équipe** (`/api/team`, réservé aux administrateurs, contrôle côté serveur, journalisation, sessions révocables — voir `docs/SECURITE.md` §2 bis). Un agent voit les données de son entreprise, saisit dépenses et encaissements et joint des justificatifs ; il ne peut ni supprimer, ni gérer les chantiers, les réglages, les exports, le journal ou les comptes. Aucun compte n'est créé manuellement en base. Les agents utilisent l'application sur téléphone via Internet ; il n'y a pas de mode hors ligne.
+
 ## État du dépôt
 
 - Dépôt : `moukila2026-cyber/ChantierPilot`.
-- La branche de travail Arena est `arena/9d2da74b-chantierpilot` ; les changements doivent être livrés par PR, jamais directement sur `main`.
+- La branche de travail Arena de la session en cours est indiquée dans la session Arena (ne pas travailler sur `main`) ; la livraison V1.3 passait par `arena/9d2da74b-chantierpilot` ; les changements doivent être livrés par PR, jamais directement sur `main`.
 - La base de cette livraison est `f480bc1` (fusion de la PR #3).
 - Les PR #1 (V1), #2 (V1.1) et #3 (V1.2 — déploiement Vercel + Neon) sont fusionnées.
 - La page d’accueil publique et le logo ChantierPilot sont livrés dans la V1.3. Pour les visiteurs, `/` affiche l’accueil ; après authentification, `/` conserve le tableau de bord.

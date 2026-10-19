@@ -2,7 +2,7 @@
 
 import { withTenant } from '../_lib/db.js';
 import { sendJson, methodNotAllowed, handle, parseQuery, parsePagination, paginationMeta } from '../_lib/http.js';
-import { requireAuth, run } from '../_lib/pipeline.js';
+import { requireAuth, ensureAdmin, run } from '../_lib/pipeline.js';
 
 export default async function handler(req, res) {
   await handle(req, res, async () => {
@@ -10,6 +10,7 @@ export default async function handler(req, res) {
     await run(res, async () => {
       const ctx = await requireAuth(req, res);
       if (!ctx) return;
+      if (!ensureAdmin(ctx, res)) return;
 
       const url = new URL(req.url, 'http://local');
       const page = parsePagination(parseQuery(req, url));

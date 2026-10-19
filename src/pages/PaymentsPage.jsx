@@ -8,8 +8,11 @@ import {
   Pagination, Select, Spinner, Toast,
 } from '../components/ui.jsx';
 import { PaymentForm } from '../components/forms.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function PaymentsPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [state, setState] = useState({ loading: true, payments: [], projects: [] });
   const [filters, setFilters] = useState({ project_id: '', method: '', from: '', to: '' });
   const [modalOpen, setModalOpen] = useState(false);
@@ -180,8 +183,8 @@ export default function PaymentsPage() {
                             setEditTarget({ ...p, amount: String(p.amount), payment_date: p.payment_date?.slice(0, 10), proof: null });
                             setFields({}); setModalOpen(true);
                           }}>Modifier</Button>
-                        <Button variant="ghost" className="min-h-9 px-2.5 py-1 text-xs text-rose-600"
-                          onClick={() => setConfirm({ url: `/api/payments/${p.id}` })}>Supprimer</Button>
+                        {isAdmin && (<Button variant="ghost" className="min-h-9 px-2.5 py-1 text-xs text-rose-600"
+                          onClick={() => setConfirm({ url: `/api/payments/${p.id}` })}>Supprimer</Button>)}
                       </div>
                     </td>
                   </tr>
@@ -213,8 +216,8 @@ export default function PaymentsPage() {
                       setEditTarget({ ...p, amount: String(p.amount), payment_date: p.payment_date?.slice(0, 10), proof: null });
                       setFields({}); setModalOpen(true);
                     }}>Modifier</Button>
-                  <Button variant="secondary" className="min-h-9 flex-1 py-1 text-xs text-rose-600"
-                    onClick={() => setConfirm({ url: `/api/payments/${p.id}` })}>Supprimer</Button>
+                  {isAdmin && (<Button variant="secondary" className="min-h-9 flex-1 py-1 text-xs text-rose-600"
+                    onClick={() => setConfirm({ url: `/api/payments/${p.id}` })}>Supprimer</Button>)}
                 </div>
               </Card>
             ))}

@@ -4,7 +4,7 @@
 import { withTenant } from '../../_lib/db.js';
 import { projectCreateSchema, parseOrThrow, STATUS_LABELS, CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '../../_lib/validate.js';
 import { readJsonBody, sendJson, methodNotAllowed, handle, parseQuery, parsePagination, paginationMeta } from '../../_lib/http.js';
-import { requireAuth, run, audit } from '../../_lib/pipeline.js';
+import { requireAuth, ensureAdmin, run, audit } from '../../_lib/pipeline.js';
 
 export default async function handler(req, res) {
   await handle(req, res, async () => {
@@ -53,6 +53,7 @@ export default async function handler(req, res) {
       }
 
       if (req.method === 'POST') {
+        if (!ensureAdmin(ctx, res)) return;
         const data = parseOrThrow(projectCreateSchema, await readJsonBody(req));
         const project = await withTenant(ctx, async (client) => {
           const { rows } = await client.query(

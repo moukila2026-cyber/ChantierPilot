@@ -2,8 +2,8 @@
 
 import { withTenant } from '../_lib/db.js';
 import { companyUpdateSchema, parseOrThrow } from '../_lib/validate.js';
-import { readJsonBody, sendJson, methodNotAllowed, handle } from '../_lib/http.js';
-import { requireAuth, run, audit } from '../_lib/pipeline.js';
+import { readJsonBody, sendJson, methodNotAllowed, handle, fail } from '../_lib/http.js';
+import { requireAuth, ensureAdmin, run, audit } from '../_lib/pipeline.js';
 
 export default async function handler(req, res) {
   await handle(req, res, async () => {
@@ -20,6 +20,7 @@ export default async function handler(req, res) {
       }
 
       if (req.method === 'PATCH') {
+        if (!ensureAdmin(ctx, res)) return;
         const data = parseOrThrow(companyUpdateSchema, await readJsonBody(req));
         const company = await withTenant(ctx, async (client) => {
           const { rows } = await client.query(

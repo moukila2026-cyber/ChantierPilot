@@ -3,7 +3,7 @@
 import { withTenant } from '../../_lib/db.js';
 import { expenseUpdateSchema, parseOrThrow, CATEGORY_LABELS } from '../../_lib/validate.js';
 import { readJsonBody, sendJson, methodNotAllowed, handle, fail } from '../../_lib/http.js';
-import { requireAuth, run, audit } from '../../_lib/pipeline.js';
+import { requireAuth, ensureAdmin, run, audit } from '../../_lib/pipeline.js';
 import { decodeFileAttachment } from '../../_lib/files.js';
 
 export default async function handler(req, res) {
@@ -58,6 +58,7 @@ export default async function handler(req, res) {
       }
 
       if (req.method === 'DELETE') {
+        if (!ensureAdmin(ctx, res)) return;
         const deleted = await withTenant(ctx, async (client) => {
           const current = (await client.query('SELECT amount, category FROM expenses WHERE id = $1', [id])).rows[0];
           if (!current) return null;
