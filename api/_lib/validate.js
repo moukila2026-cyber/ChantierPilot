@@ -114,6 +114,8 @@ export const loginSchema = z.object({
 export const companyUpdateSchema = z.object({
   name: trimmed(2, 120, 'Le nom de l\'entreprise').optional(),
   rccm: optionalText(60).optional(),
+  tax_number: optionalText(100).optional(),
+  tax_regime: optionalText(160).optional(),
   phone: optionalText(30).optional(),
   email: z.union([z.literal(''), z.string().email('Adresse e-mail invalide.')]).optional(),
   address: optionalText(240).optional(),

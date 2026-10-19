@@ -1,3 +1,4 @@
+import { businessError } from '../../_lib/operations.js';
 // PATCH/DELETE /api/payments/:id — modification ou suppression d'un encaissement.
 
 import { withTenant } from '../../_lib/db.js';
@@ -27,6 +28,7 @@ export default async function handler(req, res) {
         const payment = await withTenant(ctx, async (client) => {
           const current = (await client.query('SELECT * FROM payments WHERE id = $1', [id])).rows[0];
           if (!current) return null;
+          if (current.invoice_id) throw businessError('Ce règlement est lié à une facture et verrouillé pour préserver son solde.',409);
 
           const { rows } = await client.query(
             `UPDATE payments SET
@@ -61,8 +63,9 @@ export default async function handler(req, res) {
       if (req.method === 'DELETE') {
         if (!ensureAdmin(ctx, res)) return;
         const deleted = await withTenant(ctx, async (client) => {
-          const current = (await client.query('SELECT amount, reference FROM payments WHERE id = $1', [id])).rows[0];
+          const current = (await client.query('SELECT amount, reference, invoice_id FROM payments WHERE id = $1', [id])).rows[0];
           if (!current) return null;
+          if (current.invoice_id) throw businessError('Ce règlement est lié à une facture et verrouillé pour préserver son solde.',409);
           await client.query('DELETE FROM payments WHERE id = $1', [id]);
           await audit(client, ctx, 'suppression', 'encaissement', id,
             `Encaissement supprimé (${current.amount} FCFA, réf. ${current.reference})`);

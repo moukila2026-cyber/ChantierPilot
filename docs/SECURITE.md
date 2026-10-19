@@ -138,3 +138,24 @@ npm run test          # parcours complet API (59 assertions, dont permissions cr
 
 Ces deux suites doivent rester **vertes avant toute mise en production et avant
 l'import des données d'un client réel**.
+
+
+## Extension : facturation SasPay et opérateurs SHOPIN30
+
+Les commandes d’abonnement sont isolées par RLS. Le webhook vérifie sa signature puis relit les preuves SasPay ; la fonction SQL `api_billing_company(uuid)` ne retourne que l’identifiant de l’entreprise liée à UNE commande.
+
+Exception explicite à l’isolation de la table `companies` : les fonctions SECURITY DEFINER `api_operator_list` et `api_operator_suspend` ont des droits restreints de lecture du répertoire et de modification du seul champ `billing_suspended`. Elles vérifient `platform_operators` avec l’utilisateur du contexte authentifié. Aucun droit opérateur n’est accordé à l’inscription et aucun accès inter-entreprises aux dépenses, paiements chantier ou justificatifs n’est ajouté. Le rôle applicatif n’a pas accès directement à la liste des opérateurs ni au journal plateforme. Voir [ABONNEMENTS_SASPAY.md](ABONNEMENTS_SASPAY.md).
+
+
+## Modules métier et mode hors connexion
+
+Les tables commerciales, caisse, présences, tâches, journal, achats et stock ont toutes RLS activé et forcé. Leurs références aux chantiers, utilisateurs et autres données métier utilisent des clés composites incluant l’entreprise. Les commandes sont validées par schémas stricts, horodatées/journalisées, sérialisées par entreprise et dédupliquées par UUID + empreinte de contenu + utilisateur. Les documents commerciaux sont réservés à l’administrateur ; chaque avance n’est visible par un agent que s’il en est bénéficiaire.
+
+Le cache service worker ne conserve que des fichiers publics ; jamais `/api`. IndexedDB contient des métadonnées terrain et la file de journal/présences, cloisonnées par entreprise et utilisateur. Les nouvelles photos hors ligne peuvent être dans cette file. Ce stockage n’est pas chiffré : appareil personnel protégé requis. L’identité locale temporaire permet uniquement d’ouvrir le carnet hors ligne, sans accorder de droit serveur. La synchronisation revérifie l’identité, la session, l’abonnement et les droits ; une saisie refusée reste en attente. Voir [MODULES_METIER.md](MODULES_METIER.md) pour les précautions de déconnexion et le périmètre exact.
+
+
+## Gestion avancée
+
+Versions de plans, annotations, Gantt et dépôts/mouvements sont sous RLS forcé. Les fichiers plans sont contrôlés par contenu et limités à 2 Mo, récupérés par session, sans cache. PDF.js et ses ressources sont servis sur la même origine, avec évaluation JavaScript PDF désactivée. Les agents lisent plans/planning/stocks et ajoutent des annotations ; les autres écritures sont réservées aux administrateurs.
+
+Les modules paie et signature certifiée ont été retirés de l’interface et des traitements métier. L’API ne renvoie ni dossiers, ni montants, ni statut de signature. L’ancien téléchargement de bulletin répond 410 ; les anciennes commandes de paie ne sont plus reconnues. Les tables historiques restent sous RLS forcé pour préserver d’éventuelles archives. Seul l’export complet administrateur conserve ces archives : le protéger comme une sauvegarde sensible. Aucun service de signature certifiée n’est actif ni requis pour utiliser les devis et chantiers. Voir [GESTION_AVANCEE.md](GESTION_AVANCEE.md).

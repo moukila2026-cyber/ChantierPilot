@@ -1,3 +1,4 @@
+import { protectLinkedExpense } from '../../_lib/operations.js';
 // PATCH/DELETE /api/expenses/:id — modification ou suppression d'une dépense.
 
 import { withTenant } from '../../_lib/db.js';
@@ -27,6 +28,7 @@ export default async function handler(req, res) {
         const expense = await withTenant(ctx, async (client) => {
           const current = (await client.query('SELECT * FROM expenses WHERE id = $1', [id])).rows[0];
           if (!current) return null;
+          await protectLinkedExpense(client,id);
 
           const { rows } = await client.query(
             `UPDATE expenses SET
@@ -62,6 +64,7 @@ export default async function handler(req, res) {
         const deleted = await withTenant(ctx, async (client) => {
           const current = (await client.query('SELECT amount, category FROM expenses WHERE id = $1', [id])).rows[0];
           if (!current) return null;
+          await protectLinkedExpense(client,id);
           await client.query('DELETE FROM expenses WHERE id = $1', [id]);
           await audit(client, ctx, 'suppression', 'depense', id,
             `Dépense supprimée (${CATEGORY_LABELS[current.category] || current.category}, ${current.amount} FCFA)`);

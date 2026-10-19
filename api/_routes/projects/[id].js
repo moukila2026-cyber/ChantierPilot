@@ -1,3 +1,4 @@
+import { checkQuota } from '../../_lib/billing.js';
 // GET /api/projects/:id — fiche complète (infos, totaux, historique chronologique).
 // PATCH /api/projects/:id — modification / archivage / réouverture.
 
@@ -77,7 +78,18 @@ export default async function handler(req, res) {
             [id],
           )).rows;
 
-          return { project, expenses, payments, timeline };
+          let commercial = null;
+          if (ctx.role === 'admin') {
+            commercial = (await client.query(`SELECT
+              (SELECT total FROM commercial_documents WHERE project_id=$1 AND kind='quote' AND status='accepted' LIMIT 1) AS contract_total,
+              (SELECT estimated_cost FROM commercial_documents WHERE project_id=$1 AND kind='quote' AND status='accepted' LIMIT 1) AS estimated_cost,
+              COALESCE((SELECT SUM(CASE WHEN kind='credit' THEN -total ELSE total END) FROM commercial_documents WHERE project_id=$1 AND kind IN ('invoice','credit')),0)::bigint AS billed,
+              COALESCE((SELECT SUM(amount) FROM payments WHERE project_id=$1 AND invoice_id IS NOT NULL),0)::bigint AS allocated_payments,
+              COALESCE((SELECT SUM(amount) FROM purchase_orders WHERE project_id=$1 AND status='approved'),0)::bigint AS committed_purchases,
+              COALESCE((SELECT SUM(cost) FROM attendance WHERE project_id=$1 AND status='pending'),0)::bigint AS pending_labor,
+              (SELECT count(*) FROM site_tasks WHERE project_id=$1 AND kind='reserve' AND status<>'validated')::int AS open_reserves`, [id])).rows[0];
+          }
+          return { project, expenses, payments, timeline, commercial };
         });
 
         if (!data) return fail(res, 404, 'introuvable', 'Chantier introuvable.');
@@ -94,6 +106,8 @@ export default async function handler(req, res) {
         const project = await withTenant(ctx, async (client) => {
           const current = (await client.query('SELECT * FROM projects WHERE id = $1', [id])).rows[0];
           if (!current) return null;
+
+          if (['archive','termine'].includes(current.status) && data.status && !['archive','termine'].includes(data.status)) await checkQuota(client, ctx, 'projects');
 
           // Cohérence des dates : on vérifie le couple final.
           const startDate = data.start_date ?? current.start_date;

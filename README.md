@@ -24,6 +24,30 @@ Budgets, dépenses, encaissements, rapports PDF — en FCFA, en français, utili
 
 Honnêteté fonctionnelle : un encaissement est une **déclaration documentée par une référence** (n° de reçu, réf. de virement, transaction Mobile Money). Il n'est présenté comme « prouvé » que lorsqu'un justificatif est joint. Le logiciel ne prétend jamais qu'un paiement a eu lieu sans trace.
 
+## Modules métier ajoutés
+
+- **Devis & factures** : bibliothèque de prix, brouillons modifiables, émission, acceptation enregistrée, création du chantier, acomptes/situations/solde, avoir intégral et PDF. Règlements déclarés affectés aux factures.
+- **Avances de caisse** : bénéficiaire, dépenses justifiées, restitution et clôture par la direction, sans double comptage.
+- **Carnet terrain** : présences avec validation du coût, journal photo, compte rendu PDF, tâches et réserves affectées.
+- **Achats & stock** : demande, approbation, réception complète, consommation et retour d'inutilisé par chantier.
+- **Hors connexion ciblé** : journal et présences en attente locale, rechargement de la coque en production, synchronisation avec déduplication.
+
+Premières versions opérationnelles, **pas** un ERP complet, une paie automatisée, une signature certifiée ou une facturation homologuée. → [Parcours, installation, tests et limites](docs/MODULES_METIER.md).
+
+### Gestion avancée
+
+Menu `/gestion` : plans PDF/images avec révisions et annotations positionnées, planning Gantt à dépendances contrôlées, stocks quantitatifs multi-dépôts et livraisons chantier. La paie et la signature électronique certifiée sont hors périmètre : les présences/coûts validés et les accords clients référencés permettent de gérer les chantiers sans ces modules. Paramètres entreprise enrichis avec NCC/régime fiscal ; pas de certification FNE/DGI implicite.
+
+→ [Installation, parcours, sécurité et fonctions restant à raccorder](docs/GESTION_AVANCEE.md).
+
+## Abonnements et paiement SasPay
+
+Essai gratuit de 14 jours, puis **Essentiel 9 900**, **Équipe 19 900**, **Entreprise 39 900 FCFA / 30 jours**. Quotas appliqués côté serveur, activation après confirmation SasPay, lecture seule à expiration, console opérateur SHOPIN30 avec suspension journalisée. Alertes budget, trésorerie et retard dans le tableau de bord.
+
+**Le client valide chaque renouvellement : pas de prélèvement récurrent sans intervention.** La confirmation et les droits sont automatisés. La mise en production nécessite les clés SasPay et son webhook.
+
+→ [Configuration, limites et désignation des opérateurs](docs/ABONNEMENTS_SASPAY.md).
+
 ## Démarrage rapide (développement)
 
 ```bash
@@ -38,11 +62,11 @@ npm run test:all        # toutes les suites ci-dessous (à lancer avant toute li
 npm run db:test-rls     # 22 tests d'isolation RLS avec deux entreprises fictives
 npm run test:migration  # migration avec un propriétaire NON superuser, comme sur Neon
 npm run test:unit       # montants en lettres, pagination, PDF, routeur et limites Vercel
-npm run test            # 59 tests d'intégration API (deux entreprises, permissions, calculs, exports, PDF…)
+npm run test            # tests d'intégration API, quotas, facturation et console opérateur (deux entreprises, permissions, calculs, exports, PDF…)
 npm run build           # build de production (Vite)
 ```
 
-> Les suites tournent sur un vrai PostgreSQL — pas de simulateur.
+> Les suites tournent sur un vrai PostgreSQL. Les réponses de SasPay sont simulées dans les tests du contrat de paiement ; aucun débit réel n’est effectué.
 
 ## Architecture
 

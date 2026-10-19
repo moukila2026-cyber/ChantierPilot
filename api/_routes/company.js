@@ -30,11 +30,13 @@ export default async function handler(req, res) {
                phone   = COALESCE($4, phone),
                email   = COALESCE($5, email),
                address = COALESCE($6, address),
-               city    = COALESCE($7, city)
+               city    = COALESCE($7, city),
+               tax_number = COALESCE($8,tax_number),
+               tax_regime = COALESCE($9,tax_regime)
              WHERE id = $1
              RETURNING *`,
             [ctx.companyId, data.name ?? null, data.rccm ?? null, data.phone ?? null,
-              data.email ?? null, data.address ?? null, data.city ?? null],
+              data.email ?? null, data.address ?? null, data.city ?? null, data.tax_number ?? null, data.tax_regime ?? null],
           );
           await audit(client, ctx, 'modification', 'entreprise', ctx.companyId, 'Profil entreprise mis à jour');
           return rows[0];

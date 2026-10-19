@@ -1,3 +1,9 @@
+import advanced from '../_routes/advanced.js';
+import operations from '../_routes/operations.js';
+import documents from '../_routes/documents.js';
+import operator from '../_routes/operator.js';
+import billing from '../_routes/billing.js';
+import billingWebhook from '../_routes/billing-webhook.js';
 // Routeur unique de l'API.
 //
 // Pourquoi : sur Vercel, chaque fichier de api/ devient une fonction
@@ -38,6 +44,12 @@ const ID = '(?<id>[^/]+)';
 
 /** [méthodes autorisées, motif du chemin, gestionnaire] */
 export const ROUTES = [
+  [['GET', 'POST'], /^\/api\/advanced$/, advanced],
+  [['GET', 'POST'], /^\/api\/operations$/, operations],
+  [['GET', 'POST'], /^\/api\/documents$/, documents],
+  [['GET', 'PATCH'], /^\/api\/operator$/, operator],
+  [['GET', 'POST'], /^\/api\/billing$/, billing],
+  [['POST'], /^\/api\/billing\/webhook$/, billingWebhook],
   [['GET'], /^\/api\/health$/, health],
   [['POST'], /^\/api\/auth\/register$/, register],
   [['POST'], /^\/api\/auth\/login$/, login],

@@ -43,6 +43,15 @@ export default function DashboardPage() {
         {data.notice}
       </p>
 
+      <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
+        <h2 className="text-lg font-bold">À traiter en priorité</h2>
+        <p className="mt-1 text-xs text-slate-500">Alertes calculées sur vos saisies, pas des créances certifiées.</p>
+        {data.alerts?.length ? <ul className="mt-4 grid gap-3 sm:grid-cols-2">{data.alerts.map((alert, i) => <li key={`${alert.project_id}-${i}`} className={`rounded-lg border p-4 ${alert.kind === 'danger' ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'}`}>
+          <Link to={`/chantiers/${alert.project_id}`} className="font-bold underline">{alert.project_name}</Link>
+          <p className="mt-1 text-sm font-semibold">{alert.title}</p><p className="mt-1 text-sm text-slate-600">{alert.action}</p>
+        </li>)}</ul> : <p className="mt-3 text-sm text-slate-600">Aucune alerte détectée sur les saisies actuelles.</p>}
+      </section>
+
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2" pad={false}>
           <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">

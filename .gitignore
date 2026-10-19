@@ -21,3 +21,6 @@ dist/
 .DS_Store
 *.log
 coverage/
+
+# Captures et diagnostics de tests navigateur
+.arena/

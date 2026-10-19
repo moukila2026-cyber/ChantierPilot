@@ -398,4 +398,88 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO chantierpilot_app;
 GRANT USAGE ON SCHEMA public TO chantierpilot_definer;
 GRANT SELECT, UPDATE, INSERT, DELETE ON app_users, sessions TO chantierpilot_definer;
 
+-- Abonnements : isolation identique aux autres données métier.
+ALTER TABLE billing_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE billing_orders FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS billing_orders_tenant ON billing_orders;
+CREATE POLICY billing_orders_tenant ON billing_orders
+  USING (company_id = app_current_company_id())
+  WITH CHECK (company_id = app_current_company_id());
+GRANT SELECT, INSERT, UPDATE ON billing_orders TO chantierpilot_app;
+-- Le webhook doit retrouver UNE entreprise à partir d'une référence de commande.
+-- Aucun export global ; seul le défenieur a cette politique.
+DROP POLICY IF EXISTS billing_orders_lookup ON billing_orders;
+CREATE POLICY billing_orders_lookup ON billing_orders FOR SELECT TO chantierpilot_definer USING (true);
+GRANT SELECT ON billing_orders TO chantierpilot_definer;
+GRANT CREATE ON SCHEMA public TO chantierpilot_definer;
+CREATE OR REPLACE FUNCTION api_billing_company(order_id UUID) RETURNS UUID
+LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, public
+AS $$ SELECT company_id FROM public.billing_orders WHERE id = order_id $$;
+ALTER FUNCTION api_billing_company(UUID) OWNER TO chantierpilot_definer;
+REVOKE ALL ON FUNCTION api_billing_company(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION api_billing_company(UUID) TO chantierpilot_app;
+REVOKE CREATE ON SCHEMA public FROM chantierpilot_definer;
+-- Console opérateur : fonctions étroites, contrôle SQL d'une liste explicite.
+ALTER TABLE platform_operators ENABLE ROW LEVEL SECURITY;
+ALTER TABLE platform_operators FORCE ROW LEVEL SECURITY;
+ALTER TABLE platform_actions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE platform_actions FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS platform_operators_definer ON platform_operators;
+CREATE POLICY platform_operators_definer ON platform_operators TO chantierpilot_definer USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS platform_actions_definer ON platform_actions;
+CREATE POLICY platform_actions_definer ON platform_actions TO chantierpilot_definer USING (true) WITH CHECK (true);
+GRANT SELECT, INSERT, DELETE ON platform_operators TO chantierpilot_definer;
+GRANT SELECT, INSERT ON platform_actions TO chantierpilot_definer;
+GRANT USAGE ON SEQUENCE platform_actions_id_seq TO chantierpilot_definer;
+DROP POLICY IF EXISTS companies_operator_read ON companies;
+CREATE POLICY companies_operator_read ON companies FOR SELECT TO chantierpilot_definer USING (true);
+DROP POLICY IF EXISTS companies_operator_update ON companies;
+CREATE POLICY companies_operator_update ON companies FOR UPDATE TO chantierpilot_definer USING (true) WITH CHECK (true);
+GRANT SELECT ON companies TO chantierpilot_definer;
+GRANT UPDATE (billing_suspended) ON companies TO chantierpilot_definer;
+GRANT CREATE ON SCHEMA public TO chantierpilot_definer;
+CREATE OR REPLACE FUNCTION api_is_operator() RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, public
+AS $$ SELECT EXISTS (SELECT 1 FROM public.platform_operators WHERE user_id=public.app_current_user_id()) $$;
+ALTER FUNCTION api_is_operator() OWNER TO chantierpilot_definer;
+REVOKE ALL ON FUNCTION api_is_operator() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION api_is_operator() TO chantierpilot_app;
+CREATE OR REPLACE FUNCTION api_operator_list() RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.platform_operators WHERE user_id=public.app_current_user_id()) THEN
+    RAISE EXCEPTION 'Opérateur requis' USING ERRCODE='42501';
+  END IF;
+  RETURN COALESCE((SELECT jsonb_agg(row_to_json(c)) FROM
+    (SELECT id,name,billing_plan,trial_until,paid_until,billing_suspended,created_at
+     FROM public.companies ORDER BY created_at DESC LIMIT 500) c), '[]'::jsonb);
+END; $$;
+CREATE OR REPLACE FUNCTION api_operator_suspend(target UUID, suspended BOOLEAN, reason TEXT) RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.platform_operators WHERE user_id=public.app_current_user_id()) THEN
+    RAISE EXCEPTION 'Opérateur requis' USING ERRCODE='42501';
+  END IF;
+  UPDATE public.companies SET billing_suspended=suspended WHERE id=target;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Entreprise introuvable' USING ERRCODE='23503'; END IF;
+  INSERT INTO public.platform_actions(operator_id,company_id,suspended,reason)
+    VALUES (public.app_current_user_id(),target,suspended,reason);
+END; $$;
+ALTER FUNCTION api_operator_list() OWNER TO chantierpilot_definer;
+ALTER FUNCTION api_operator_suspend(UUID,BOOLEAN,TEXT) OWNER TO chantierpilot_definer;
+REVOKE ALL ON FUNCTION api_operator_list() FROM PUBLIC;
+REVOKE ALL ON FUNCTION api_operator_suspend(UUID,BOOLEAN,TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION api_operator_list() TO chantierpilot_app;
+GRANT EXECUTE ON FUNCTION api_operator_suspend(UUID,BOOLEAN,TEXT) TO chantierpilot_app;
+REVOKE CREATE ON SCHEMA public FROM chantierpilot_definer;
+-- Modules métier : déni par défaut, même pour le propriétaire.
+DO $$ DECLARE t TEXT; BEGIN
+  FOREACH t IN ARRAY ARRAY['operation_requests','commercial_documents','price_items','cash_advances','advance_entries','workers','attendance','site_tasks','site_journal','inventory_items','purchase_orders','stock_movements','plan_versions','plan_annotations','schedule_tasks','warehouses','warehouse_movements','payroll_profiles','payroll_slips'] LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY',t);
+    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY',t);
+    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation ON %I',t);
+    EXECUTE format('CREATE POLICY tenant_isolation ON %I USING (company_id=app_current_company_id()) WITH CHECK (company_id=app_current_company_id())',t);
+    EXECUTE format('GRANT SELECT, INSERT, UPDATE ON %I TO chantierpilot_app',t);
+  END LOOP;
+END $$;
 COMMIT;

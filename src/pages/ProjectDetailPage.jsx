@@ -156,6 +156,7 @@ export default function ProjectDetailPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link to={`/terrain?chantier=${project.id}`}><Button variant="secondary">Carnet terrain</Button></Link>
           {isAdmin && (<>
           <a href={`/api/projects/${project.id}/report`} download>
             <Button variant="secondary">Rapport PDF</Button>
@@ -188,6 +189,17 @@ export default function ProjectDetailPage() {
         <StatCard label="Résultat provisoire" value={formatFcfa(totals.resultat_provisionnel)}
           tone={totals.resultat_provisionnel >= 0 ? 'blue' : 'red'} sub="Encaissements − dépenses" />
       </div>
+
+      {isAdmin && data.commercial && <Card className="mt-4">
+        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-bold">Contrat, facturation & coûts engagés</h2><Link to="/documents" className="text-sm font-semibold text-amber-700">Devis & factures →</Link></div>
+        <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div><p className="text-xs text-slate-500">Devis accepté (taxes incluses)</p><p className="mt-1 font-bold">{data.commercial.contract_total ? formatFcfa(data.commercial.contract_total) : 'Non renseigné'}</p></div>
+          <div><p className="text-xs text-slate-500">Facturé net des avoirs</p><p className="mt-1 font-bold">{formatFcfa(data.commercial.billed)}</p></div>
+          <div><p className="text-xs text-slate-500">Solde des factures (règlements affectés)</p><p className="mt-1 font-bold">{formatFcfa(Number(data.commercial.billed)-Number(data.commercial.allocated_payments))}</p></div>
+          <div><p className="text-xs text-slate-500">Achats approuvés non réceptionnés</p><p className="mt-1 font-bold">{formatFcfa(data.commercial.committed_purchases)}</p></div>
+        </div>
+        <p className="mt-4 text-xs leading-5 text-slate-500">Coût prévisionnel saisi au devis : {formatFcfa(data.commercial.estimated_cost || 0)} · Main-d’œuvre en attente de validation : {formatFcfa(data.commercial.pending_labor)} · {data.commercial.open_reserves} réserve(s) non validée(s). Ces indicateurs ne sont pas une marge comptable ; les règlements non affectés ne soldent pas automatiquement une facture.</p>
+      </Card>}
 
       <Card className="mt-4">
         <div className="flex items-center justify-between text-xs text-slate-500">

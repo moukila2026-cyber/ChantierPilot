@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { api } from '../lib/api.js';
+import { formatDate } from '../lib/format.js';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Footer } from './ui.jsx';
 import Logo from './Logo.jsx';
 
 const NAV = [
+  {to:'/gestion',label:'Gestion avancée',icon:'M3 3v18h18M6 7h8M10 12h10M6 17h6'},
+  { to: '/documents', label: 'Devis & factures', icon: 'M7 3h7l5 5v13H7V3zM14 3v5h5M10 12h6m-6 4h6' },
+  { to: '/terrain', label: 'Carnet de chantier', icon: 'M9 3h6v4H9zM6 5H4v16h16V5h-2M8 11h8M8 15h8' },
   { to: '/', label: 'Tableau de bord', icon: 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM13.5 6A2.25 2.25 0 0115.75 3.75H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z' },
   { to: '/chantiers', label: 'Chantiers', icon: 'M8.25 21v-5.25c0-.621.504-1.125 1.125-1.125h7.5c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3.545l-4.5 1.636M2.25 9l4.5 1.636M2.25 9v10.125M2.25 9l13.5-4.909' },
   { to: '/depenses', label: 'Dépenses', icon: 'M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z' },
@@ -15,16 +20,23 @@ const NAV = [
 export default function Layout({ children }) {
   const { user, company, logout } = useAuth();
   const navigate = useNavigate();
+  const [billing, setBilling] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    api('/api/billing').then(data => { if (alive) setBilling(data); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/connexion');
+    try { if (await logout()) navigate('/connexion'); }
+    catch (e) { window.alert(e.message); }
   };
 
   const navItems = (
     <>
-      {NAV.map((item) => (
+      {billing?.operator && <NavLink to="/shopin30" onClick={() => setMenuOpen(false)} className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-amber-300 hover:bg-white/5">Console SHOPIN30</NavLink>}
+      {NAV.filter(item => item.to !== '/documents' || user?.role === 'admin').map((item) => (
         <NavLink
           key={item.to}
           to={item.to}
@@ -135,7 +147,13 @@ export default function Layout({ children }) {
 
       {/* Contenu */}
       <main className="flex flex-1 flex-col lg:pl-64">
-        <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</div>
+        <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+          {billing && (billing.status !== 'actif' || new Date(billing.paid_until).getTime() - Date.now() < 7 * 86400000) && <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
+            <span>{billing.status === 'essai' ? `Essai gratuit jusqu’au ${formatDate(billing.trial_until)}.` : !billing.writable ? 'Espace en lecture seule : vos données restent accessibles, les modifications sont bloquées.' : `Votre forfait expire le ${formatDate(billing.paid_until)}. Pensez à le renouveler.`}</span>
+            <NavLink to="/offres" className="font-bold underline">Gérer mon forfait →</NavLink>
+          </div>}
+          {children}
+        </div>
         <Footer />
       </main>
     </div>
