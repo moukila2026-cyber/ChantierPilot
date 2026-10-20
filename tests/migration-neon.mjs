@@ -13,12 +13,23 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import net from 'node:net';
 import pg from 'pg';
 import { embeddedConfig } from '../server/embedded-pg.mjs';
 
+function freePort() {
+  return new Promise((resolve) => {
+    const s = net.createServer();
+    s.listen(0, '127.0.0.1', () => {
+      const { port } = s.address();
+      s.close(() => resolve(port));
+    });
+  });
+}
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const PGPORT = 55436;
-const API_PORT = 18791;
+const PGPORT = await freePort();
+const API_PORT = await freePort();
 const BASE = `http://127.0.0.1:${API_PORT}`;
 
 const pgData = mkdtempSync(join(tmpdir(), 'chantierpilot-neon-sim-'));
@@ -291,7 +302,11 @@ try {
 
   console.log('✓ Simulation Neon 7 tables (lecture + écriture intégrales des 9 nouveautés) → migration SQL 28 tables vérifiée.');
 } finally {
-  if (apiServer) await new Promise((r) => apiServer.close(r));
+  if (apiServer) {
+    apiServer.closeAllConnections?.();
+    await new Promise((r) => apiServer.close(r));
+  }
   spawnSync(join(pgBin, 'pg_ctl'), ['-D', pgData, '-m', 'immediate', 'stop'], { stdio: 'ignore' });
   rmSync(pgData, { recursive: true, force: true });
 }
+process.exit(0);

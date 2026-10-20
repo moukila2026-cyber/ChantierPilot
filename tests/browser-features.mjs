@@ -236,7 +236,9 @@ try {
   console.log('══ Test navigateur des 9 fonctionnalités métier BTP : SUCCÈS TOTAL ══');
 } finally {
   await browser?.close();
+  web.closeAllConnections?.();
   web.close();
   apiProc.kill('SIGTERM');
   await pg.stop();
 }
+process.exit(0);
