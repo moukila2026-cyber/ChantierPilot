@@ -38,6 +38,18 @@ export default async function handler(req, res) {
               [companyId, data.company.name, data.company.rccm, data.company.phone,
                 data.company.email, data.company.address, data.company.city],
             );
+            // Force explicitement 2 semaines complètes (14 jours pleins) d'essai gratuit,
+            // même si la colonne `trial_until` sur une base existante portait un ancien DEFAULT plus court.
+            await client.query('SAVEPOINT sp_register_trial_14d');
+            try {
+              await client.query(
+                "UPDATE companies SET trial_until = now() + interval '14 days' WHERE id = $1",
+                [companyId],
+              );
+              await client.query('RELEASE SAVEPOINT sp_register_trial_14d');
+            } catch {
+              await client.query('ROLLBACK TO SAVEPOINT sp_register_trial_14d').catch(() => {});
+            }
             await client.query(
               `INSERT INTO app_users (id, company_id, email, password_hash, full_name, role, auth_provider)
                VALUES ($1, $2, $3, $4, $5, 'admin', 'local')`,

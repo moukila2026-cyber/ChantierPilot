@@ -5,7 +5,7 @@ import Logo from '../components/Logo.jsx';
 import BtpVisual from '../components/BtpVisual.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { api } from '../lib/api.js';
-import { PLANS } from '../../shared/plans.js';
+import { PLANS, trialDaysRemaining } from '../../shared/plans.js';
 import { formatFcfa, formatDate } from '../lib/format.js';
 
 export default function PricingPage({ standalone = false }) {
@@ -54,7 +54,7 @@ export default function PricingPage({ standalone = false }) {
           <p className="text-xs font-extrabold uppercase tracking-widest text-[#eab956]">Moins de pertes, plus de visibilité</p>
           <h1 className="mt-2.5 text-3xl font-extrabold text-[#fbf8f1] sm:text-4xl">Un forfait à la taille de vos chantiers</h1>
           <p className="mt-3 text-sm leading-6 text-[#dfd9ce] sm:text-base">
-            14 jours d’essai sans carte. Pas de frais d’installation obligatoires. Dépenses, justificatifs, encaissements déclarés et rapports inclus dans chaque offre.
+            2 semaines (14 jours) d’essai gratuit sans carte bancaire. Pas de frais d’installation obligatoires. Dépenses, justificatifs, encaissements déclarés et rapports inclus dans chaque offre.
           </p>
         </div>
         <div className="min-w-0 lg:col-span-5">
@@ -76,7 +76,10 @@ export default function PricingPage({ standalone = false }) {
       <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">Mon espace · {data.status === 'essai' ? 'Essai Essentiel' : data.plan.name}</h2>
         <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold">{{ essai: 'Essai en cours', actif: 'Actif', lecture_seule: 'Lecture seule', suspendu: 'Suspendu' }[data.status]}</span></div>
       <p className="mt-3 text-sm text-slate-600">{data.usage.projects} / {data.plan.projects} chantiers ouverts · {data.usage.users} / {data.plan.users} utilisateurs actifs (administrateur inclus).</p>
-      <p className="mt-2 text-sm">{data.status === 'essai' ? `Essai jusqu’au ${formatDate(data.trial_until)}` : data.paid_until ? `Dernière période payée jusqu’au ${formatDate(data.paid_until)}` : 'Choisissez un forfait pour reprendre les modifications.'}</p>
+      <p className="mt-2 text-sm font-medium text-slate-800">{data.status === 'essai' ? (() => {
+        const days = data.trial_days_remaining ?? trialDaysRemaining(data.trial_until);
+        return `Essai gratuit de 2 semaines (14 jours) · ${days} jour${days > 1 ? 's' : ''} restant${days > 1 ? 's' : ''} — jusqu’au ${formatDate(data.trial_until)}`;
+      })() : data.paid_until ? `Dernière période payée jusqu’au ${formatDate(data.paid_until)}` : 'Choisissez un forfait pour reprendre les modifications.'}</p>
       {!data.writable && <p className="mt-2 text-sm font-semibold text-amber-800">Vos données, rapports et exports restent accessibles. Les modifications sont bloquées ; aucune donnée n’est supprimée.</p>}
       {!data.configured && <p className="mt-3 text-sm text-amber-800">Le paiement SasPay n’est pas encore configuré par l’exploitant.</p>}
       {data.test_mode && <p className="mt-3 font-semibold text-amber-800">Mode test SasPay — aucun encaissement réel.</p>}
