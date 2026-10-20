@@ -4,6 +4,7 @@ import { withTenant } from '../_lib/db.js';
 import { handle, sendJson, readJsonBody, securityHeaders, fail } from '../_lib/http.js';
 import { requireAuth, run } from '../_lib/pipeline.js';
 import { uuid,money,zeroMoney,text,date,businessError,adminOnly,projectRequired,activeUser,command,insertExpense } from '../_lib/operations.js';
+import { optionalSql } from '../_lib/compat.js';
 import { fileSchema, CATEGORIES } from '../_lib/validate.js';
 import { decodeFileAttachment } from '../_lib/files.js';
 import { quantityMilli, roundedRatio } from '../../shared/trade.js';
@@ -43,8 +44,8 @@ export default async function handler(req,res) {
           const project=(await client.query('SELECT * FROM projects WHERE id=$1',[req.query.report_project])).rows[0];
           if(!project)throw businessError('Chantier introuvable.',404);
           const company=(await client.query('SELECT name FROM companies WHERE id=$1',[ctx.companyId])).rows[0];
-          const journal=(await client.query('SELECT j.*,u.full_name AS author FROM site_journal j JOIN app_users u ON u.id=j.created_by WHERE j.project_id=$1 ORDER BY j.entry_date DESC,j.created_at DESC LIMIT 15',[project.id])).rows;
-          const tasks=(await client.query('SELECT t.*,u.full_name AS assignee FROM site_tasks t LEFT JOIN app_users u ON u.id=t.assignee_id WHERE t.project_id=$1 ORDER BY due_date LIMIT 100',[project.id])).rows;
+          const journal=await optionalSql(client,'sp_op_report_journal',async()=>(await client.query('SELECT j.*,u.full_name AS author FROM site_journal j JOIN app_users u ON u.id=j.created_by WHERE j.project_id=$1 ORDER BY j.entry_date DESC,j.created_at DESC LIMIT 15',[project.id])).rows,[]);
+          const tasks=await optionalSql(client,'sp_op_report_tasks',async()=>(await client.query('SELECT t.*,u.full_name AS assignee FROM site_tasks t LEFT JOIN app_users u ON u.id=t.assignee_id WHERE t.project_id=$1 ORDER BY due_date LIMIT 100',[project.id])).rows,[]);
           return {company,project,journal,tasks};
         });
         const pdf=await siteReportPdf(report.company,report.project,report.journal,report.tasks);
@@ -55,36 +56,44 @@ export default async function handler(req,res) {
         if(projectId && !uuid.safeParse(projectId).success) throw businessError('Chantier invalide.');
         if(req.query.photo_id) {
           if(!uuid.safeParse(req.query.photo_id).success) throw businessError('Photo invalide.');
-          const row=(await client.query('SELECT photo,photo_mime FROM site_journal WHERE id=$1',[req.query.photo_id])).rows[0];
+          const row=await optionalSql(client,'sp_op_photo',async()=>(await client.query('SELECT photo,photo_mime FROM site_journal WHERE id=$1',[req.query.photo_id])).rows[0],null);
           if(!row?.photo) return null;
           return {binary:row.photo,mime:row.photo_mime};
         }
         const query=(sql,params=[])=>client.query(sql,params).then(r=>r.rows);
         const projects=await query('SELECT id,name,status,client_name,budget FROM projects ORDER BY created_at DESC LIMIT 1000');
         const users=await query('SELECT id,full_name,role FROM app_users WHERE is_active ORDER BY full_name');
-        const workers=await query(`SELECT id,full_name,trade,is_active${ctx.role==='admin'?',daily_rate':''} FROM workers ORDER BY full_name`);
-        const tasks=await query('SELECT * FROM site_tasks WHERE ($1::uuid IS NULL OR project_id=$1) ORDER BY due_date LIMIT 500',[projectId]);
-        const journal=await query(`SELECT j.id,j.project_id,j.entry_date,j.title,j.notes,j.progress,j.created_by,j.created_at,u.full_name AS author,(j.photo IS NOT NULL) AS has_photo
-          FROM site_journal j JOIN app_users u ON u.id=j.created_by WHERE ($1::uuid IS NULL OR j.project_id=$1) ORDER BY j.entry_date DESC,j.created_at DESC LIMIT 200`,[projectId]);
-        const advances=await query(`SELECT a.*,u.full_name AS assignee,COALESCE(e.spent,0)::bigint AS spent,COALESCE(e.returned,0)::bigint AS returned,
-          (a.amount-COALESCE(e.spent,0)-COALESCE(e.returned,0))::bigint AS remaining
-          FROM cash_advances a JOIN app_users u ON u.id=a.assignee_id
-          LEFT JOIN (SELECT advance_id,SUM(amount) FILTER(WHERE kind='expense') AS spent,SUM(amount) FILTER(WHERE kind='return') AS returned FROM advance_entries GROUP BY advance_id) e ON e.advance_id=a.id
-          WHERE ($1::uuid IS NULL OR a.project_id=$1) AND ($2::boolean OR a.assignee_id=$3) ORDER BY a.created_at DESC LIMIT 200`,[projectId,ctx.role==='admin',ctx.userId]);
-        const advanceEntries=await query(`SELECT e.* FROM advance_entries e JOIN cash_advances a ON a.id=e.advance_id
-          WHERE ($1::uuid IS NULL OR a.project_id=$1) AND ($2::boolean OR a.assignee_id=$3) ORDER BY e.created_at DESC LIMIT 500`,[projectId,ctx.role==='admin',ctx.userId]);
-        const attendance=await query(`SELECT a.id,a.project_id,a.worker_id,a.work_date,a.minutes,a.status,a.created_by,a.expense_id,w.full_name${ctx.role==='admin'?',a.cost':''}
-          FROM attendance a JOIN workers w ON w.id=a.worker_id WHERE ($1::uuid IS NULL OR a.project_id=$1) ORDER BY a.work_date DESC LIMIT 500`,[projectId]);
-        const items=await query('SELECT * FROM inventory_items ORDER BY name');
-        const purchases=await query('SELECT o.*,i.name AS item_name,i.unit FROM purchase_orders o JOIN inventory_items i ON i.id=o.item_id WHERE ($1::uuid IS NULL OR o.project_id=$1) ORDER BY o.created_at DESC LIMIT 300',[projectId]);
-        const stock=await query(`SELECT m.project_id,m.item_id,i.name,i.unit,i.minimum_milli,
-          SUM(CASE WHEN m.kind='consume' THEN -m.quantity_milli ELSE m.quantity_milli END)::bigint AS available_milli,
-          SUM(CASE WHEN m.kind='consume' THEN m.quantity_milli WHEN m.kind='return' THEN -m.quantity_milli ELSE 0 END)::bigint AS consumed_milli
-          FROM stock_movements m JOIN inventory_items i ON i.id=m.item_id WHERE ($1::uuid IS NULL OR m.project_id=$1) GROUP BY m.project_id,m.item_id,i.name,i.unit,i.minimum_milli`,[projectId]);
-        const movements=await query('SELECT * FROM stock_movements WHERE ($1::uuid IS NULL OR project_id=$1) ORDER BY created_at DESC LIMIT 300',[projectId]);
-        const purchaseSummary=(await client.query(`SELECT count(*) FILTER(WHERE status='requested')::int AS requested,
-          COALESCE(SUM(amount) FILTER(WHERE status='approved'),0)::bigint AS committed FROM purchase_orders WHERE ($1::uuid IS NULL OR project_id=$1)`,[projectId])).rows[0];
-        return {projects,users,workers,tasks,journal,advances,advanceEntries,attendance,items,purchases,stock,movements,purchaseSummary};
+        const ext=await optionalSql(client,'sp_operations_list',async()=>{
+          const workers=await query(`SELECT id,full_name,trade,is_active${ctx.role==='admin'?',daily_rate':''} FROM workers ORDER BY full_name`);
+          const tasks=await query('SELECT * FROM site_tasks WHERE ($1::uuid IS NULL OR project_id=$1) ORDER BY due_date LIMIT 500',[projectId]);
+          const journal=await query(`SELECT j.id,j.project_id,j.entry_date,j.title,j.notes,j.progress,j.created_by,j.created_at,u.full_name AS author,(j.photo IS NOT NULL) AS has_photo
+            FROM site_journal j JOIN app_users u ON u.id=j.created_by WHERE ($1::uuid IS NULL OR j.project_id=$1) ORDER BY j.entry_date DESC,j.created_at DESC LIMIT 200`,[projectId]);
+          const advances=await query(`SELECT a.*,u.full_name AS assignee,COALESCE(e.spent,0)::bigint AS spent,COALESCE(e.returned,0)::bigint AS returned,
+            (a.amount-COALESCE(e.spent,0)-COALESCE(e.returned,0))::bigint AS remaining
+            FROM cash_advances a JOIN app_users u ON u.id=a.assignee_id
+            LEFT JOIN (SELECT advance_id,SUM(amount) FILTER(WHERE kind='expense') AS spent,SUM(amount) FILTER(WHERE kind='return') AS returned FROM advance_entries GROUP BY advance_id) e ON e.advance_id=a.id
+            WHERE ($1::uuid IS NULL OR a.project_id=$1) AND ($2::boolean OR a.assignee_id=$3) ORDER BY a.created_at DESC LIMIT 200`,[projectId,ctx.role==='admin',ctx.userId]);
+          const advanceEntries=await query(`SELECT e.* FROM advance_entries e JOIN cash_advances a ON a.id=e.advance_id
+            WHERE ($1::uuid IS NULL OR a.project_id=$1) AND ($2::boolean OR a.assignee_id=$3) ORDER BY e.created_at DESC LIMIT 500`,[projectId,ctx.role==='admin',ctx.userId]);
+          const attendance=await query(`SELECT a.id,a.project_id,a.worker_id,a.work_date,a.minutes,a.status,a.created_by,a.expense_id,w.full_name${ctx.role==='admin'?',a.cost':''}
+            FROM attendance a JOIN workers w ON w.id=a.worker_id WHERE ($1::uuid IS NULL OR a.project_id=$1) ORDER BY a.work_date DESC LIMIT 500`,[projectId]);
+          const items=await query('SELECT * FROM inventory_items ORDER BY name');
+          const purchases=await query('SELECT o.*,i.name AS item_name,i.unit FROM purchase_orders o JOIN inventory_items i ON i.id=o.item_id WHERE ($1::uuid IS NULL OR o.project_id=$1) ORDER BY o.created_at DESC LIMIT 300',[projectId]);
+          const stock=await query(`SELECT m.project_id,m.item_id,i.name,i.unit,i.minimum_milli,
+            SUM(CASE WHEN m.kind='consume' THEN -m.quantity_milli ELSE m.quantity_milli END)::bigint AS available_milli,
+            SUM(CASE WHEN m.kind='consume' THEN m.quantity_milli WHEN m.kind='return' THEN -m.quantity_milli ELSE 0 END)::bigint AS consumed_milli
+            FROM stock_movements m JOIN inventory_items i ON i.id=m.item_id WHERE ($1::uuid IS NULL OR m.project_id=$1) GROUP BY m.project_id,m.item_id,i.name,i.unit,i.minimum_milli`,[projectId]);
+          const movements=await query('SELECT * FROM stock_movements WHERE ($1::uuid IS NULL OR project_id=$1) ORDER BY created_at DESC LIMIT 300',[projectId]);
+          const purchaseSummary=(await client.query(`SELECT count(*) FILTER(WHERE status='requested')::int AS requested,
+            COALESCE(SUM(amount) FILTER(WHERE status='approved'),0)::bigint AS committed FROM purchase_orders WHERE ($1::uuid IS NULL OR project_id=$1)`,[projectId])).rows[0];
+          return {workers,tasks,journal,advances,advanceEntries,attendance,items,purchases,stock,movements,purchaseSummary};
+        },()=>({
+          workers:[],tasks:[],journal:[],advances:[],advanceEntries:[],attendance:[],
+          items:[],purchases:[],stock:[],movements:[],
+          purchaseSummary:{requested:0,committed:0},
+          schema_migration_required:true,
+        }));
+        return {projects,users,...ext};
       });
       if(req.query.photo_id) {
         if(!data) return fail(res,404,'introuvable','Photo introuvable.');

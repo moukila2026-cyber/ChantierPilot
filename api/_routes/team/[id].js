@@ -11,6 +11,7 @@ import { hashPassword } from '../../_lib/auth.js';
 import { teamUpdateSchema, parseOrThrow } from '../../_lib/validate.js';
 import { readJsonBody, sendJson, methodNotAllowed, handle, fail } from '../../_lib/http.js';
 import { requireAdmin, run, audit } from '../../_lib/pipeline.js';
+import { optionalSql } from '../../_lib/compat.js';
 
 const PUBLIC_COLS = 'id, full_name, email, role, is_active, created_at, updated_at';
 
@@ -59,7 +60,7 @@ export default async function handler(req, res) {
         );
         // Révocation des sessions de l'agent : désactivation ou nouveau mot de passe.
         if (data.is_active === false || passwordHash) {
-          await client.query('SELECT api_admin_revoke_sessions($1)', [id]);
+          await optionalSql(client, 'sp_revoke_member_sessions', () => client.query('SELECT api_admin_revoke_sessions($1)', [id]), null);
         }
         const actions = [];
         if (data.is_active === false) actions.push('désactivé');

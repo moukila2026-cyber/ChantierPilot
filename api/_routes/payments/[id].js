@@ -63,7 +63,7 @@ export default async function handler(req, res) {
       if (req.method === 'DELETE') {
         if (!ensureAdmin(ctx, res)) return;
         const deleted = await withTenant(ctx, async (client) => {
-          const current = (await client.query('SELECT amount, reference, invoice_id FROM payments WHERE id = $1', [id])).rows[0];
+          const current = (await client.query('SELECT * FROM payments WHERE id = $1', [id])).rows[0];
           if (!current) return null;
           if (current.invoice_id) throw businessError('Ce règlement est lié à une facture et verrouillé pour préserver son solde.',409);
           await client.query('DELETE FROM payments WHERE id = $1', [id]);

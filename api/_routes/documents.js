@@ -3,6 +3,7 @@ import { withTenant } from '../_lib/db.js';
 import { handle,sendJson,readJsonBody,securityHeaders } from '../_lib/http.js';
 import { requireAdmin,run } from '../_lib/pipeline.js';
 import { uuid,money,zeroMoney,text,date,businessError,projectRequired,command } from '../_lib/operations.js';
+import { optionalSql } from '../_lib/compat.js';
 import { checkQuota } from '../_lib/billing.js';
 import { fileSchema } from '../_lib/validate.js';
 import { decodeFileAttachment } from '../_lib/files.js';
@@ -40,27 +41,36 @@ export default async function handler(req,res) {
       const data=await withTenant(ctx,async client=>{
         if(req.query.pdf) {
           if(!uuid.safeParse(req.query.pdf).success)throw businessError('Document invalide.');
-          const document=await row(client,req.query.pdf);
+          const document=await optionalSql(client,'sp_doc_pdf',()=>row(client,req.query.pdf),null);
+          if(!document)throw businessError('Document introuvable.',404);
           const company=(await client.query('SELECT * FROM companies WHERE id=$1',[ctx.companyId])).rows[0];
           return {document,company};
         }
-        const docs=(await client.query(`SELECT d.*,COALESCE(p.paid,0)::bigint AS paid,
-          COALESCE(c.credited,0)::bigint AS credited FROM commercial_documents d
-          LEFT JOIN (SELECT invoice_id,SUM(amount) AS paid FROM payments WHERE invoice_id IS NOT NULL GROUP BY invoice_id) p ON p.invoice_id=d.id
-          LEFT JOIN (SELECT source_id,SUM(total) AS credited FROM commercial_documents WHERE kind='credit' GROUP BY source_id) c ON c.source_id=d.id
-          ORDER BY d.created_at DESC,d.id LIMIT 500`)).rows;
-        const prices=(await client.query('SELECT * FROM price_items ORDER BY label LIMIT 1000')).rows;
         const projects=(await client.query('SELECT id,name,client_name,status FROM projects ORDER BY created_at DESC LIMIT 1000')).rows;
-        const summary=(await client.query(`SELECT
-          (SELECT count(*) FROM commercial_documents WHERE kind='quote' AND status IN ('draft','issued'))::int AS open_quotes,
-          COALESCE((SELECT SUM(CASE WHEN kind='credit' THEN -total ELSE total END) FROM commercial_documents WHERE kind IN ('invoice','credit')),0)::bigint AS net_billed,
-          COALESCE(SUM(GREATEST(d.total-COALESCE(p.paid,0)-COALESCE(c.credited,0),0)),0)::bigint AS outstanding,
-          count(*) FILTER(WHERE d.due_date<current_date AND d.total-COALESCE(p.paid,0)-COALESCE(c.credited,0)>0)::int AS overdue
-          FROM commercial_documents d
-          LEFT JOIN (SELECT invoice_id,SUM(amount) AS paid FROM payments WHERE invoice_id IS NOT NULL GROUP BY invoice_id) p ON p.invoice_id=d.id
-          LEFT JOIN (SELECT source_id,SUM(total) AS credited FROM commercial_documents WHERE kind='credit' GROUP BY source_id) c ON c.source_id=d.id
-          WHERE d.kind='invoice'`)).rows[0];
-        return {documents:docs,prices,projects,summary};
+        const ext=await optionalSql(client,'sp_documents_list',async()=>{
+          const docs=(await client.query(`SELECT d.*,COALESCE(p.paid,0)::bigint AS paid,
+            COALESCE(c.credited,0)::bigint AS credited FROM commercial_documents d
+            LEFT JOIN (SELECT invoice_id,SUM(amount) AS paid FROM payments WHERE invoice_id IS NOT NULL GROUP BY invoice_id) p ON p.invoice_id=d.id
+            LEFT JOIN (SELECT source_id,SUM(total) AS credited FROM commercial_documents WHERE kind='credit' GROUP BY source_id) c ON c.source_id=d.id
+            ORDER BY d.created_at DESC,d.id LIMIT 500`)).rows;
+          const prices=(await client.query('SELECT * FROM price_items ORDER BY label LIMIT 1000')).rows;
+          const summary=(await client.query(`SELECT
+            (SELECT count(*) FROM commercial_documents WHERE kind='quote' AND status IN ('draft','issued'))::int AS open_quotes,
+            COALESCE((SELECT SUM(CASE WHEN kind='credit' THEN -total ELSE total END) FROM commercial_documents WHERE kind IN ('invoice','credit')),0)::bigint AS net_billed,
+            COALESCE(SUM(GREATEST(d.total-COALESCE(p.paid,0)-COALESCE(c.credited,0),0)),0)::bigint AS outstanding,
+            count(*) FILTER(WHERE d.due_date<current_date AND d.total-COALESCE(p.paid,0)-COALESCE(c.credited,0)>0)::int AS overdue
+            FROM commercial_documents d
+            LEFT JOIN (SELECT invoice_id,SUM(amount) AS paid FROM payments WHERE invoice_id IS NOT NULL GROUP BY invoice_id) p ON p.invoice_id=d.id
+            LEFT JOIN (SELECT source_id,SUM(total) AS credited FROM commercial_documents WHERE kind='credit' GROUP BY source_id) c ON c.source_id=d.id
+            WHERE d.kind='invoice'`)).rows[0];
+          return {documents:docs,prices,summary};
+        },()=>({
+          documents:[],
+          prices:[],
+          summary:{open_quotes:0,net_billed:0,outstanding:0,overdue:0},
+          schema_migration_required:true,
+        }));
+        return {projects,...ext};
       });
       if(req.query.pdf) {
         const buffer=await documentPdf(data.document,data.company);

@@ -93,6 +93,14 @@ export async function bootQuery(text, params = []) {
   return pool.query(text, params);
 }
 
+/** Ferme proprement tous les pools ouverts (arrêt propre / tests de migration). */
+export async function closePools() {
+  for (const pool of pools.values()) {
+    await pool.end().catch(() => {});
+  }
+  pools.clear();
+}
+
 /**
  * Exécute `fn(client)` dans une transaction portant le contexte de
  * l'entreprise et de l'utilisateur. Toute requête métier DOIT passer ici :

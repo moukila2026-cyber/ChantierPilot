@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { z } from 'zod';
 import { parseOrThrow } from './validate.js';
 import { audit } from './pipeline.js';
+import { optionalSql, throwIfMissingSchemaWrite } from './compat.js';
 export const uuid = z.string().uuid('Identifiant invalide.');
 export const money = z.number().int().min(1).max(999999999999);
 export const zeroMoney = z.number().int().min(0).max(999999999999);
@@ -22,18 +23,23 @@ export async function activeUser(client,id) {
 }
 export async function command(client,ctx,body,schema,fn) {
   const { request_id, ...data } = parseOrThrow(schema.extend({ request_id: uuid }).strict(),body);
-  // Sérialisation par entreprise : quotas, stocks, numéros et déduplication.
-  await client.query('SELECT id FROM companies WHERE id=$1 FOR UPDATE',[ctx.companyId]);
-  const fingerprint = crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');
-  const previous=(await client.query('SELECT * FROM operation_requests WHERE request_id=$1',[request_id])).rows[0];
-  if(previous) {
-    if(previous.user_id!==ctx.userId || previous.fingerprint!==fingerprint) throw businessError('Identifiant de requête déjà utilisé avec un autre contenu.',409);
-    return previous.response;
+  try {
+    // Sérialisation par entreprise : quotas, stocks, numéros et déduplication.
+    await client.query('SELECT id FROM companies WHERE id=$1 FOR UPDATE',[ctx.companyId]);
+    const fingerprint = crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');
+    const previous=(await client.query('SELECT * FROM operation_requests WHERE request_id=$1',[request_id])).rows[0];
+    if(previous) {
+      if(previous.user_id!==ctx.userId || previous.fingerprint!==fingerprint) throw businessError('Identifiant de requête déjà utilisé avec un autre contenu.',409);
+      return previous.response;
+    }
+    const response=await fn(data);
+    await client.query('INSERT INTO operation_requests(company_id,request_id,user_id,fingerprint,response) VALUES($1,$2,$3,$4,$5)',[ctx.companyId,request_id,ctx.userId,fingerprint,JSON.stringify(response)]);
+    await audit(client,ctx,'creation','operation',response.id || null,`${data.action} : ${response.number || response.id || ''}`);
+    return response;
+  } catch (err) {
+    throwIfMissingSchemaWrite(err);
+    throw err;
   }
-  const response=await fn(data);
-  await client.query('INSERT INTO operation_requests(company_id,request_id,user_id,fingerprint,response) VALUES($1,$2,$3,$4,$5)',[ctx.companyId,request_id,ctx.userId,fingerprint,JSON.stringify(response)]);
-  await audit(client,ctx,'creation','operation',response.id || null,`${data.action} : ${response.number || response.id || ''}`);
-  return response;
 }
 export async function insertExpense(client,ctx,{project_id,category,amount,date,supplier='',description,receipt=null}) {
   const result=await client.query(`INSERT INTO expenses(company_id,project_id,category,amount,expense_date,supplier,description,created_by,receipt,receipt_filename,receipt_mime,receipt_size)
@@ -41,6 +47,16 @@ export async function insertExpense(client,ctx,{project_id,category,amount,date,
   return result.rows[0].id;
 }
 export async function protectLinkedExpense(client,id) {
-  const linked=await client.query(`SELECT id FROM advance_entries WHERE expense_id=$1 UNION ALL SELECT id FROM attendance WHERE expense_id=$1 UNION ALL SELECT id FROM purchase_orders WHERE expense_id=$1`,[id]);
+  const linked = await optionalSql(
+    client,
+    'sp_protect_linked_expense',
+    () => client.query(
+      `SELECT id FROM advance_entries WHERE expense_id=$1
+       UNION ALL SELECT id FROM attendance WHERE expense_id=$1
+       UNION ALL SELECT id FROM purchase_orders WHERE expense_id=$1`,
+      [id],
+    ),
+    { rows: [] },
+  );
   if(linked.rows.length)throw businessError('Cette dépense provient d’une avance, d’une présence validée ou d’une réception. Elle est verrouillée pour préserver le rapprochement.',409);
 }

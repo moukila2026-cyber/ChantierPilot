@@ -245,11 +245,13 @@ ALTER TABLE companies ALTER COLUMN trial_until SET DEFAULT (now() + interval '14
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS billing_plan TEXT CHECK (billing_plan IN ('essentiel','equipe','entreprise'));
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS paid_until TIMESTAMPTZ;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS billing_suspended BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE companies NO FORCE ROW LEVEL SECURITY;
 UPDATE companies
    SET trial_until = GREATEST(trial_until, TIMESTAMPTZ '2026-10-20T09:55:00Z' + interval '14 days')
  WHERE created_at < TIMESTAMPTZ '2026-10-20T09:55:00Z'
    AND NOT COALESCE(billing_suspended, false)
    AND trial_until < TIMESTAMPTZ '2026-10-20T09:55:00Z' + interval '14 days';
+ALTER TABLE companies FORCE ROW LEVEL SECURITY;
 CREATE TABLE IF NOT EXISTS billing_orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,

@@ -43,6 +43,9 @@ export async function run(res, fn) {
     await fn();
   } catch (err) {
     const mapped = toHttpError(err);
+    if (mapped.status === 503 && mapped.code === 'migration_requise') {
+      return fail(res, 503, mapped.code, mapped.message);
+    }
     if (mapped.status >= 500) {
       console.error('[api]', err);
       return fail(res, 500, 'erreur_serveur', 'Erreur interne. L\'incident est journalisé ; réessayez ou contactez le support.');

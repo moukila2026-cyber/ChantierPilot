@@ -7,6 +7,7 @@ import { withTenant } from '../_lib/db.js';
 import { toCsv, sendCsv } from '../_lib/csv.js';
 import { securityHeaders, fail, methodNotAllowed, handle } from '../_lib/http.js';
 import { requireAuth, ensureAdmin, run } from '../_lib/pipeline.js';
+import { optionalSql } from '../_lib/compat.js';
 import { CATEGORY_LABELS, STATUS_LABELS, PAYMENT_METHOD_LABELS } from '../_lib/validate.js';
 
 function fmtDate(d) {
@@ -37,21 +38,33 @@ export default async function handler(req, res) {
            ORDER BY e.expense_date DESC`,
         )).rows;
         const payments = (await client.query(
-          `SELECT pm.id, pm.project_id, p.name AS project_name, pm.client_name, pm.amount, pm.payment_date,
-                  pm.reference, pm.payment_method, pm.memo, pm.invoice_id, (pm.proof IS NOT NULL) AS has_proof,
-                  pm.created_at, pm.updated_at
+          `SELECT pm.*, p.name AS project_name
            FROM payments pm JOIN projects p ON p.id = pm.project_id
            ORDER BY pm.payment_date DESC`,
-        )).rows;
+        )).rows.map(({ proof, ...pm }) => ({
+          ...pm,
+          invoice_id: pm.invoice_id ?? null,
+          has_proof: Boolean(proof),
+        }));
         const operations = {};
         // Liste fermée : aucune interpolation d'entrée utilisateur.
         // Les anciennes tables payroll_* sont conservées UNIQUEMENT comme archives
         // dans la sauvegarde administrateur, sans lecture/écriture métier active.
         for (const table of ['commercial_documents','price_items','cash_advances','advance_entries','workers','attendance','site_tasks','inventory_items','purchase_orders','stock_movements','plan_annotations','schedule_tasks','warehouses','warehouse_movements','payroll_profiles','payroll_slips']) {
-          operations[table] = (await client.query(`SELECT * FROM ${table}`)).rows;
+          operations[table] = await optionalSql(client, `sp_exp_${table}`, async () => (await client.query(`SELECT * FROM ${table}`)).rows, []);
         }
-        operations.plan_versions=(await client.query('SELECT id,company_id,project_id,title,revision,mime,filename,sha256,created_by,created_at FROM plan_versions')).rows;
-        operations.site_journal = (await client.query('SELECT id,company_id,project_id,entry_date,title,notes,progress,photo_mime,photo_filename,(photo IS NOT NULL) AS has_photo,created_by,created_at FROM site_journal')).rows;
+        operations.plan_versions = await optionalSql(
+          client,
+          'sp_exp_plan_versions',
+          async () => (await client.query('SELECT id,company_id,project_id,title,revision,mime,filename,sha256,created_by,created_at FROM plan_versions')).rows,
+          [],
+        );
+        operations.site_journal = await optionalSql(
+          client,
+          'sp_exp_site_journal',
+          async () => (await client.query('SELECT id,company_id,project_id,entry_date,title,notes,progress,photo_mime,photo_filename,(photo IS NOT NULL) AS has_photo,created_by,created_at FROM site_journal')).rows,
+          [],
+        );
         return { company, projects, expenses, payments, operations };
       });
 
