@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { formatDate } from '../lib/format.js';
+import { trialDaysRemaining } from '../../shared/plans.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Footer } from './ui.jsx';
 import Logo from './Logo.jsx';
@@ -370,8 +371,10 @@ export default function Layout({ children }) {
               <span className="flex items-center gap-2">
                 <span className="h-2 w-2 shrink-0 rounded-full bg-[#eab956]" aria-hidden="true" />
                 <span>
-                  {billing.status === 'essai'
-                    ? `Essai gratuit jusqu’au ${formatDate(billing.trial_until)}.`
+                  {billing.status === 'essai' ? (() => {
+                    const days = billing.trial_days_remaining ?? trialDaysRemaining(billing.trial_until);
+                    return `Essai gratuit de 2 semaines (14 jours) · ${days} jour${days > 1 ? 's' : ''} restant${days > 1 ? 's' : ''} — jusqu’au ${formatDate(billing.trial_until)}.`;
+                  })()
                     : !billing.writable
                       ? 'Espace en lecture seule : vos données restent accessibles, les modifications sont bloquées.'
                       : `Votre forfait expire le ${formatDate(billing.paid_until)}. Pensez à le renouveler.`}

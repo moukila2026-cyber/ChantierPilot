@@ -238,11 +238,18 @@ BEGIN
 END;
 $$;
 
--- Essai borné pour les nouveaux espaces ET les espaces existants à la migration.
+-- Essai gratuit garanti de 2 semaines complètes (14 jours pleins) pour tous les nouveaux espaces
+-- et mise à niveau des anciens défauts éventuels sur une base existante.
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS trial_until TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '14 days');
+ALTER TABLE companies ALTER COLUMN trial_until SET DEFAULT (now() + interval '14 days');
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS billing_plan TEXT CHECK (billing_plan IN ('essentiel','equipe','entreprise'));
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS paid_until TIMESTAMPTZ;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS billing_suspended BOOLEAN NOT NULL DEFAULT false;
+UPDATE companies
+   SET trial_until = GREATEST(trial_until, TIMESTAMPTZ '2026-10-20T09:55:00Z' + interval '14 days')
+ WHERE created_at < TIMESTAMPTZ '2026-10-20T09:55:00Z'
+   AND NOT COALESCE(billing_suspended, false)
+   AND trial_until < TIMESTAMPTZ '2026-10-20T09:55:00Z' + interval '14 days';
 CREATE TABLE IF NOT EXISTS billing_orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,

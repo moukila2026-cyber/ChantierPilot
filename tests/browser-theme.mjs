@@ -278,6 +278,7 @@ try {
   assert.ok(dashCheck.imgOk, 'Illustration BTP bien affichée sur le tableau de bord connecté');
   assert.ok(!dashCheck.text.includes('12 000 000'), 'Aucun chiffre fictif dans un compte client réel');
   assert.ok(dashCheck.text.includes('0 FCFA'), 'Un compte neuf affiche 0 FCFA');
+  assert.ok(dashCheck.text.includes('Essai gratuit de 2 semaines (14 jours) · 14 jours restants'), 'Le bandeau affiche explicitement les 2 semaines (14 jours restants) d’essai');
 
   await appPage.screenshot({ path: path.join(SCREENSHOTS_DIR, 'dashboard-empty-desktop.png') });
 

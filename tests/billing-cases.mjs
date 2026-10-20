@@ -21,10 +21,16 @@ export async function billingCases({ A, B, adminUrl, check }) {
       await client.query('COMMIT'); return result;
     } catch (e) { await client.query('ROLLBACK'); throw e; }
   }
+  const sessionB = (await B.get('/api/auth/session')).data;
+  const companyIdB = sessionB.company.id;
   const originalFetch = globalThis.fetch;
   const originalKey = process.env.SASPAY_SECRET_KEY, originalUrl = process.env.APP_URL;
   try {
-    check('Facturation : essai gratuit et quotas affichés', (await A.get('/api/billing')).data.status === 'essai');
+    const initialBilling = (await A.get('/api/billing')).data;
+    check('Facturation : essai gratuit de 2 semaines (14 jours complets) et quotas affichés', initialBilling.status === 'essai' && initialBilling.trial_days === 14 && initialBilling.trial_days_remaining === 14);
+    await admin.query("UPDATE companies SET created_at = TIMESTAMPTZ '2026-10-18T10:00:00Z', trial_until = now() + interval '1 day' WHERE id = $1", [companyIdB]);
+    const upgradedBillingB = (await B.get('/api/billing')).data;
+    check('Facturation : un ancien espace avec 1-2 jours restants est prolongé à 2 semaines complètes (14 jours)', upgradedBillingB.status === 'essai' && upgradedBillingB.trial_days_remaining >= 14);
     check('Console : un administrateur client n’est pas opérateur', (await A.get('/api/operator')).status === 403);
     await admin.query('INSERT INTO platform_operators(user_id) VALUES ($1)', [userId]);
     check('Console : opérateur désigné peut lister les entreprises', (await A.get('/api/operator')).data.companies.length >= 2);

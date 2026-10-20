@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { withTenant } from '../_lib/db.js';
 import { handle, readJsonBody, sendJson, fail, rateLimit } from '../_lib/http.js';
 import { requireAuth, run } from '../_lib/pipeline.js';
-import { PLANS, entitlement, companyBilling, billingError } from '../_lib/billing.js';
+import { PLANS, entitlement, companyBilling, billingError, resolveTrialUntil } from '../_lib/billing.js';
 import { saspay, configured, checkoutUrl, reconcile } from '../_lib/saspay.js';
 
 export default async function handler(req, res) {
@@ -15,10 +15,35 @@ export default async function handler(req, res) {
         const usage = (await client.query(`SELECT
           (SELECT count(*)::int FROM projects WHERE status NOT IN ('archive','termine')) AS projects,
           (SELECT count(*)::int FROM app_users WHERE is_active) AS users`)).rows[0];
-        const orders = (await client.query('SELECT id,plan,amount,status,created_at,access_until,checkout_url FROM billing_orders ORDER BY created_at DESC LIMIT 20')).rows;
-        const operator = (await client.query('SELECT api_is_operator() AS allowed')).rows[0].allowed;
-        return { operator, ...entitlement(c), trial_until: c.trial_until, paid_until: c.paid_until, usage, orders,
-          configured: configured(), test_mode: process.env.SASPAY_SECRET_KEY?.startsWith('sk_test_') || false };
+        let orders = [];
+        await client.query('SAVEPOINT sp_billing_orders');
+        try {
+          orders = (await client.query('SELECT id,plan,amount,status,created_at,access_until,checkout_url FROM billing_orders ORDER BY created_at DESC LIMIT 20')).rows;
+          await client.query('RELEASE SAVEPOINT sp_billing_orders');
+        } catch (err) {
+          await client.query('ROLLBACK TO SAVEPOINT sp_billing_orders').catch(() => {});
+          if (err.code !== '42P01') throw err;
+        }
+        let operator = false;
+        await client.query('SAVEPOINT sp_billing_operator');
+        try {
+          operator = (await client.query('SELECT api_is_operator() AS allowed')).rows[0].allowed;
+          await client.query('RELEASE SAVEPOINT sp_billing_operator');
+        } catch (err) {
+          await client.query('ROLLBACK TO SAVEPOINT sp_billing_operator').catch(() => {});
+          if (err.code !== '42883' && err.code !== '42P01') throw err;
+        }
+        const effectiveTrialUntil = resolveTrialUntil(c);
+        return {
+          operator,
+          ...entitlement(c),
+          trial_until: effectiveTrialUntil,
+          paid_until: c.paid_until || null,
+          usage,
+          orders,
+          configured: configured(),
+          test_mode: process.env.SASPAY_SECRET_KEY?.startsWith('sk_test_') || false,
+        };
       }));
     }
     if (ctx.role !== 'admin') return fail(res, 403, 'droits_insuffisants', 'Seul l’administrateur peut payer ou vérifier un abonnement.');
