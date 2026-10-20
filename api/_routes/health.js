@@ -22,8 +22,10 @@ export default async function handler(req, res) {
       await bootQuery('SELECT 1');
       db = 'ok';
       const { rows } = await bootQuery(
-        `SELECT COUNT(*)::int AS n FROM information_schema.tables
-         WHERE table_schema = 'public' AND table_name = ANY($1::text[])`,
+        `SELECT COUNT(*)::int AS n
+         FROM pg_catalog.pg_class c
+         JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname = ANY($1::text[])`,
         [EXPECTED_TABLES],
       );
       schema = rows[0]?.n === EXPECTED_TABLES.length ? 'ok' : 'migration_requise';

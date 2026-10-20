@@ -6,6 +6,7 @@ import { withTenant } from '../../_lib/db.js';
 import { projectUpdateSchema, parseOrThrow, STATUS_LABELS, CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '../../_lib/validate.js';
 import { readJsonBody, sendJson, methodNotAllowed, handle, fail } from '../../_lib/http.js';
 import { requireAuth, ensureAdmin, run, audit } from '../../_lib/pipeline.js';
+import { optionalSql } from '../../_lib/compat.js';
 
 function computeTotals(project, expenses, payments) {
   const budget = Number(project.budget);
@@ -80,14 +81,16 @@ export default async function handler(req, res) {
 
           let commercial = null;
           if (ctx.role === 'admin') {
-            commercial = (await client.query(`SELECT
-              (SELECT total FROM commercial_documents WHERE project_id=$1 AND kind='quote' AND status='accepted' LIMIT 1) AS contract_total,
-              (SELECT estimated_cost FROM commercial_documents WHERE project_id=$1 AND kind='quote' AND status='accepted' LIMIT 1) AS estimated_cost,
-              COALESCE((SELECT SUM(CASE WHEN kind='credit' THEN -total ELSE total END) FROM commercial_documents WHERE project_id=$1 AND kind IN ('invoice','credit')),0)::bigint AS billed,
-              COALESCE((SELECT SUM(amount) FROM payments WHERE project_id=$1 AND invoice_id IS NOT NULL),0)::bigint AS allocated_payments,
-              COALESCE((SELECT SUM(amount) FROM purchase_orders WHERE project_id=$1 AND status='approved'),0)::bigint AS committed_purchases,
-              COALESCE((SELECT SUM(cost) FROM attendance WHERE project_id=$1 AND status='pending'),0)::bigint AS pending_labor,
-              (SELECT count(*) FROM site_tasks WHERE project_id=$1 AND kind='reserve' AND status<>'validated')::int AS open_reserves`, [id])).rows[0];
+            commercial = await optionalSql(client, 'sp_project_commercial', async () => (
+              await client.query(`SELECT
+                (SELECT total FROM commercial_documents WHERE project_id=$1 AND kind='quote' AND status='accepted' LIMIT 1) AS contract_total,
+                (SELECT estimated_cost FROM commercial_documents WHERE project_id=$1 AND kind='quote' AND status='accepted' LIMIT 1) AS estimated_cost,
+                COALESCE((SELECT SUM(CASE WHEN kind='credit' THEN -total ELSE total END) FROM commercial_documents WHERE project_id=$1 AND kind IN ('invoice','credit')),0)::bigint AS billed,
+                COALESCE((SELECT SUM(amount) FROM payments WHERE project_id=$1 AND invoice_id IS NOT NULL),0)::bigint AS allocated_payments,
+                COALESCE((SELECT SUM(amount) FROM purchase_orders WHERE project_id=$1 AND status='approved'),0)::bigint AS committed_purchases,
+                COALESCE((SELECT SUM(cost) FROM attendance WHERE project_id=$1 AND status='pending'),0)::bigint AS pending_labor,
+                (SELECT count(*) FROM site_tasks WHERE project_id=$1 AND kind='reserve' AND status<>'validated')::int AS open_reserves`, [id])
+            ).rows[0], null);
           }
           return { project, expenses, payments, timeline, commercial };
         });

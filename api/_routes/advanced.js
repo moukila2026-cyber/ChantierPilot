@@ -5,6 +5,7 @@ import { withTenant } from '../_lib/db.js';
 import { handle,sendJson,readJsonBody,securityHeaders } from '../_lib/http.js';
 import { requireAuth,run } from '../_lib/pipeline.js';
 import { uuid,text,date,command,adminOnly,projectRequired,activeUser,businessError } from '../_lib/operations.js';
+import { optionalSql } from '../_lib/compat.js';
 import { fileSchema } from '../_lib/validate.js';
 import { decodeFileAttachment } from '../_lib/files.js';
 import { quantityMilli } from '../../shared/trade.js';
@@ -24,22 +25,33 @@ function binary(res,buffer,mime,filename){securityHeaders(res);res.setHeader('Ca
 export default async function handler(req,res){return handle(req,res,()=>run(res,async()=>{
  const ctx=await requireAuth(req,res);if(!ctx)return;
  if(req.method==='GET'){
-  if(req.query.plan_file){if(!uuid.safeParse(req.query.plan_file).success)throw businessError('Plan invalide.');const p=await withTenant(ctx,c=>row(c,'plan_versions',req.query.plan_file));return binary(res,p.file,p.mime,p.mime==='application/pdf'?'plan.pdf':'plan.'+(p.mime==='image/png'?'png':'jpg'));}
+  if(req.query.plan_file){
+   if(!uuid.safeParse(req.query.plan_file).success)throw businessError('Plan invalide.');
+   const p=await withTenant(ctx,async c=>{
+    const found=await optionalSql(c,'sp_adv_plan_file',()=>row(c,'plan_versions',req.query.plan_file),null);
+    if(!found)throw businessError('Élément introuvable.',404);
+    return found;
+   });
+   return binary(res,p.file,p.mime,p.mime==='application/pdf'?'plan.pdf':'plan.'+(p.mime==='image/png'?'png':'jpg'));
+  }
   if(Object.hasOwn(req.query,'payroll_pdf'))throw businessError('Ce module a été retiré.',410);
   const data=await withTenant(ctx,async c=>{
    const q=async(sql,params=[]) => (await c.query(sql,params)).rows;
    const projects=await q('SELECT id,name,status FROM projects ORDER BY name');
    const users=await q('SELECT id,full_name FROM app_users WHERE is_active ORDER BY full_name');
-   const plans=await q('SELECT id,project_id,title,revision,mime,sha256,created_at FROM plan_versions ORDER BY created_at DESC');
-   const annotations=await q('SELECT * FROM plan_annotations ORDER BY created_at');
-   const tasks=await q('SELECT * FROM schedule_tasks ORDER BY start_date,title');
-   const warehouses=await q('SELECT * FROM warehouses ORDER BY name');
-   const items=await q('SELECT id,name,unit FROM inventory_items ORDER BY name');
-   const stock=await q(`SELECT w.id AS warehouse_id,i.id AS item_id,w.name AS warehouse_name,i.name AS item_name,i.unit,
-    SUM(CASE WHEN m.to_id=w.id THEN m.quantity_milli ELSE -m.quantity_milli END)::bigint AS available_milli
-    FROM warehouse_movements m JOIN warehouses w ON w.id=m.from_id OR w.id=m.to_id JOIN inventory_items i ON i.id=m.item_id GROUP BY w.id,i.id`);
-   const moves=await q('SELECT * FROM warehouse_movements ORDER BY created_at DESC LIMIT 500');
-   return {projects,users,plans,annotations,tasks,warehouses,items,stock,moves};
+   const ext=await optionalSql(c,'sp_advanced_list',async()=>{
+    const plans=await q('SELECT id,project_id,title,revision,mime,sha256,created_at FROM plan_versions ORDER BY created_at DESC');
+    const annotations=await q('SELECT * FROM plan_annotations ORDER BY created_at');
+    const tasks=await q('SELECT * FROM schedule_tasks ORDER BY start_date,title');
+    const warehouses=await q('SELECT * FROM warehouses ORDER BY name');
+    const items=await q('SELECT id,name,unit FROM inventory_items ORDER BY name');
+    const stock=await q(`SELECT w.id AS warehouse_id,i.id AS item_id,w.name AS warehouse_name,i.name AS item_name,i.unit,
+     SUM(CASE WHEN m.to_id=w.id THEN m.quantity_milli ELSE -m.quantity_milli END)::bigint AS available_milli
+     FROM warehouse_movements m JOIN warehouses w ON w.id=m.from_id OR w.id=m.to_id JOIN inventory_items i ON i.id=m.item_id GROUP BY w.id,i.id`);
+    const moves=await q('SELECT * FROM warehouse_movements ORDER BY created_at DESC LIMIT 500');
+    return {plans,annotations,tasks,warehouses,items,stock,moves};
+   },()=>({plans:[],annotations:[],tasks:[],warehouses:[],items:[],stock:[],moves:[],schema_migration_required:true}));
+   return {projects,users,...ext};
   });return sendJson(res,200,data);
  }
  const body=await readJsonBody(req),schema=Object.hasOwn(schemas,body.action)?schemas[body.action]:null;if(!schema)throw businessError('Action inconnue.');

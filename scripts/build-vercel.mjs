@@ -31,7 +31,11 @@ async function run() {
     return;
   }
 
-  const url = process.env.DATABASE_URL_ADMIN || process.env.DATABASE_URL;
+  const url = process.env.DATABASE_URL_ADMIN
+    || process.env.DATABASE_URL_UNPOOLED
+    || process.env.POSTGRES_URL_NON_POOLING
+    || process.env.POSTGRES_URL
+    || process.env.DATABASE_URL;
   if (!url) {
     console.log('· [db-check] Aucune DATABASE_URL définie pendant le build — étape ignorée.');
     return;
@@ -49,9 +53,11 @@ async function run() {
     const { role, can_create: canCreate } = roleRows[0];
 
     const { rows: tableRows } = await client.query(
-      `SELECT table_name FROM information_schema.tables
-       WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-       ORDER BY table_name`,
+      `SELECT c.relname AS table_name
+       FROM pg_catalog.pg_class c
+       JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relkind = 'r'
+       ORDER BY c.relname`,
     );
     const existing = new Set(tableRows.map((r) => r.table_name));
     const missing = EXPECTED_TABLES.filter((t) => !existing.has(t));
