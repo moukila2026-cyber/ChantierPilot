@@ -185,17 +185,21 @@ try {
       const cta = [...document.querySelectorAll('a')].find((a) => a.textContent.includes('Créer mon espace entreprise') && a.offsetParent !== null);
       const ctaBg = cta ? getComputedStyle(cta).backgroundColor : '';
       const ctaColor = cta ? getComputedStyle(cta).color : '';
+      const inlineCss = document.getElementById('cp-inline-css');
+      const allImgs = [...document.querySelectorAll('picture img')];
       const img = document.querySelector('main picture img');
       const rect = img ? img.getBoundingClientRect() : null;
       const text = document.body.innerText;
       return {
         sheets,
+        hasInlineCss: Boolean(inlineCss && inlineCss.textContent.length > 5000),
         bodyBg,
         heroBg,
         h1Color,
         h1Right: h1Rect ? Math.round(h1Rect.right) : 0,
         ctaBg,
         ctaColor,
+        imgCount: allImgs.length,
         imgLoaded: Boolean(img && img.complete && img.naturalWidth >= 800),
         imgRect: rect ? { top: Math.round(rect.top), right: Math.round(rect.right), bottom: Math.round(rect.bottom), height: Math.round(rect.height) } : null,
         hasFictiveBadge: text.includes('Données fictives'),
@@ -207,6 +211,8 @@ try {
     assert.equal(errors.length, 0, `Erreurs console/JS (${label}) : ${errors.join(' | ')}`);
     assert.equal(assetFailures.length, 0, `Assets en échec (${label}) : ${assetFailures.join(' | ')}`);
     assert.ok(domCheck.sheets >= 1, `Feuille CSS chargée (${label})`);
+    assert.ok(domCheck.hasInlineCss, `CSS universel inline embarqué dans index.html (${label})`);
+    assert.equal(domCheck.imgCount, 3, `3 illustrations BTP présentes sur l’accueil (${label})`);
     assert.ok(domCheck.imgLoaded, `Illustration BTP chargée (${label})`);
     assert.ok(domCheck.h1Right <= viewport.width, `H1 contenu dans l’écran (${label}) : right=${domCheck.h1Right} <= ${viewport.width}`);
     assert.ok(domCheck.imgRect && domCheck.imgRect.right <= viewport.width && domCheck.imgRect.top < viewport.height && domCheck.imgRect.height >= 150,
@@ -227,12 +233,31 @@ try {
     page.off('response', onResponse);
   }
 
-  // 3. Parcours complet connecté (Desktop + capture mobile du tableau de bord)
+  // 3. Vérification visuelle & images BTP sur /connexion, /offres et /inscription
   await page.setViewportSize({ width: 1440, height: 900 });
   const appPage = page;
 
+  for (const [routePath, expectedText] of [
+    ['/connexion', 'Connexion'],
+    ['/offres', 'SasPay'],
+    ['/inscription', 'Créer votre entreprise sur ChantierPilot'],
+  ]) {
+    await appPage.goto(`${origin}${routePath}`, { waitUntil: 'networkidle' });
+    const check = await appPage.evaluate(() => {
+      const pic = document.querySelector('picture img');
+      return {
+        text: document.body.innerText,
+        imgOk: Boolean(pic && pic.complete && pic.naturalWidth >= 800),
+        overflowX: document.documentElement.scrollWidth > window.innerWidth + 1,
+      };
+    });
+    assert.ok(check.text.includes(expectedText), `Texte attendu sur ${routePath}`);
+    assert.ok(check.imgOk, `Illustration BTP bien chargée sur ${routePath}`);
+    assert.equal(check.overflowX, false, `Aucun débordement horizontal sur ${routePath}`);
+  }
+  console.log('  ✓ /connexion, /offres et /inscription : illustrations BTP & CSS universel vérifiés');
+
   // Deep link /inscription + rechargement
-  await appPage.goto(`${origin}/inscription`, { waitUntil: 'networkidle' });
   await appPage.reload({ waitUntil: 'networkidle' });
   await appPage.fill('#c-name', 'Ivoire Structure BTP SARL');
   await appPage.fill('#c-phone', '+225 07 08 09 10 11');
@@ -241,11 +266,18 @@ try {
   await appPage.fill('#u-password', ' Chantier2026! '.trim());
   await appPage.click('button[type="submit"]');
 
-  // Tableau de bord neuf : accueil personnalisé + 0 FCFA partout + ouverture directe modale Nouveau chantier
+  // Tableau de bord neuf : accueil personnalisé + illustration BTP + 0 FCFA partout
   await appPage.getByRole('heading', { name: /Bonjour.*Awa/ }).waitFor();
-  const dashText = await appPage.evaluate(() => document.body.innerText);
-  assert.ok(!dashText.includes('12 000 000'), 'Aucun chiffre fictif dans un compte client réel');
-  assert.ok(dashText.includes('0 FCFA'), 'Un compte neuf affiche 0 FCFA');
+  const dashCheck = await appPage.evaluate(() => {
+    const pic = document.querySelector('picture img');
+    return {
+      text: document.body.innerText,
+      imgOk: Boolean(pic && pic.complete && pic.naturalWidth >= 800),
+    };
+  });
+  assert.ok(dashCheck.imgOk, 'Illustration BTP bien affichée sur le tableau de bord connecté');
+  assert.ok(!dashCheck.text.includes('12 000 000'), 'Aucun chiffre fictif dans un compte client réel');
+  assert.ok(dashCheck.text.includes('0 FCFA'), 'Un compte neuf affiche 0 FCFA');
 
   await appPage.screenshot({ path: path.join(SCREENSHOTS_DIR, 'dashboard-empty-desktop.png') });
 
@@ -304,9 +336,16 @@ try {
   await appPage.goto(origin, { waitUntil: 'networkidle' });
 
   const swCheck = await appPage.evaluate(async () => {
-    const reg = await navigator.serviceWorker.register('/sw.js');
-    await navigator.serviceWorker.ready;
-    await new Promise((r) => setTimeout(r, 500));
+    const reg = await navigator.serviceWorker.ready;
+    if (reg.active && reg.active.state !== 'activated') {
+      await new Promise((resolve) => {
+        reg.active.addEventListener('statechange', () => {
+          if (reg.active?.state === 'activated') resolve();
+        });
+        setTimeout(resolve, 2000);
+      });
+    }
+    await new Promise((r) => setTimeout(r, 300));
 
     const cacheKeys = await caches.keys();
     const idbPreserved = await new Promise((resolve, reject) => {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Alert, Button, Footer } from '../components/ui.jsx';
 import Logo from '../components/Logo.jsx';
+import BtpVisual from '../components/BtpVisual.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { api } from '../lib/api.js';
 import { PLANS } from '../../shared/plans.js';
@@ -46,10 +47,28 @@ export default function PricingPage({ standalone = false }) {
     } catch (e) { setError(e.message); }
     finally { setBusy(false); }
   }
-  const content = <div className="mx-auto max-w-5xl py-8">
-    <div className="text-center"><p className="text-sm font-bold uppercase tracking-widest text-amber-700">Moins de pertes, plus de visibilité</p>
-      <h1 className="mt-3 text-3xl font-extrabold text-slate-900 sm:text-4xl">Un forfait à la taille de vos chantiers</h1>
-      <p className="mx-auto mt-4 max-w-2xl text-slate-600">14 jours d’essai sans carte. Pas de frais d’installation obligatoires. Dépenses, justificatifs, encaissements déclarés et rapports inclus dans chaque offre.</p></div>
+  const content = <div className="mx-auto max-w-5xl py-6">
+    <div className="cp-charcoal-panel overflow-hidden rounded-3xl p-6 shadow-xl sm:p-8">
+      <div className="grid items-center gap-6 lg:grid-cols-12">
+        <div className="min-w-0 lg:col-span-7">
+          <p className="text-xs font-extrabold uppercase tracking-widest text-[#eab956]">Moins de pertes, plus de visibilité</p>
+          <h1 className="mt-2.5 text-3xl font-extrabold text-[#fbf8f1] sm:text-4xl">Un forfait à la taille de vos chantiers</h1>
+          <p className="mt-3 text-sm leading-6 text-[#dfd9ce] sm:text-base">
+            14 jours d’essai sans carte. Pas de frais d’installation obligatoires. Dépenses, justificatifs, encaissements déclarés et rapports inclus dans chaque offre.
+          </p>
+        </div>
+        <div className="min-w-0 lg:col-span-5">
+          <div className="overflow-hidden rounded-2xl border border-[#eab956]/35">
+            <BtpVisual
+              kind="budget"
+              eager
+              alt="Bureau d’études et suivi budgétaire BTP en Côte d’Ivoire"
+              className="h-44 w-full object-cover object-center sm:h-48"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
     {error && <div className="mt-5"><Alert type="error">{error}</Alert></div>}
     {message && <div className="mt-5"><Alert>{message}</Alert></div>}
     {status === 'auth' && !data && !error && <p className="mt-5" role="status">Chargement de votre abonnement…</p>}

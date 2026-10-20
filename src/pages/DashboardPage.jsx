@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 import { formatFcfa, formatDate } from '../lib/format.js';
 import { STATUS_LABELS, STATUS_STYLES, CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '../lib/constants.js';
 import { Alert, Badge, Button, Card, EmptyState, LoadingPage, Modal, StatCard, Toast } from '../components/ui.jsx';
+import BtpVisual from '../components/BtpVisual.jsx';
 import { ProjectForm } from './ProjectsPage.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -61,35 +62,53 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Bandeau d’accueil personnalisé Noir Charbon & Or */}
-      <section className="cp-charcoal-panel mb-6 rounded-3xl p-5 shadow-lg sm:p-7">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
+      {/* Bandeau d’accueil personnalisé Noir Charbon & Or avec visuel chantier */}
+      <section className="cp-charcoal-panel mb-6 overflow-hidden rounded-3xl p-5 shadow-lg sm:p-7">
+        <div className="grid gap-5 lg:grid-cols-12 lg:items-center">
+          <div className="min-w-0 lg:col-span-7">
             <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#eab956]">
               {company?.name || 'Espace entreprise'} · Montants en FCFA
             </p>
             <h1 className="mt-1.5 text-2xl font-extrabold tracking-tight text-[#fbf8f1] sm:text-3xl">
               {greeting}
             </h1>
-            <p className="mt-1 text-sm text-[#dfd9ce]">
+            <p className="mt-1.5 text-sm leading-6 text-[#dfd9ce]">
               {t.active_projects > 0
                 ? `Vue d’ensemble de vos ${t.active_projects} chantier(s) actif(s), uniquement à partir de vos saisies réelles.`
                 : 'Votre espace est prêt. Créez votre premier chantier pour commencer à suivre budget, dépenses et encaissements.'}
             </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2.5">
-            {isAdmin ? (
-              <Button onClick={() => { setFields({}); setModalOpen(true); }}>
-                + Nouveau chantier
-              </Button>
-            ) : (
-              <Link to="/chantiers">
-                <Button>Voir les chantiers</Button>
+            <div className="mt-4 flex flex-wrap items-center gap-2.5">
+              {isAdmin ? (
+                <Button onClick={() => { setFields({}); setModalOpen(true); }}>
+                  + Nouveau chantier
+                </Button>
+              ) : (
+                <Link to="/chantiers">
+                  <Button>Voir les chantiers</Button>
+                </Link>
+              )}
+              <Link
+                to="/chantiers"
+                className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[#eab956]/40 bg-white/[0.04] px-4 py-2 text-sm font-bold text-[#fbf8f1] transition hover:border-[#eab956] hover:bg-white/[0.09]"
+              >
+                Tous les chantiers
               </Link>
-            )}
-            <Link to="/chantiers">
-              <Button variant="charcoal">Tous les chantiers</Button>
-            </Link>
+            </div>
+          </div>
+
+          <div className="min-w-0 lg:col-span-5">
+            <div className="overflow-hidden rounded-2xl border border-[#eab956]/35 bg-[#12100e]">
+              <BtpVisual
+                kind="hero"
+                eager
+                alt="Suivi de chantier et contrôle de plans BTP en Côte d’Ivoire"
+                className="h-36 w-full object-cover object-center sm:h-40"
+              />
+              <div className="flex items-center justify-between gap-2 border-t border-[#eab956]/25 px-3.5 py-2 text-xs">
+                <span className="font-bold text-[#fbf8f1]">Pilotage BTP · Bureau &amp; Terrain</span>
+                <span className="font-semibold text-[#eab956]">{company?.city || 'Côte d’Ivoire'}</span>
+              </div>
+            </div>
           </div>
         </div>
 

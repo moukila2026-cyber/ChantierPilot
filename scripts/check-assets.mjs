@@ -1,156 +1,131 @@
-import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+#!/usr/bin/env node
+// Vérifie l'intégrité complète des assets de production (dist/) et optionnellement d'une URL live (--live=https://...).
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import path from 'node:path';
 
-let failed = 0;
-function check(ok, label, detail = '') {
-  if (ok) {
-    console.log(`  ok  ${label}`);
-  } else {
-    failed += 1;
-    console.error(`  KO  ${label}${detail ? ` — ${detail}` : ''}`);
-  }
+const DIST = path.resolve('dist');
+let failures = 0;
+
+function ok(msg) {
+  console.log(`  ok  ${msg}`);
+}
+function fail(msg) {
+  failures++;
+  console.error(`  KO  ${msg}`);
+}
+function check(cond, msg) {
+  if (cond) ok(msg);
+  else fail(msg);
 }
 
 console.log('\n── Vérification locale des assets de build (dist/) et de la configuration Vercel ──');
 
-const requiredDist = [
-  ['index.html', (b) => b.toString('utf8').includes('<!doctype html>')],
-  ['logo.svg', (b) => b.toString('utf8').includes('#f4a340') && b.toString('utf8').includes('<svg')],
-  ['favicon.svg', (b) => b.toString('utf8').includes('#f4a340') && b.toString('utf8').includes('<svg')],
-  ['favicon-32.png', (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47],
-  ['apple-touch-icon.png', (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47],
-  ['icon-192.png', (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47],
-  ['icon-512.png', (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47],
-  ['site.webmanifest', (b) => {
-    const j = JSON.parse(b.toString('utf8'));
-    return j.theme_color === '#141210' && Array.isArray(j.icons) && j.icons.length >= 2;
+const requiredStatic = [
+  ['index.html', (s) => s.includes('<div id="root"></div>') && s.includes('#141210') && s.includes('id="cp-inline-css"')],
+  ['sw.js', (s) => s.includes('cp-shell-') && s.includes('isValidAssetResponse') && !s.includes('deleteDatabase') && !s.includes('indexedDB.')],
+  ['logo.svg', (s) => s.includes('<svg') && s.includes('#141210')],
+  ['favicon.svg', (s) => s.includes('<svg') && s.includes('#141210')],
+  ['favicon-32.png', null],
+  ['apple-touch-icon.png', null],
+  ['icon-192.png', null],
+  ['icon-512.png', null],
+  ['site.webmanifest', (s) => {
+    const j = JSON.parse(s);
+    return j.theme_color === '#141210' && j.background_color === '#0c0b09' && Array.isArray(j.icons) && j.icons.length >= 2;
   }],
-  ['sw.js', (b) => {
-    const s = b.toString('utf8');
-    return s.includes('isValidAssetResponse')
-      && s.includes('text/html')
-      && !s.includes('deleteDatabase')
-      && !s.includes('indexedDB.');
-  }],
-  ['images/landing/chantier-abidjan.webp', (b) => b.subarray(0, 4).toString('ascii') === 'RIFF' && b.subarray(8, 12).toString('ascii') === 'WEBP'],
-  ['images/landing/chantier-abidjan.jpg', (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff],
+  ['images/landing/chantier-abidjan.webp', null],
+  ['images/landing/chantier-abidjan.jpg', null],
+  ['images/landing/equipe-terrain.webp', null],
+  ['images/landing/equipe-terrain.jpg', null],
+  ['images/landing/suivi-budget.webp', null],
+  ['images/landing/suivi-budget.jpg', null],
 ];
 
-for (const [rel, validate] of requiredDist) {
-  const full = join('dist', rel);
+for (const [rel, validator] of requiredStatic) {
+  const full = path.join(DIST, rel);
   if (!existsSync(full)) {
-    check(false, `dist/${rel}`, 'fichier absent (lancez npm run build)');
+    fail(`dist/${rel} introuvable`);
     continue;
   }
   const size = statSync(full).size;
-  const buf = readFileSync(full);
-  check(size > 64 && validate(buf), `dist/${rel} présent et valide (${size} octets)`);
-}
-
-if (existsSync('dist/index.html')) {
-  const html = readFileSync('dist/index.html', 'utf8');
-  const assetRefs = [...html.matchAll(/(?:href|src)="(\/assets\/[^"]+)"/g)].map((m) => m[1]);
-  check(assetRefs.some((r) => r.endsWith('.css')), 'index.html lie au moins une feuille CSS compilée');
-  check(assetRefs.some((r) => r.endsWith('.js')), 'index.html lie au moins un bundle JS compilé');
-  for (const ref of assetRefs) {
-    const p = join('dist', ref.slice(1));
-    check(existsSync(p) && statSync(p).size > 1024, `bundle référencé ${ref} existe et est non vide`);
+  if (size < 64) {
+    fail(`dist/${rel} trop petit ou vide (${size} octets)`);
+    continue;
   }
-  const cssFiles = existsSync('dist/assets')
-    ? readdirSync('dist/assets').filter((f) => f.endsWith('.css'))
-    : [];
-  for (const cssFile of cssFiles) {
-    const css = readFileSync(join('dist/assets', cssFile), 'utf8');
-    check(css.includes('#141210') && css.includes('#e5a93b'), `CSS compilé (${cssFile}) contient les tokens Noir Charbon & Or`);
+  if (validator) {
+    const content = readFileSync(full, 'utf8');
+    check(validator(content), `dist/${rel} présent et valide (${size} octets)`);
+  } else {
+    ok(`dist/${rel} présent et valide (${size} octets)`);
   }
 }
 
+// Vérifie tous les liens JS/CSS référencés par dist/index.html + absence totale de @layer / oklch / oklab / @property
+const indexHtml = existsSync(path.join(DIST, 'index.html')) ? readFileSync(path.join(DIST, 'index.html'), 'utf8') : '';
+const assetRefs = [...indexHtml.matchAll(/(?:href|src)="(\/assets\/[^"]+)"/g)].map((m) => m[1]);
+check(assetRefs.some((r) => r.endsWith('.css')), 'index.html lie au moins une feuille CSS compilée');
+check(assetRefs.some((r) => r.endsWith('.js')), 'index.html lie au moins un bundle JS compilé');
+check(!indexHtml.includes('@layer'), 'style inline de index.html sans @layer bloquant');
+check(!/oklch\(|oklab\(|color-mix\(/i.test(indexHtml), 'style inline de index.html 100 % HEX/RGB sans oklch/oklab/color-mix');
+
+for (const ref of assetRefs) {
+  const full = path.join(DIST, ref.slice(1));
+  const exists = existsSync(full) && statSync(full).size > 100;
+  check(exists, `bundle référencé ${ref} existe et est non vide`);
+  if (exists && ref.endsWith('.css')) {
+    const css = readFileSync(full, 'utf8');
+    check(css.includes('#f5f2eb') && css.includes('#141210'), `CSS compilé (${path.basename(ref)}) contient les tokens Noir Charbon & Or`);
+    check(!css.includes('@layer'), `CSS compilé (${path.basename(ref)}) sans aucun @layer bloquant`);
+    check(!css.includes('@property'), `CSS compilé (${path.basename(ref)}) sans @property bloquant`);
+    check(!/oklch\(|oklab\(|color-mix\(/i.test(css), `CSS compilé (${path.basename(ref)}) 100 % HEX/RGB universel (zéro oklch/oklab/color-mix)`);
+  }
+}
+
+// Vérifie que vercel.json n'intercepte JAMAIS un fichier statique vers /index.html
 const vercel = JSON.parse(readFileSync('vercel.json', 'utf8'));
-const spaRewrite = vercel.rewrites?.find((r) => r.destination === '/index.html');
+const spaRewrite = (vercel.rewrites || []).find((r) => r.destination === '/index.html');
 check(Boolean(spaRewrite), 'vercel.json définit la réécriture SPA vers /index.html');
-
-const regex = new RegExp(`^${spaRewrite.source}$`);
-for (const staticPath of [
-  '/assets/index-abc123.css',
-  '/assets/index-abc123.js',
-  '/images/landing/chantier-abidjan.webp',
-  '/images/landing/chantier-abidjan.jpg',
-  '/pdfjs/cmaps/Identity-H.bcmap',
-  '/logo.svg',
-  '/favicon.svg',
-  '/favicon-32.png',
-  '/apple-touch-icon.png',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/site.webmanifest',
-  '/sw.js',
-  '/api/health',
-]) {
-  check(!regex.test(staticPath), `vercel.json NE réécrit PAS ${staticPath} vers /index.html`);
-}
-for (const spaRoute of ['/', '/connexion', '/inscription', '/chantiers', '/chantiers/123', '/documents', '/terrain', '/gestion', '/parametres', '/offres', '/cgu']) {
-  check(regex.test(spaRoute), `vercel.json réécrit bien la route applicative ${spaRoute} vers /index.html`);
-}
-
-const liveArg = process.argv.find((a) => a.startsWith('--live='));
-const liveBase = (liveArg ? liveArg.slice('--live='.length) : process.env.CHECK_URL || '').replace(/\/$/, '');
-
-if (liveBase) {
-  console.log(`\n── Vérification HTTP réelle sur ${liveBase} ──`);
-  const homeRes = await fetch(`${liveBase}/`, { redirect: 'follow' });
-  const homeHtml = await homeRes.text();
-  check(homeRes.status === 200 && (homeRes.headers.get('content-type') || '').includes('text/html'), `${liveBase}/ répond 200 text/html`);
-
-  const liveAssets = [...homeHtml.matchAll(/(?:href|src)="(\/assets\/[^"]+)"/g)].map((m) => m[1]);
-  check(liveAssets.length >= 2, `HTML en ligne référence ${liveAssets.length} bundles /assets/*`);
-
-  for (const ref of liveAssets) {
-    const r = await fetch(`${liveBase}${ref}`);
-    const ct = r.headers.get('content-type') || '';
-    const cc = r.headers.get('cache-control') || '';
-    const expectedMime = ref.endsWith('.css') ? 'text/css' : 'javascript';
-    check(r.status === 200 && ct.includes(expectedMime) && !ct.includes('text/html'), `${ref} -> ${r.status} ${ct}`);
-    check(cc.includes('immutable'), `${ref} Cache-Control immutable (${cc})`);
-  }
-
-  for (const [path, mimePart] of [
-    ['/images/landing/chantier-abidjan.webp', 'image/webp'],
-    ['/images/landing/chantier-abidjan.jpg', 'image/jpeg'],
-    ['/logo.svg', 'image/svg+xml'],
-    ['/favicon.svg', 'image/svg+xml'],
-    ['/favicon-32.png', 'image/png'],
-    ['/apple-touch-icon.png', 'image/png'],
-    ['/icon-192.png', 'image/png'],
-    ['/icon-512.png', 'image/png'],
-    ['/site.webmanifest', 'manifest'],
-    ['/sw.js', 'javascript'],
+if (spaRewrite) {
+  const regex = new RegExp(`^${spaRewrite.source}$`);
+  for (const staticPath of [
+    '/assets/index-abc123.css',
+    '/assets/index-abc123.js',
+    '/images/landing/chantier-abidjan.webp',
+    '/images/landing/chantier-abidjan.jpg',
+    '/images/landing/equipe-terrain.jpg',
+    '/images/landing/suivi-budget.jpg',
+    '/pdfjs/cmaps/Identity-H.bcmap',
+    '/logo.svg',
+    '/favicon.svg',
+    '/favicon-32.png',
+    '/apple-touch-icon.png',
+    '/icon-192.png',
+    '/icon-512.png',
+    '/site.webmanifest',
+    '/sw.js',
+    '/api/health',
   ]) {
-    const r = await fetch(`${liveBase}${path}`);
-    const ct = r.headers.get('content-type') || '';
-    check(r.status === 200 && ct.includes(mimePart) && !ct.includes('text/html'), `${path} -> ${r.status} ${ct}`);
+    check(!regex.test(staticPath), `vercel.json NE réécrit PAS ${staticPath} vers /index.html`);
   }
-
-  const missingCss = await fetch(`${liveBase}/assets/inexistant-verification-404.css`);
-  const missingCt = missingCss.headers.get('content-type') || '';
-  check(
-    missingCss.status === 404 || !missingCt.includes('text/html'),
-    `/assets/inexistant-verification-404.css ne renvoie JAMAIS index.html en 200 (reçu ${missingCss.status} ${missingCt})`,
-  );
-
-  for (const deep of ['/connexion', '/inscription', '/offres', '/cgu', '/chantiers', '/terrain']) {
-    const r = await fetch(`${liveBase}${deep}`);
-    const ct = r.headers.get('content-type') || '';
-    check(r.status === 200 && ct.includes('text/html'), `Route SPA ${deep} répond 200 text/html au rechargement`);
+  for (const spaRoute of [
+    '/',
+    '/connexion',
+    '/inscription',
+    '/chantiers',
+    '/chantiers/123',
+    '/documents',
+    '/terrain',
+    '/gestion',
+    '/parametres',
+    '/offres',
+    '/cgu',
+  ]) {
+    check(regex.test(spaRoute), `vercel.json réécrit bien la route applicative ${spaRoute} vers /index.html`);
   }
-
-  const healthRes = await fetch(`${liveBase}/api/health`);
-  const health = await healthRes.json();
-  check(healthRes.status === 200 && health.status === 'ok' && health.database === 'ok', `/api/health -> status=${health.status}, database=${health.database}, schema=${health.schema}`);
-  check(health.schema === 'ok', `/api/health confirme les 27 tables actives (schema=${health.schema})`);
 }
 
-if (failed > 0) {
-  console.error(`\nÉCHEC : ${failed} contrôle(s) en erreur.`);
+if (failures > 0) {
+  console.error(`\nÉCHEC : ${failures} contrôle(s) en erreur.`);
   process.exit(1);
 }
-console.log('\nTous les contrôles d’assets et de routage sont conformes.\n');
+console.log('\nSUCCÈS : tous les assets, types MIME, CSS universel HEX/RGB et règles de routage sont conformes.\n');

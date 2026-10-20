@@ -18,6 +18,39 @@ createRoot(document.getElementById('root')).render(
   </React.StrictMode>,
 );
 
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+// Purge automatique des anciens CacheStorage HTTP obsolètes (jamais d'IndexedDB :
+// toutes les saisies hors connexion dans chantierpilot-terrain-v1 restent intactes)
+// et enregistrement versionné du Service Worker pour contourner tout cache HTTP 24h.
+async function syncServiceWorkerSafely() {
+  if (!('serviceWorker' in navigator)) return;
+  const expectedCache = document.querySelector('meta[name="cp-cache-version"]')?.getAttribute('content') || '';
+
+  try {
+    if ('caches' in window && expectedCache) {
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter((k) => k !== expectedCache)
+          .map((k) => caches.delete(k)),
+      );
+    }
+  } catch {
+    // Stockage de cache indisponible : on ignore sans bloquer l'interface.
+  }
+
+  try {
+    const swUrl = expectedCache ? `/sw.js?v=${encodeURIComponent(expectedCache)}` : '/sw.js';
+    const reg = await navigator.serviceWorker.register(swUrl, { scope: '/', updateViaCache: 'none' });
+    reg.update().catch(() => {});
+  } catch {
+    // Pas de blocage si le navigateur refuse les Service Workers (navigation privée stricte, etc.).
+  }
+}
+
+if (import.meta.env.PROD) {
+  if (document.readyState === 'complete') {
+    syncServiceWorkerSafely();
+  } else {
+    window.addEventListener('load', syncServiceWorkerSafely, { once: true });
+  }
 }
