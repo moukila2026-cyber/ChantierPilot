@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { formatFcfa, formatDate } from '../lib/format.js';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../lib/constants.js';
@@ -22,6 +22,18 @@ export default function PaymentsPage() {
   const [toast, setToast] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [page, setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (!state.loading && searchParams.get('nouveau') === '1') {
+      if (state.projects.length > 0) {
+        setEditTarget(null);
+        setFields({});
+        setModalOpen(true);
+      }
+      setSearchParams({}, { replace: true });
+    }
+  }, [state.loading, state.projects.length, searchParams, setSearchParams]);
 
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true }));
@@ -147,7 +159,7 @@ export default function PaymentsPage() {
           <Card pad={false} className="hidden md:block">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                <tr className="bg-[#141210] text-left text-xs font-bold uppercase tracking-wide text-[#eab956]">
                   <th className="px-5 py-3">Date</th>
                   <th className="px-3 py-3">Chantier / client</th>
                   <th className="px-3 py-3">Référence / mode</th>

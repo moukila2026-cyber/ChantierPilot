@@ -12,7 +12,7 @@ export function FileField({ label, hint, value, onChange, error }) {
       <input
         type="file"
         accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-        className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-50 file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-amber-800 hover:file:bg-amber-100"
+        className="block w-full text-sm text-[#574f45] file:mr-3 file:rounded-xl file:border file:border-[#e6ce96] file:bg-[#fdf8ec] file:px-4 file:py-2.5 file:text-sm file:font-bold file:text-[#141210] hover:file:bg-[#faeccd]"
         onChange={async (e) => {
           const file = e.target.files?.[0];
           try {
@@ -23,7 +23,7 @@ export function FileField({ label, hint, value, onChange, error }) {
         }}
       />
       {value && (
-        <p className="mt-1 text-xs text-emerald-700">
+        <p className="mt-1 text-xs font-semibold text-emerald-700">
           ✓ {value.filename} ({Math.round((value.data.length * 3) / 4 / 1024)} Ko)
         </p>
       )}

@@ -1,5 +1,5 @@
 // Génération du rapport PDF par chantier (pdfkit, rendu serveur).
-// En-tête : identité de L'ENTREPRISE concernée (récupérée en base).
+// En-tête Noir Charbon & Or : identité de L'ENTREPRISE concernée (récupérée en base).
 // Le rapport est explicite sur la nature « déclarée » des encaissements.
 
 import PDFDocument from 'pdfkit';
@@ -15,24 +15,31 @@ export function formatDateFr(iso) {
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
 
-const INK = '#1a2332';
-const GRAY = '#5b6779';
-const LIGHT = '#e8ecf1';
-const ACCENT = '#b45309';
+export const PDF_CHARCOAL = '#141210';
+export const PDF_GOLD = '#d4941e';
+export const PDF_GOLD_DARK = '#854d0e';
+export const PDF_GRAY = '#574f45';
+export const PDF_LIGHT = '#e3ddd0';
+export const PDF_HEAD_BG = '#f5f2eb';
+
+export function drawBrandMark(doc, x = 48, y = 42) {
+  const dx = x - 48;
+  const dy = y - 42;
+  doc.save();
+  doc.roundedRect(48 + dx, 42 + dy, 28, 28, 6).fillAndStroke(PDF_CHARCOAL, PDF_GOLD);
+  doc.moveTo(52 + dx, 55 + dy).lineTo(62 + dx, 47 + dy).lineTo(72 + dx, 55 + dy).lineWidth(1.7).lineJoin('round').strokeColor('#f4a340').stroke();
+  doc.moveTo(54 + dx, 55 + dy).lineTo(54 + dx, 65 + dy).lineTo(59 + dx, 65 + dy).lineTo(59 + dx, 60 + dy).lineTo(65 + dx, 60 + dy).lineTo(65 + dx, 65 + dy).lineTo(70 + dx, 65 + dy).lineTo(70 + dx, 55 + dy)
+    .lineWidth(1.3).lineJoin('round').strokeColor('#f4a340').stroke();
+  doc.moveTo(57 + dx, 59 + dy).lineTo(58.5 + dx, 60.5 + dy).lineTo(61 + dx, 57.5 + dy).moveTo(64 + dx, 59 + dy).lineTo(65.5 + dx, 60.5 + dy).lineTo(68 + dx, 57.5 + dy)
+    .lineWidth(0.8).lineCap('round').lineJoin('round').strokeColor('#fbf8f1').stroke();
+  doc.moveTo(62 + dx, 50 + dy).lineTo(65 + dx, 52.5 + dy).lineTo(62 + dx, 55 + dy).lineWidth(1).lineCap('round').lineJoin('round').strokeColor('#fbf8f1').stroke();
+  doc.restore();
+}
 
 function header(doc, company, title, subtitle) {
-  // Signe ChantierPilot vectoriel (toit, flèche et coches), sans fichier externe.
-  doc.save();
-  doc.roundedRect(48, 42, 28, 28, 6).fill(INK);
-  doc.moveTo(52, 55).lineTo(62, 47).lineTo(72, 55).lineWidth(1.7).lineJoin('round').strokeColor('#f4a340').stroke();
-  doc.moveTo(54, 55).lineTo(54, 65).lineTo(59, 65).lineTo(59, 60).lineTo(65, 60).lineTo(65, 65).lineTo(70, 65).lineTo(70, 55)
-    .lineWidth(1.3).lineJoin('round').strokeColor('#f4a340').stroke();
-  doc.moveTo(57, 59).lineTo(58.5, 60.5).lineTo(61, 57.5).moveTo(64, 59).lineTo(65.5, 60.5).lineTo(68, 57.5)
-    .lineWidth(0.8).lineCap('round').lineJoin('round').strokeColor('#f7f4ed').stroke();
-  doc.moveTo(62, 50).lineTo(65, 52.5).lineTo(62, 55).lineWidth(1).lineCap('round').lineJoin('round').strokeColor('#f7f4ed').stroke();
-  doc.restore();
-  doc.fillColor(INK).font('Helvetica-Bold').fontSize(18).text(company.name || 'Entreprise', 84, 45);
-  doc.fillColor(GRAY).font('Helvetica').fontSize(8.5);
+  drawBrandMark(doc, 48, 42);
+  doc.fillColor(PDF_CHARCOAL).font('Helvetica-Bold').fontSize(18).text(company.name || 'Entreprise', 84, 45);
+  doc.fillColor(PDF_GRAY).font('Helvetica').fontSize(8.5);
   const contact = [
     company.rccm ? `RCCM : ${company.rccm}` : null,
     company.phone ? `Téléphone : ${company.phone}` : null,
@@ -44,14 +51,14 @@ function header(doc, company, title, subtitle) {
     doc.text(line, 84, y, { width: 463 });
     y += 11;
   }
-  doc.moveTo(48, y + 6).lineTo(547, y + 6).lineWidth(1.2).strokeColor(ACCENT).stroke();
-  doc.fillColor(INK).font('Helvetica-Bold').fontSize(13).text(title, 48, y + 18);
-  doc.fillColor(GRAY).font('Helvetica').fontSize(9).text(subtitle, 48, y + 36);
+  doc.moveTo(48, y + 6).lineTo(547, y + 6).lineWidth(1.4).strokeColor(PDF_GOLD).stroke();
+  doc.fillColor(PDF_CHARCOAL).font('Helvetica-Bold').fontSize(13).text(title, 48, y + 18);
+  doc.fillColor(PDF_GOLD_DARK).font('Helvetica').fontSize(9).text(subtitle, 48, y + 36);
   return y + 58;
 }
 
 function sectionTitle(doc, text, y) {
-  doc.fillColor(INK).font('Helvetica-Bold').fontSize(11).text(text, 48, y);
+  doc.fillColor(PDF_CHARCOAL).font('Helvetica-Bold').fontSize(11).text(text, 48, y);
   return y + 16;
 }
 
@@ -62,8 +69,8 @@ function keyValueTable(doc, y, rows, labelWidth = 160) {
     doc.font('Helvetica-Bold').fontSize(9);
     const height = Math.max(15, doc.heightOfString(text, { width: valueWidth }));
     if (y + height > 760) { doc.addPage(); y = 56; }
-    doc.fillColor(GRAY).font('Helvetica').fontSize(9).text(k, 48, y, { width: labelWidth });
-    doc.fillColor(INK).font('Helvetica-Bold').fontSize(9).text(text, 48 + labelWidth + 8, y, { width: valueWidth });
+    doc.fillColor(PDF_GRAY).font('Helvetica').fontSize(9).text(k, 48, y, { width: labelWidth });
+    doc.fillColor(PDF_CHARCOAL).font('Helvetica-Bold').fontSize(9).text(text, 48 + labelWidth + 8, y, { width: valueWidth });
     y += height + 3;
   }
   return y + 6;
@@ -76,27 +83,24 @@ function formatFcfaInWords(amount) {
 function table(doc, y, columns, rows, footerRow) {
   const pageBottom = 790;
   const drawHead = () => {
-    doc.rect(48, y, 499, 18).fill('#f2f4f7');
+    doc.rect(48, y, 499, 18).fill(PDF_CHARCOAL);
     let x = 48 + 6;
-    doc.fillColor(INK).font('Helvetica-Bold').fontSize(8);
+    doc.fillColor('#eab956').font('Helvetica-Bold').fontSize(8);
     for (const col of columns) {
       doc.text(col.label, x, y + 5, { width: col.width - 8, align: col.align || 'left' });
       x += col.width;
     }
     y += 18;
-    doc.fillColor(INK);
+    doc.fillColor(PDF_CHARCOAL);
   };
   drawHead();
   doc.font('Helvetica').fontSize(8.5);
   for (const row of rows) {
-    // Hauteur de ligne : le plus long texte plié.
     let h = 16;
-    let x = 48;
     for (const col of columns) {
       const val = String(col.value(row) ?? '');
       const th = doc.heightOfString(val, { width: col.width - 8 });
       if (th + 8 > h) h = th + 8;
-      x += col.width;
     }
     if (y + h > pageBottom) {
       doc.addPage();
@@ -104,26 +108,26 @@ function table(doc, y, columns, rows, footerRow) {
       drawHead();
       doc.font('Helvetica').fontSize(8.5);
     }
-    x = 48 + 6;
+    let x = 48 + 6;
     for (const col of columns) {
       const val = String(col.value(row) ?? '');
-      doc.fillColor(INK).text(val, x, y + 4, { width: col.width - 8, align: col.align || 'left' });
+      doc.fillColor(PDF_CHARCOAL).text(val, x, y + 4, { width: col.width - 8, align: col.align || 'left' });
       x += col.width;
     }
-    doc.moveTo(48, y + h).lineTo(547, y + h).lineWidth(0.4).strokeColor(LIGHT).stroke();
+    doc.moveTo(48, y + h).lineTo(547, y + h).lineWidth(0.4).strokeColor(PDF_LIGHT).stroke();
     y += h;
   }
   if (footerRow) {
     if (y + 20 > pageBottom) { doc.addPage(); y = 56; }
-    doc.rect(48, y, 499, 18).fill('#f8fafc');
+    doc.rect(48, y, 499, 18).fill(PDF_HEAD_BG);
     let x = 48 + 6;
-    doc.fillColor(INK).font('Helvetica-Bold').fontSize(8.5);
+    doc.fillColor(PDF_CHARCOAL).font('Helvetica-Bold').fontSize(8.5);
     for (const col of columns) {
       doc.text(String(col.footer?.() ?? ''), x, y + 5, { width: col.width - 8, align: col.align || 'left' });
       x += col.width;
     }
     y += 22;
-    doc.fillColor(INK);
+    doc.fillColor(PDF_CHARCOAL);
   }
   return y + 8;
 }
@@ -194,9 +198,9 @@ export function buildProjectReport(data) {
       ], payments, payments.length > 0);
 
       if (y > 660) { doc.addPage(); y = 56; }
-      doc.moveTo(48, y).lineTo(547, y).lineWidth(0.6).strokeColor(LIGHT).stroke();
+      doc.moveTo(48, y).lineTo(547, y).lineWidth(0.6).strokeColor(PDF_LIGHT).stroke();
       y += 12;
-      doc.fillColor(GRAY).font('Helvetica').fontSize(7.5).text(
+      doc.fillColor(PDF_GRAY).font('Helvetica').fontSize(7.5).text(
         'Mentions importantes : les encaissements listés dans ce rapport sont des paiements DÉCLARÉS par l\'entreprise, '
         + 'documentés par leur référence (n° de reçu, référence de virement, etc.). Un paiement n\'est considéré comme '
         + 'prouvé que lorsqu\'un justificatif y est joint (colonne « Justificatif »). Le résultat provisoire correspond aux '
@@ -205,11 +209,10 @@ export function buildProjectReport(data) {
         48, y, { width: 499, align: 'justify' },
       );
 
-      // Numérotation des pages
       const range = doc.bufferedPageRange();
       for (let i = range.start; i < range.start + range.count; i++) {
         doc.switchToPage(i);
-        doc.fillColor(GRAY).font('Helvetica').fontSize(7.5)
+        doc.fillColor(PDF_GRAY).font('Helvetica').fontSize(7.5)
           .text(`ChantierPilot — ${company.name} — page ${i + 1} / ${range.count}`, 48, 812, { width: 499, align: 'center' });
       }
 

@@ -182,7 +182,7 @@ export default function ProjectDetailPage() {
       )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <StatCard label="Budget prévisionnel" value={formatFcfa(totals.budget)} />
+        <StatCard featured label="Budget prévisionnel" value={formatFcfa(totals.budget)} />
         <StatCard label="Dépenses" value={formatFcfa(totals.expenses_total)} tone="red" sub={`${pct} % du budget`} />
         <StatCard label="Encaissements" value={formatFcfa(totals.payments_total)} tone="green" sub="Déclarations documentées" />
         <StatCard label="Solde client" value={formatFcfa(totals.reste_a_encaisser)} tone="amber" sub="Reste à encaisser" />
@@ -212,7 +212,7 @@ export default function ProjectDetailPage() {
       </Card>
 
       {/* Onglets */}
-      <div className="mt-6 flex gap-1 overflow-x-auto rounded-xl bg-slate-200/70 p-1" role="tablist">
+      <div className="mt-6 flex gap-1 overflow-x-auto rounded-xl border border-[#e3ddd0] bg-[#eae4d7] p-1" role="tablist">
         {[
           ['historique', 'Historique'],
           ['depenses', `Dépenses (${expenses.length})`],
@@ -224,8 +224,8 @@ export default function ProjectDetailPage() {
             aria-selected={tab === key}
             type="button"
             onClick={() => setTab(key)}
-            className={`min-h-10 flex-1 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition ${
-              tab === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            className={`min-h-10 flex-1 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-bold transition ${
+              tab === key ? 'bg-[#141210] text-[#eab956] shadow-sm' : 'text-[#3f3932] hover:text-[#141210]'
             }`}
           >
             {label}
