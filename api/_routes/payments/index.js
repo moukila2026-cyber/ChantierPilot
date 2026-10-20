@@ -1,7 +1,5 @@
-// GET /api/payments — liste des encaissements.
+// GET /api/payments — liste des encaissements (avec recherche plein-texte & totaux FCFA).
 // POST /api/payments — déclaration d'un encaissement (référence obligatoire).
-// Un encaissement est une DÉCLARATION documentée : la référence (n° de reçu,
-// réf. de virement…) est exigée, et un justificatif peut être joint.
 
 import { withTenant } from '../../_lib/db.js';
 import { paymentSchema, parseOrThrow, PAYMENT_METHOD_LABELS } from '../../_lib/validate.js';
@@ -22,15 +20,17 @@ export default async function handler(req, res) {
         const method = q.method && q.method !== 'tous' ? q.method : null;
         const from = q.from || null;
         const to = q.to || null;
+        const search = q.q ? q.q.trim().slice(0, 120) : null;
         const page = parsePagination(q);
 
         const result = await withTenant(ctx, async (client) => {
           const where = `($1::uuid IS NULL OR p.project_id = $1)
             AND ($2::text IS NULL OR p.payment_method = $2)
             AND ($3::date IS NULL OR p.payment_date >= $3)
-            AND ($4::date IS NULL OR p.payment_date <= $4)`;
-          const params = [projectId, method, from, to];
-          const [{ rows }, countResult] = await Promise.all([
+            AND ($4::date IS NULL OR p.payment_date <= $4)
+            AND ($5::text IS NULL OR p.client_name ILIKE '%' || $5 || '%' OR p.reference ILIKE '%' || $5 || '%' OR p.memo ILIKE '%' || $5 || '%' OR pr.name ILIKE '%' || $5 || '%')`;
+          const params = [projectId, method, from, to, search];
+          const [{ rows }, aggResult] = await Promise.all([
             client.query(
               `SELECT p.id, p.company_id, p.project_id, p.client_name, p.amount, p.payment_date,
                       p.reference, p.payment_method, p.memo,
@@ -42,16 +42,34 @@ export default async function handler(req, res) {
                LEFT JOIN app_users u ON u.id = p.created_by
                WHERE ${where}
                ORDER BY p.payment_date DESC, p.created_at DESC, p.id DESC
-               LIMIT $5 OFFSET $6`,
+               LIMIT $6 OFFSET $7`,
               [...params, page.limit, page.offset],
             ),
-            client.query(`SELECT COUNT(*)::int AS total FROM payments p WHERE ${where}`, params),
+            client.query(
+              `SELECT COUNT(*)::int AS total,
+                      COALESCE(SUM(p.amount), 0)::bigint AS total_amount,
+                      COUNT(*) FILTER (WHERE p.proof IS NOT NULL)::int AS with_proof_count
+               FROM payments p
+               JOIN projects pr ON pr.id = p.project_id
+               WHERE ${where}`,
+              params,
+            ),
           ]);
-          return { rows, total: countResult.rows[0].total };
+          const agg = aggResult.rows[0];
+          return {
+            rows,
+            total: agg.total,
+            summary: {
+              total_amount: Number(agg.total_amount),
+              count: agg.total,
+              with_proof_count: agg.with_proof_count,
+            },
+          };
         });
 
         return sendJson(res, 200, {
           payments: result.rows,
+          summary: result.summary,
           pagination: paginationMeta(page.limit, page.offset, result.total),
           labels: { payment_method: PAYMENT_METHOD_LABELS },
         });

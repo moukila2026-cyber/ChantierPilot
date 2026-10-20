@@ -5,18 +5,20 @@ import { formatFcfa, formatDate } from '../lib/format.js';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../lib/constants.js';
 import {
   Alert, Badge, Button, Card, ConfirmDialog, EmptyState, Input, Modal, PageHeader,
-  Pagination, Select, Spinner, Toast,
+  Pagination, Select, Spinner, StatCard, Toast,
 } from '../components/ui.jsx';
 import { PaymentForm } from '../components/forms.jsx';
+import { AttachmentPreviewModal } from '../components/AttachmentPreviewModal.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
 export default function PaymentsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
-  const [state, setState] = useState({ loading: true, payments: [], projects: [] });
-  const [filters, setFilters] = useState({ project_id: '', method: '', from: '', to: '' });
+  const [state, setState] = useState({ loading: true, payments: [], projects: [], summary: null });
+  const [filters, setFilters] = useState({ q: '', project_id: '', method: '', from: '', to: '' });
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
+  const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
   const [fields, setFields] = useState({});
   const [toast, setToast] = useState(null);
@@ -39,6 +41,7 @@ export default function PaymentsPage() {
     setState((s) => ({ ...s, loading: true }));
     try {
       const params = new URLSearchParams();
+      if (filters.q.trim()) params.set('q', filters.q.trim());
       if (filters.project_id) params.set('project_id', filters.project_id);
       if (filters.method) params.set('method', filters.method);
       if (filters.from) params.set('from', filters.from);
@@ -54,16 +57,17 @@ export default function PaymentsPage() {
       setState({
         loading: false,
         payments: paymentsData.payments,
+        summary: paymentsData.summary,
         pagination: paymentsData.pagination,
         projects: projectsData.projects.filter((p) => p.status !== 'archive' || filters.project_id === p.id),
       });
     } catch (e) {
-      setState({ loading: false, payments: [], projects: [], pagination: null, error: e.message });
+      setState({ loading: false, payments: [], projects: [], summary: null, pagination: null, error: e.message });
     }
   }, [filters, page]);
 
   useEffect(() => {
-    const t = setTimeout(load, 250);
+    const t = setTimeout(load, 220);
     return () => clearTimeout(t);
   }, [load]);
 
@@ -110,26 +114,54 @@ export default function PaymentsPage() {
     }
   };
 
-  const total = state.payments.reduce((s, p) => s + Number(p.amount), 0);
+  const pageTotal = state.payments.reduce((s, p) => s + Number(p.amount), 0);
+  const filteredTotal = state.summary?.total_amount ?? pageTotal;
+  const filteredCount = state.summary?.count ?? state.payments.length;
+  const withProofCount = state.summary?.with_proof_count ?? state.payments.filter((p) => p.has_proof).length;
+  const hasActiveFilters = Boolean(filters.q || filters.project_id || filters.method || filters.from || filters.to);
 
   return (
     <div>
       <PageHeader
         title="Encaissements"
-        subtitle="Paiements clients déclarés, documentés par une référence — prouvés lorsqu'un justificatif est joint."
+        subtitle="Paiements clients déclarés, documentés par une référence — prouvés lorsqu’un justificatif est joint."
         actions={<Button onClick={() => { setEditTarget(null); setFields({}); setModalOpen(true); }} disabled={state.projects.length === 0}>+ Nouvel encaissement</Button>}
       />
 
       {state.projects.length === 0 && !state.loading && (
         <div className="mb-4">
           <Alert type="info">
-            Créez d'abord un chantier pour enregistrer des encaissements.{' '}
+            Créez d’abord un chantier pour enregistrer des encaissements.{' '}
             <Link to="/chantiers" className="font-semibold underline">Aller aux chantiers</Link>
           </Alert>
         </div>
       )}
 
-      <Card className="mb-4">
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard featured label={hasActiveFilters ? 'Total des encaissements filtrés' : 'Total cumulé des encaissements'} value={formatFcfa(filteredTotal)} />
+        <StatCard label="Règlements enregistrés" value={filteredCount} sub={hasActiveFilters ? 'Périmètre filtré actif' : 'Tous chantiers'} />
+        <StatCard label="Prouvés par justificatif" value={`${withProofCount} / ${filteredCount}`} tone="green" sub="Reçus, chèques ou captures" />
+      </div>
+
+      <Card className="mb-4 space-y-3">
+        <div className="flex flex-wrap gap-3">
+          <div className="min-w-60 flex-1">
+            <Input
+              value={filters.q}
+              onChange={(e) => { setFilters({ ...filters, q: e.target.value }); setPage(1); }}
+              placeholder="Rechercher un client, n° de reçu, transaction Mobile Money ou chantier…"
+              aria-label="Rechercher dans les encaissements"
+            />
+          </div>
+          {hasActiveFilters && (
+            <Button
+              variant="secondary"
+              onClick={() => { setFilters({ q: '', project_id: '', method: '', from: '', to: '' }); setPage(1); }}
+            >
+              Réinitialiser
+            </Button>
+          )}
+        </div>
         <div className="grid gap-3 sm:grid-cols-4">
           <Select value={filters.project_id} onChange={(e) => { setFilters({ ...filters, project_id: e.target.value }); setPage(1); }} aria-label="Filtrer par chantier">
             <option value="">Tous les chantiers</option>
@@ -184,7 +216,23 @@ export default function PaymentsPage() {
                         </Badge>
                       </div>
                       {p.has_proof && (
-                        <a className="text-xs font-medium text-amber-700 hover:underline" href={`/api/files?kind=proof&id=${p.id}`} target="_blank" rel="noreferrer">📎 justificatif</a>
+                        <div className="mt-1 flex items-center gap-3 text-xs font-semibold text-amber-800">
+                          <button
+                            type="button"
+                            className="underline hover:text-slate-900"
+                            onClick={() => setPreview({
+                              url: `/api/files?kind=proof&id=${p.id}`,
+                              filename: p.proof_filename,
+                              mime: p.proof_mime,
+                              title: `${p.client_name} — ${formatFcfa(p.amount)}`,
+                            })}
+                          >
+                            👁 Aperçu
+                          </button>
+                          <a className="hover:underline" href={`/api/files?kind=proof&id=${p.id}`} target="_blank" rel="noreferrer">
+                            Télécharger
+                          </a>
+                        </div>
                       )}
                     </td>
                     <td className="px-3 py-3 text-right font-semibold tabular text-emerald-700">{formatFcfa(p.amount)}</td>
@@ -203,8 +251,9 @@ export default function PaymentsPage() {
                 ))}
               </tbody>
             </table>
-            <div className="border-t border-slate-200 px-5 py-3 text-right text-sm font-bold tabular text-slate-900">
-              Total affiché : {formatFcfa(total)}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-5 py-3 text-sm font-bold tabular text-slate-900">
+              <span className="text-xs font-medium text-slate-500">Page affichée : {formatFcfa(pageTotal)}</span>
+              <span>Total filtré : {formatFcfa(filteredTotal)}</span>
             </div>
           </Card>
 
@@ -222,6 +271,20 @@ export default function PaymentsPage() {
                 <Badge className={`mt-1 ${p.has_proof ? 'bg-emerald-100 text-emerald-800 ring-emerald-200' : 'bg-slate-100 text-slate-600 ring-slate-200'}`}>
                   {p.has_proof ? 'Justificatif joint' : 'Déclaré (référence)'}
                 </Badge>
+                {p.has_proof && (
+                  <button
+                    type="button"
+                    className="ml-2 text-xs font-semibold text-amber-800 underline"
+                    onClick={() => setPreview({
+                      url: `/api/files?kind=proof&id=${p.id}`,
+                      filename: p.proof_filename,
+                      mime: p.proof_mime,
+                      title: `${p.client_name} — ${formatFcfa(p.amount)}`,
+                    })}
+                  >
+                    👁 Aperçu
+                  </button>
+                )}
                 <div className="mt-2 flex gap-2">
                   <Button variant="secondary" className="min-h-9 flex-1 py-1 text-xs"
                     onClick={() => {
@@ -233,24 +296,26 @@ export default function PaymentsPage() {
                 </div>
               </Card>
             ))}
-            <p className="text-center text-sm font-bold tabular text-slate-700">Total : {formatFcfa(total)}</p>
+            <p className="text-center text-sm font-bold tabular text-slate-700">Total filtré : {formatFcfa(filteredTotal)}</p>
           </div>
         </>
       )}
 
       <Pagination pagination={state.pagination} onPageChange={setPage} />
 
-      <Modal open={modalOpen} title={editTarget ? 'Modifier l\'encaissement' : 'Nouvel encaissement'} onClose={() => { setModalOpen(false); setEditTarget(null); }}>
+      <Modal open={modalOpen} title={editTarget ? 'Modifier l’encaissement' : 'Nouvel encaissement'} onClose={() => { setModalOpen(false); setEditTarget(null); }}>
         <PaymentForm
           projects={state.projects} initial={editTarget} fields={fields} busy={busy}
           onSubmit={submit} onCancel={() => { setModalOpen(false); setEditTarget(null); }}
         />
       </Modal>
 
+      <AttachmentPreviewModal item={preview} onClose={() => setPreview(null)} />
+
       <ConfirmDialog
         open={!!confirm}
         title="Supprimer cet encaissement ?"
-        message="L'encaissement sera supprimé définitivement. Cette action sera tracée dans le journal d'audit."
+        message="L’encaissement sera supprimé définitivement. Cette action sera tracée dans le journal d’audit."
         confirmLabel="Supprimer"
         loading={busy}
         onConfirm={doDelete}

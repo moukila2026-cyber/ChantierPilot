@@ -474,12 +474,13 @@ GRANT EXECUTE ON FUNCTION api_operator_suspend(UUID,BOOLEAN,TEXT) TO chantierpil
 REVOKE CREATE ON SCHEMA public FROM chantierpilot_definer;
 -- Modules métier : déni par défaut, même pour le propriétaire.
 DO $$ DECLARE t TEXT; BEGIN
-  FOREACH t IN ARRAY ARRAY['operation_requests','commercial_documents','price_items','cash_advances','advance_entries','workers','attendance','site_tasks','site_journal','inventory_items','purchase_orders','stock_movements','plan_versions','plan_annotations','schedule_tasks','warehouses','warehouse_movements','payroll_profiles','payroll_slips'] LOOP
+  FOREACH t IN ARRAY ARRAY['operation_requests','commercial_documents','price_items','cash_advances','advance_entries','workers','attendance','site_tasks','site_journal','inventory_items','purchase_orders','stock_movements','plan_versions','plan_annotations','schedule_tasks','warehouses','warehouse_movements','payroll_profiles','payroll_slips','subcontracts'] LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY',t);
     EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY',t);
     EXECUTE format('DROP POLICY IF EXISTS tenant_isolation ON %I',t);
     EXECUTE format('CREATE POLICY tenant_isolation ON %I USING (company_id=app_current_company_id()) WITH CHECK (company_id=app_current_company_id())',t);
     EXECUTE format('GRANT SELECT, INSERT, UPDATE ON %I TO chantierpilot_app',t);
   END LOOP;
+  GRANT DELETE ON subcontracts TO chantierpilot_app;
 END $$;
 COMMIT;

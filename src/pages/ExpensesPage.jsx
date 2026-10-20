@@ -4,19 +4,21 @@ import { api } from '../lib/api.js';
 import { formatFcfa, formatDate } from '../lib/format.js';
 import { CATEGORIES, CATEGORY_LABELS } from '../lib/constants.js';
 import {
-  Alert, Badge, Button, Card, ConfirmDialog, EmptyState, Input, LoadingPage,
-  Modal, PageHeader, Pagination, Select, Spinner, Toast,
+  Alert, Badge, Button, Card, ConfirmDialog, EmptyState, Input, Modal, PageHeader,
+  Pagination, Select, Spinner, StatCard, Toast,
 } from '../components/ui.jsx';
 import { ExpenseForm } from '../components/forms.jsx';
+import { AttachmentPreviewModal } from '../components/AttachmentPreviewModal.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
 export default function ExpensesPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
-  const [state, setState] = useState({ loading: true, expenses: [], projects: [] });
-  const [filters, setFilters] = useState({ project_id: '', category: '', from: '', to: '' });
+  const [state, setState] = useState({ loading: true, expenses: [], projects: [], summary: null });
+  const [filters, setFilters] = useState({ q: '', project_id: '', category: '', from: '', to: '' });
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
+  const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
   const [fields, setFields] = useState({});
   const [toast, setToast] = useState(null);
@@ -39,6 +41,7 @@ export default function ExpensesPage() {
     setState((s) => ({ ...s, loading: true }));
     try {
       const params = new URLSearchParams();
+      if (filters.q.trim()) params.set('q', filters.q.trim());
       if (filters.project_id) params.set('project_id', filters.project_id);
       if (filters.category) params.set('category', filters.category);
       if (filters.from) params.set('from', filters.from);
@@ -54,16 +57,17 @@ export default function ExpensesPage() {
       setState({
         loading: false,
         expenses: expensesData.expenses,
+        summary: expensesData.summary,
         pagination: expensesData.pagination,
         projects: projectsData.projects.filter((p) => p.status !== 'archive' || filters.project_id === p.id),
       });
     } catch (e) {
-      setState({ loading: false, expenses: [], projects: [], pagination: null, error: e.message });
+      setState({ loading: false, expenses: [], projects: [], summary: null, pagination: null, error: e.message });
     }
   }, [filters, page]);
 
   useEffect(() => {
-    const t = setTimeout(load, 250);
+    const t = setTimeout(load, 220);
     return () => clearTimeout(t);
   }, [load]);
 
@@ -109,7 +113,11 @@ export default function ExpensesPage() {
     }
   };
 
-  const total = state.expenses.reduce((s, e) => s + Number(e.amount), 0);
+  const pageTotal = state.expenses.reduce((s, e) => s + Number(e.amount), 0);
+  const filteredTotal = state.summary?.total_amount ?? pageTotal;
+  const filteredCount = state.summary?.count ?? state.expenses.length;
+  const withProofCount = state.summary?.with_proof_count ?? state.expenses.filter((e) => e.has_receipt).length;
+  const hasActiveFilters = Boolean(filters.q || filters.project_id || filters.category || filters.from || filters.to);
 
   return (
     <div>
@@ -122,13 +130,37 @@ export default function ExpensesPage() {
       {state.projects.length === 0 && !state.loading && (
         <div className="mb-4">
           <Alert type="info">
-            Créez d'abord un chantier pour enregistrer des dépenses.{' '}
+            Créez d’abord un chantier pour enregistrer des dépenses.{' '}
             <Link to="/chantiers" className="font-semibold underline">Aller aux chantiers</Link>
           </Alert>
         </div>
       )}
 
-      <Card className="mb-4">
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard featured label={hasActiveFilters ? 'Total des dépenses filtrées' : 'Total cumulé des dépenses'} value={formatFcfa(filteredTotal)} />
+        <StatCard label="Nombre d’écritures" value={filteredCount} sub={hasActiveFilters ? 'Périmètre filtré actif' : 'Tous chantiers'} />
+        <StatCard label="Pièces justificatives jointes" value={`${withProofCount} / ${filteredCount}`} tone="green" sub="Bons, factures ou photos" />
+      </div>
+
+      <Card className="mb-4 space-y-3">
+        <div className="flex flex-wrap gap-3">
+          <div className="min-w-60 flex-1">
+            <Input
+              value={filters.q}
+              onChange={(e) => { setFilters({ ...filters, q: e.target.value }); setPage(1); }}
+              placeholder="Rechercher un fournisseur, matériau, libellé ou chantier…"
+              aria-label="Rechercher dans les dépenses"
+            />
+          </div>
+          {hasActiveFilters && (
+            <Button
+              variant="secondary"
+              onClick={() => { setFilters({ q: '', project_id: '', category: '', from: '', to: '' }); setPage(1); }}
+            >
+              Réinitialiser
+            </Button>
+          )}
+        </div>
         <div className="grid gap-3 sm:grid-cols-4">
           <Select value={filters.project_id} onChange={(e) => { setFilters({ ...filters, project_id: e.target.value }); setPage(1); }} aria-label="Filtrer par chantier">
             <option value="">Tous les chantiers</option>
@@ -181,9 +213,23 @@ export default function ExpensesPage() {
                       <p className="font-medium text-slate-800">{e.supplier || '—'}</p>
                       <p className="text-xs text-slate-500">{e.description}</p>
                       {e.has_receipt && (
-                        <a className="text-xs font-medium text-amber-700 hover:underline" href={`/api/files?kind=expense&id=${e.id}`} target="_blank" rel="noreferrer">
-                          📎 Justificatif
-                        </a>
+                        <div className="mt-1 flex items-center gap-3 text-xs font-semibold text-amber-800">
+                          <button
+                            type="button"
+                            className="underline hover:text-slate-900"
+                            onClick={() => setPreview({
+                              url: `/api/files?kind=expense&id=${e.id}`,
+                              filename: e.receipt_filename,
+                              mime: e.receipt_mime,
+                              title: `${e.supplier || 'Dépense'} — ${formatFcfa(e.amount)}`,
+                            })}
+                          >
+                            👁 Aperçu du justificatif
+                          </button>
+                          <a className="hover:underline" href={`/api/files?kind=expense&id=${e.id}`} target="_blank" rel="noreferrer">
+                            Télécharger
+                          </a>
+                        </div>
                       )}
                     </td>
                     <td className="px-3 py-3 text-right font-semibold tabular text-rose-700">{formatFcfa(e.amount)}</td>
@@ -202,8 +248,9 @@ export default function ExpensesPage() {
                 ))}
               </tbody>
             </table>
-            <div className="border-t border-slate-200 px-5 py-3 text-right text-sm font-bold tabular text-slate-900">
-              Total affiché : {formatFcfa(total)}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-5 py-3 text-sm font-bold tabular text-slate-900">
+              <span className="text-xs font-medium text-slate-500">Page affichée : {formatFcfa(pageTotal)}</span>
+              <span>Total filtré : {formatFcfa(filteredTotal)}</span>
             </div>
           </Card>
 
@@ -219,6 +266,20 @@ export default function ExpensesPage() {
                 </div>
                 <p className="mt-1 text-xs text-slate-500">{formatDate(e.expense_date)} · {e.supplier || '—'}</p>
                 {e.description && <p className="mt-1 text-xs text-slate-600">{e.description}</p>}
+                {e.has_receipt && (
+                  <button
+                    type="button"
+                    className="mt-1.5 text-xs font-semibold text-amber-800 underline"
+                    onClick={() => setPreview({
+                      url: `/api/files?kind=expense&id=${e.id}`,
+                      filename: e.receipt_filename,
+                      mime: e.receipt_mime,
+                      title: `${e.supplier || 'Dépense'} — ${formatFcfa(e.amount)}`,
+                    })}
+                  >
+                    👁 Voir le justificatif
+                  </button>
+                )}
                 <div className="mt-2 flex gap-2">
                   <Button variant="secondary" className="min-h-9 flex-1 py-1 text-xs"
                     onClick={() => {
@@ -230,7 +291,7 @@ export default function ExpensesPage() {
                 </div>
               </Card>
             ))}
-            <p className="text-center text-sm font-bold tabular text-slate-700">Total : {formatFcfa(total)}</p>
+            <p className="text-center text-sm font-bold tabular text-slate-700">Total filtré : {formatFcfa(filteredTotal)}</p>
           </div>
         </>
       )}
@@ -244,10 +305,12 @@ export default function ExpensesPage() {
         />
       </Modal>
 
+      <AttachmentPreviewModal item={preview} onClose={() => setPreview(null)} />
+
       <ConfirmDialog
         open={!!confirm}
         title="Supprimer cette dépense ?"
-        message="La dépense sera supprimée définitivement de l'historique."
+        message="La dépense sera supprimée définitivement de l’historique."
         confirmLabel="Supprimer"
         loading={busy}
         onConfirm={doDelete}

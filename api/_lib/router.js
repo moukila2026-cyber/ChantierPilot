@@ -29,6 +29,8 @@ import dashboard from '../_routes/dashboard.js';
 import projectsIndex from '../_routes/projects/index.js';
 import projectById from '../_routes/projects/[id].js';
 import projectReport from '../_routes/projects/[id]/report.js';
+import projectReception from '../_routes/projects/[id]/reception.js';
+import subcontracts from '../_routes/subcontracts.js';
 import expensesIndex from '../_routes/expenses/index.js';
 import expenseById from '../_routes/expenses/[id].js';
 import paymentsIndex from '../_routes/payments/index.js';
@@ -61,6 +63,8 @@ export const ROUTES = [
   [['GET', 'POST'], /^\/api\/projects$/, projectsIndex],
   [['GET', 'PATCH'], new RegExp(`^/api/projects/${ID}$`), projectById],
   [['GET'], new RegExp(`^/api/projects/${ID}/report$`), projectReport],
+  [['GET'], new RegExp(`^/api/projects/${ID}/reception$`), projectReception],
+  [['GET', 'POST', 'PATCH', 'DELETE'], /^\/api\/subcontracts$/, subcontracts],
   [['GET', 'POST'], /^\/api\/expenses$/, expensesIndex],
   [['PATCH', 'DELETE'], new RegExp(`^/api/expenses/${ID}$`), expenseById],
   [['GET', 'POST'], /^\/api\/payments$/, paymentsIndex],

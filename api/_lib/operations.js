@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { parseOrThrow } from './validate.js';
 import { audit } from './pipeline.js';
 import { optionalSql, throwIfMissingSchemaWrite } from './compat.js';
+import { kvGet, kvPut } from './kv.js';
+
 export const uuid = z.string().uuid('Identifiant invalide.');
 export const money = z.number().int().min(1).max(999999999999);
 export const zeroMoney = z.number().int().min(0).max(999999999999);
@@ -27,13 +29,33 @@ export async function command(client,ctx,body,schema,fn) {
     // Sérialisation par entreprise : quotas, stocks, numéros et déduplication.
     await client.query('SELECT id FROM companies WHERE id=$1 FOR UPDATE',[ctx.companyId]);
     const fingerprint = crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');
-    const previous=(await client.query('SELECT * FROM operation_requests WHERE request_id=$1',[request_id])).rows[0];
+    let useKv = false;
+    const previous = await optionalSql(
+      client,
+      'sp_op_req_lookup',
+      async () => (await client.query('SELECT * FROM operation_requests WHERE request_id=$1',[request_id])).rows[0],
+      async () => {
+        useKv = true;
+        return kvGet(client, ctx, 'op_req', request_id);
+      },
+    );
     if(previous) {
       if(previous.user_id!==ctx.userId || previous.fingerprint!==fingerprint) throw businessError('Identifiant de requête déjà utilisé avec un autre contenu.',409);
       return previous.response;
     }
     const response=await fn(data);
-    await client.query('INSERT INTO operation_requests(company_id,request_id,user_id,fingerprint,response) VALUES($1,$2,$3,$4,$5)',[ctx.companyId,request_id,ctx.userId,fingerprint,JSON.stringify(response)]);
+    if (useKv) {
+      await kvPut(client, ctx, 'op_req', request_id, {
+        user_id: ctx.userId,
+        fingerprint,
+        response,
+      });
+    } else {
+      await client.query(
+        'INSERT INTO operation_requests(company_id,request_id,user_id,fingerprint,response) VALUES($1,$2,$3,$4,$5)',
+        [ctx.companyId,request_id,ctx.userId,fingerprint,JSON.stringify(response)],
+      );
+    }
     await audit(client,ctx,'creation','operation',response.id || null,`${data.action} : ${response.number || response.id || ''}`);
     return response;
   } catch (err) {
