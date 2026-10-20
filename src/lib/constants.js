@@ -32,9 +32,9 @@ export const STATUS_LABELS = Object.fromEntries(STATUSES);
 export const PAYMENT_METHOD_LABELS = Object.fromEntries(PAYMENT_METHODS);
 
 export const STATUS_STYLES = {
-  planifie: 'bg-slate-100 text-slate-700 ring-slate-200',
-  en_cours: 'bg-amber-100 text-amber-800 ring-amber-200',
+  planifie: 'bg-[#f5f2eb] text-[#3f3932] ring-[#dfd8c8]',
+  en_cours: 'bg-[#fdf8ec] text-[#854d0e] ring-[#e6ce96]',
   en_pause: 'bg-orange-100 text-orange-800 ring-orange-200',
   termine: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
-  archive: 'bg-slate-200 text-slate-500 ring-slate-300',
+  archive: 'bg-[#eae4d7] text-[#574f45] ring-[#d5cdbd]',
 };

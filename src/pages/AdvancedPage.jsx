@@ -25,7 +25,7 @@ export default function AdvancedPage(){
  const min=tasks.length?Math.min(...tasks.map(t=>day(t.start_date))):day(todayIso()),max=tasks.length?Math.max(...tasks.map(t=>day(t.end_date))):min,span=max-min+1;
  const tabs=[['plans','Plans annotés'],['gantt','Planning Gantt'],['warehouses','Multi-dépôts']];
  return <><PageHeader title="Gestion avancée" subtitle="Plans versionnés, coordination du chantier et gestion des ressources."/>
- <nav className="mb-5 flex flex-wrap gap-2" aria-label="Modules avancés">{tabs.map(([key,label])=><Button key={key} variant={tab===key?'primary':'secondary'} onClick={()=>setParams({...Object.fromEntries(params),onglet:key})}>{label}</Button>)}</nav>
+ <nav className="mb-5 flex flex-wrap gap-2" aria-label="Modules avancés">{tabs.map(([key,label])=><Button key={key} variant={tab===key?'charcoal':'secondary'} onClick={()=>setParams({...Object.fromEntries(params),onglet:key})}>{label}</Button>)}</nav>
  <label className="mb-5 block text-sm font-medium">Filtrer les plans et le Gantt par chantier<select className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2" value={projectId} onChange={e=>{setPlanId('');setParams({onglet:tab,...(e.target.value?{chantier:e.target.value}:{})});}}><option value="">Tous les chantiers</option>{data.projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
  {error&&<div className="mb-4"><Alert>{error}</Alert></div>}
  {tab==='plans'&&<div className="space-y-4">{admin&&<Button onClick={()=>open('plan','Importer une révision de plan',[projectField,field('title','Nom du plan'),field('revision','Révision (ex. A, B, indice 02)'),field('file','Plan PDF, JPEG ou PNG — 2 Mo maximum',{type:'file'})])}>Importer un plan</Button>}

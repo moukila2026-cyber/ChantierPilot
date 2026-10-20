@@ -37,12 +37,12 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-900 px-4 py-10">
+    <div className="flex min-h-screen items-center justify-center bg-[#141210] px-4 py-10">
       <div className="w-full max-w-2xl">
         <div className="mb-8 text-center">
-          <Logo compact className="mx-auto mb-5" inverted />
-          <h1 className="text-2xl font-bold text-white">Créer votre entreprise sur ChantierPilot</h1>
-          <p className="mt-2 text-sm text-slate-400">
+          <Logo className="mx-auto mb-5 justify-center" inverted />
+          <h1 className="text-2xl font-extrabold text-[#fbf8f1]">Créer votre entreprise sur ChantierPilot</h1>
+          <p className="mt-2 text-sm text-[#cfc7b8]">
             L'espace de chaque entreprise est isolé. Vous serez l'administrateur de cet espace.
           </p>
         </div>
@@ -107,9 +107,9 @@ export default function RegisterPage() {
           </form>
         </Card>
 
-        <p className="mt-6 text-center text-sm text-slate-400">
+        <p className="mt-6 text-center text-sm text-[#cfc7b8]">
           Déjà un compte ?{' '}
-          <Link to="/connexion" className="font-semibold text-amber-400 hover:text-amber-300">Se connecter</Link>
+          <Link to="/connexion" className="font-bold text-[#eab956] hover:underline">Se connecter</Link>
         </p>
         <Footer dark />
       </div>

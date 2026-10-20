@@ -70,11 +70,11 @@ const sections = [
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-slate-100">
-      <header className="bg-slate-900 px-4 py-4">
+    <div className="min-h-screen bg-[#f5f2eb]">
+      <header className="border-b border-[#eab956]/25 bg-[#141210] px-4 py-4">
         <div className="mx-auto flex max-w-4xl items-center justify-between">
-          <Logo compact inverted to="/" />
-          <Link to="/connexion" className="text-sm font-medium text-slate-300 hover:text-white">Connexion</Link>
+          <Logo inverted to="/" />
+          <Link to="/connexion" className="text-sm font-bold text-[#eab956] hover:underline">Connexion</Link>
         </div>
       </header>
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">

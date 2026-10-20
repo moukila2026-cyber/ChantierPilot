@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { formatFcfa, formatDate, todayIso } from '../lib/format.js';
 import { STATUSES, STATUS_LABELS, STATUS_STYLES } from '../lib/constants.js';
@@ -91,6 +91,16 @@ export default function ProjectsPage() {
   const [toast, setToast] = useState(null);
   const [archiveTarget, setArchiveTarget] = useState(null);
   const [page, setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (isAdmin && searchParams.get('nouveau') === '1') {
+      setEditTarget(null);
+      setFields({});
+      setModalOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [isAdmin, searchParams, setSearchParams]);
 
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true }));
@@ -196,7 +206,7 @@ export default function ProjectsPage() {
           <Card pad={false} className="hidden md:block">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                <tr className="bg-[#141210] text-left text-xs font-bold uppercase tracking-wide text-[#eab956]">
                   <th className="px-5 py-3">Chantier</th>
                   <th className="px-3 py-3">Statut</th>
                   <th className="px-3 py-3">Période</th>

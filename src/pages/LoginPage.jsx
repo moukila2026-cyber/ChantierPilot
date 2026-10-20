@@ -30,11 +30,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-900 px-4 py-10">
+    <div className="flex min-h-screen items-center justify-center bg-[#141210] px-4 py-10">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <Logo compact className="mx-auto" inverted />
-          <p className="mt-4 text-sm text-slate-400">Pilotez vos chantiers, vos dépenses et vos encaissements.</p>
+          <Logo className="mx-auto justify-center" inverted />
+          <p className="mt-3 text-sm text-[#cfc7b8]">Pilotez vos chantiers, vos dépenses et vos encaissements.</p>
         </div>
 
         <Card>
@@ -63,9 +63,9 @@ export default function LoginPage() {
           </form>
         </Card>
 
-        <p className="mt-6 text-center text-sm text-slate-400">
+        <p className="mt-6 text-center text-sm text-[#cfc7b8]">
           Pas encore de compte ?{' '}
-          <Link to="/inscription" className="font-semibold text-amber-400 hover:text-amber-300">
+          <Link to="/inscription" className="font-bold text-[#eab956] hover:underline">
             Créer mon entreprise
           </Link>
         </p>

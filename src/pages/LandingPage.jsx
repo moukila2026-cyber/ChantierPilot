@@ -3,92 +3,310 @@ import { Link } from 'react-router-dom';
 import Logo from '../components/Logo.jsx';
 import { Footer } from '../components/ui.jsx';
 
-const checks = ['Budgets et dépenses au même endroit', 'Encaissements avec justificatifs', 'Rapports de chantier exportables en PDF'];
-const features = [
-  { icon: 'M4 7h16M4 12h10M4 17h7m3-10 2 2 4-4', title: 'Une vue claire', text: 'Suivez budgets, dépenses, encaissements déclarés et solde client depuis un tableau de bord simple.' },
-  { icon: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01', title: 'Chaque chantier à sa place', text: 'Retrouvez rapidement les informations, l’avancement financier et l’historique de chaque opération.' },
-  { icon: 'M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm7 0v5h5M9 13h6m-6 4h6', title: 'Des pièces à portée de main', text: 'Joignez les justificatifs utiles et générez un rapport PDF pour partager un état de chantier.' },
-  { icon: 'M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Zm-3-11 2 2 4-4', title: 'Des espaces séparés', text: 'Les données sont organisées par entreprise, avec des contrôles d’accès côté application et base de données.' },
+const FEATURES = [
+  {
+    title: 'Budgets et dépenses au même endroit',
+    text: 'Chaque dépense est rattachée à son chantier, sa date, sa catégorie et son fournisseur. Vous voyez tout de suite où part le budget.',
+    icon: 'M3 7.5A2.5 2.5 0 0 1 5.5 5h13A2.5 2.5 0 0 1 21 7.5v9A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-9Zm0 3h18M7 15h4',
+  },
+  {
+    title: 'Encaissements avec justificatifs',
+    text: 'Un règlement client a toujours une référence écrite. Ajoutez un reçu, une photo ou un PDF pour passer d’une déclaration à une pièce jointe.',
+    icon: 'M12 6v12m-3.2-2.6c.8.8 2 1.1 3.2 1.1 2 0 3.5-1 3.5-2.5S14 11.7 12 11.4c-2-.3-3.5-1-3.5-2.5S10 6.5 12 6.5c1.1 0 2.2.3 3 .9M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+  },
+  {
+    title: 'Terrain, plans annotés et stocks',
+    text: 'Journal photo, pointage des ouvriers, avances de caisse, plans PDF annotés, planning Gantt et mouvements multi-dépôts réunis dans le même outil.',
+    icon: 'M9 3h6v4H9zM6 5H4v16h16V5h-2M8 11h8M8 15h8',
+  },
+  {
+    title: 'Rapports de chantier exportables en PDF',
+    text: 'Produisez un point clair pour le maître d’ouvrage ou vos associés, avec les totaux en FCFA, le solde client et les montants en toutes lettres.',
+    icon: 'M7 3.8h6.9L19 8.9v10.3a1.8 1.8 0 0 1-1.8 1.8H7A1.8 1.8 0 0 1 5.2 19.2V5.6A1.8 1.8 0 0 1 7 3.8Zm6.5.5V9h4.7M8.5 13h7m-7 3.5h5',
+  },
 ];
 
-function Icon({ path, className = 'h-5 w-5' }) {
-  return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={path} /></svg>;
-}
+const STEPS = [
+  ['01', 'Ouvrez votre espace entreprise', 'Renseignez le nom de votre structure, votre ville et votre compte administrateur en deux minutes.'],
+  ['02', 'Créez un chantier et son budget', 'Indiquez le client, le lieu et le montant prévu en FCFA pour poser une base claire dès le départ.'],
+  ['03', 'Enregistrez chaque mouvement avec sa trace', 'Dépenses, avances clients, photos terrain, réserves et justificatifs restent classés chantier par chantier.'],
+];
 
-function DashboardPreview() {
-  return (
-    <div className="relative mx-auto w-full max-w-[570px]">
-      <div className="absolute -inset-5 rounded-[2rem] bg-gradient-to-br from-amber-100 via-orange-50 to-sky-100 blur-xl" />
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_28px_80px_-32px_rgba(15,23,42,.42)]">
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6">
-          <div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700"><Icon path="M3 3v18h18M7 14l4-4 4 3 6-7" /></span><div><p className="text-sm font-bold text-slate-900">Vue d’ensemble</p><p className="text-xs text-slate-500">Exemple d’un espace entreprise</p></div></div>
-          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">Données fictives</span>
-        </div>
-        <div className="grid grid-cols-2 gap-3 p-4 sm:gap-4 sm:p-6">
-          {[
-            ['Chantiers suivis', '12', 'Petits travaux et rénovations', 'text-sky-700 bg-sky-50'],
-            ['Budget prévisionnel', '12 000 000', 'FCFA · budget total des chantiers', 'text-slate-800 bg-slate-50'],
-            ['Dépenses enregistrées', '7 450 000', 'FCFA · matériaux, équipes et transport', 'text-amber-800 bg-amber-50'],
-            ['Encaissements déclarés', '9 000 000', 'FCFA · avances et règlements clients', 'text-emerald-800 bg-emerald-50'],
-          ].map(([label, value, hint, color]) => <div key={label} className="rounded-xl border border-slate-100 p-3.5 sm:p-4"><p className="text-[11px] font-medium text-slate-500 sm:text-xs">{label}</p><p className="mt-2 text-lg font-extrabold tracking-tight text-slate-900 sm:text-2xl">{value}</p><p className="mt-1 text-[10px] leading-4 text-slate-500 sm:text-xs">{hint}</p></div>)}
-        </div>
-        <div className="mx-4 mb-4 overflow-hidden rounded-xl border border-slate-100 sm:mx-6 sm:mb-6">
-          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3"><p className="text-xs font-bold text-slate-800">Activité récente</p><span className="text-[10px] text-slate-400">Exemple de mouvements</span></div>
-          <div className="space-y-3 p-4">
-            {[
-              ['Achat de matériaux', 'Rénovation · Cocody', '− 350 000 FCFA', 'bg-amber-100 text-amber-700'],
-              ['Avance client déclarée', 'Aménagement · Bingerville', '+ 1 500 000 FCFA', 'bg-emerald-100 text-emerald-700'],
-            ].map(([project, detail, amount, color]) => <div key={project} className="flex items-center gap-3"><span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${color}`}><Icon className="h-4 w-4" path="M5 12h14m-7-7 7 7-7 7" /></span><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-slate-800">{project}</p><p className="text-[10px] text-slate-500">{detail}</p></div><p className="whitespace-nowrap text-xs font-bold text-slate-800">{amount}</p></div>)}
-          </div>
-        </div>
-        <p className="border-t border-slate-100 px-5 py-3 text-[10px] leading-4 text-slate-500 sm:px-6">Illustration du tableau de bord · chiffres fictifs, à titre de démonstration.</p>
-      </div>
-      <div className="absolute -bottom-5 -left-4 hidden items-center gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-lg sm:flex"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-700"><Icon path="M5 12.5 9.5 17 19 7" /></span><div><p className="text-xs font-bold text-slate-900">Justificatif joint</p><p className="text-[10px] text-slate-500">Encaissement documenté</p></div></div>
-    </div>
-  );
-}
+const DEMO_STATS = [
+  ['Chantiers suivis', '12', 'Exemple de portefeuille'],
+  ['Budget engagé', '12 000 000 FCFA', 'Montant prévu fictif'],
+  ['Dépenses enregistrées', '7 450 000 FCFA', 'Achats et main-d’œuvre'],
+  ['Encaissements déclarés', '9 000 000 FCFA', 'Règlements avec référence'],
+];
+
+const DEMO_MOVEMENTS = [
+  ['Villa Cocody Angré — acompte client', 'Réf. VIR-0204 · Pièce jointe', '+1 500 000 FCFA', 'text-emerald-300'],
+  ['Réhabilitation bureau Marcory — fer à béton', 'Fournisseur déclaré · Matériaux', '-350 000 FCFA', 'text-[#fbf8f1]'],
+];
 
 export default function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const closeMenu = () => setMenuOpen(false);
+
   return (
-    <div className="min-h-screen overflow-hidden bg-[#fbfaf7] text-slate-900">
-      <header className="relative z-20 border-b border-slate-200/70 bg-[#fbfaf7]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
-          <Logo to="/" />
-          <nav className="hidden items-center gap-8 md:flex" aria-label="Navigation principale">
-            <a href="#fonctionnalites" className="text-sm font-medium text-slate-600 hover:text-slate-950">Fonctionnalités</a><a href="#methode" className="text-sm font-medium text-slate-600 hover:text-slate-950">Comment ça marche</a><Link to="/offres" className="text-sm font-medium text-slate-600 hover:text-slate-950">Offres</Link>
+    <div className="min-h-screen overflow-x-clip bg-[#f5f2eb] text-[#141210]">
+      {/* Barre supérieure Noir Charbon & Or */}
+      <header className="sticky top-0 z-40 border-b border-[#eab956]/25 bg-[#141210]/95 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+          <Logo inverted />
+
+          <nav className="hidden items-center gap-7 text-sm font-semibold text-[#dfd9ce] md:flex" aria-label="Navigation principale">
+            <a href="#fonctionnalites" className="transition hover:text-[#eab956]">Fonctionnalités</a>
+            <a href="#methode" className="transition hover:text-[#eab956]">Comment ça marche</a>
+            <Link to="/offres" className="transition hover:text-[#eab956]">Offres</Link>
+            <Link to="/connexion" className="transition hover:text-[#eab956]">Se connecter</Link>
+            <Link
+              to="/inscription"
+              className="inline-flex min-h-11 items-center rounded-xl bg-[#e5a93b] px-4 py-2 font-bold text-[#141210] shadow-sm transition hover:bg-[#f0b84c]"
+            >
+              Créer mon espace
+            </Link>
           </nav>
-          <div className="hidden items-center gap-3 md:flex"><Link to="/connexion" className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Connexion</Link><Link to="/inscription" className="rounded-lg bg-[#102a43] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#193b5b]">Créer mon espace <span aria-hidden="true">→</span></Link></div>
-          <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-700 md:hidden" aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}><Icon path={menuOpen ? 'M6 6l12 12M18 6 6 18' : 'M4 7h16M4 12h16M4 17h16'} /></button>
+
+          <button
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] text-[#fbf8f1] md:hidden"
+            aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-expanded={menuOpen}
+          >
+            <svg className="h-5 w-5 text-[#eab956]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d={menuOpen ? 'M6 18 18 6M6 6l12 12' : 'M4 7h16M4 12h16M4 17h16'} />
+            </svg>
+          </button>
         </div>
-        {menuOpen && <nav className="absolute inset-x-0 top-full border-b border-slate-200 bg-[#fbfaf7] px-4 pb-5 pt-2 shadow-lg md:hidden" aria-label="Menu mobile"><a onClick={closeMenu} href="#fonctionnalites" className="block rounded-lg px-3 py-3 text-sm font-medium">Fonctionnalités</a><a onClick={closeMenu} href="#methode" className="block rounded-lg px-3 py-3 text-sm font-medium">Comment ça marche</a><Link onClick={closeMenu} to="/offres" className="block rounded-lg px-3 py-3 text-sm font-medium">Offres</Link><div className="mt-2 grid grid-cols-2 gap-2"><Link onClick={closeMenu} to="/connexion" className="rounded-lg border border-slate-200 px-3 py-3 text-center text-sm font-semibold">Connexion</Link><Link onClick={closeMenu} to="/inscription" className="rounded-lg bg-[#102a43] px-3 py-3 text-center text-sm font-semibold text-white">Créer un espace</Link></div></nav>}
+
+        {menuOpen && (
+          <div className="border-t border-white/10 bg-[#141210] px-4 py-4 md:hidden">
+            <div className="mx-auto flex max-w-6xl flex-col gap-1 text-sm font-semibold text-[#fbf8f1]">
+              <a href="#fonctionnalites" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 hover:bg-white/[0.07]">Fonctionnalités</a>
+              <a href="#methode" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 hover:bg-white/[0.07]">Comment ça marche</a>
+              <Link to="/offres" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 hover:bg-white/[0.07]">Offres</Link>
+              <Link to="/connexion" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 hover:bg-white/[0.07]">Se connecter</Link>
+              <Link
+                to="/inscription"
+                onClick={() => setMenuOpen(false)}
+                className="mt-2 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#e5a93b] px-4 py-2.5 font-bold text-[#141210]"
+              >
+                Créer mon espace entreprise
+              </Link>
+            </div>
+          </div>
+        )}
       </header>
 
       <main>
-        <section className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 pb-20 pt-14 sm:px-6 sm:pt-20 lg:grid-cols-[.95fr_1.05fr] lg:gap-14 lg:px-8 lg:pb-28 lg:pt-24">
-          <div className="absolute -left-36 top-4 h-80 w-80 rounded-full bg-amber-100/55 blur-3xl" aria-hidden="true" />
-          <div className="relative z-10">
-            <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold tracking-wide text-amber-900"><span className="h-1.5 w-1.5 rounded-full bg-amber-600" />PENSÉ POUR LES ENTREPRISES BTP EN CÔTE D’IVOIRE</span>
-            <h1 className="mt-6 max-w-2xl text-[2.75rem] font-extrabold leading-[1.06] tracking-[-.045em] text-[#102a43] sm:text-6xl lg:text-[4.2rem]">Vos chantiers avancent.<br /><span className="text-[#d47b28]">Vos chiffres restent clairs.</span></h1>
-            <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">ChantierPilot rassemble le suivi de vos chantiers, dépenses et encaissements dans un espace simple, en français et en FCFA.</p>
-            <ul className="mt-6 space-y-3">{checks.map((item) => <li key={item} className="flex items-center gap-2.5 text-sm font-medium text-slate-700"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><Icon className="h-3.5 w-3.5" path="m5 12 4 4L19 6" /></span>{item}</li>)}</ul>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row"><Link to="/inscription" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#102a43] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-slate-900/10 transition hover:-translate-y-0.5 hover:bg-[#193b5b]">Créer mon espace entreprise <span aria-hidden="true">→</span></Link><Link to="/offres" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-300 bg-white/70 px-6 py-3 text-sm font-bold text-slate-700 transition hover:border-slate-400 hover:bg-white">Découvrir les offres</Link></div>
-            <p className="mt-4 text-xs text-slate-500">14 jours d’essai sans carte. Puis dès 9 900 FCFA / 30 jours, paiement sécurisé via SasPay.</p>
+        {/* HERO Noir Charbon & Or avec illustration BTP visible dès le premier écran (mobile & bureau) */}
+        <section className="relative overflow-hidden border-b border-[#eab956]/25 bg-[#141210] pt-5 pb-10 text-[#fbf8f1] sm:pt-10 sm:pb-16 lg:pt-12 lg:pb-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="grid items-center gap-6 lg:grid-cols-12 lg:gap-10">
+              {/* Colonne gauche : promesse & actions immédiates */}
+              <div className="min-w-0 lg:col-span-6">
+                <p className="inline-flex items-center gap-2 rounded-full border border-[#eab956]/35 bg-[#eab956]/10 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#eab956]">
+                  <span className="h-2 w-2 rounded-full bg-[#eab956]" aria-hidden="true" />
+                  CÔTE D’IVOIRE · GESTION DE CHANTIERS EN FCFA
+                </p>
+
+                <h1 className="mt-3 text-[1.75rem] font-extrabold leading-[1.14] tracking-tight text-[#fbf8f1] sm:mt-4 sm:text-5xl">
+                  Vos chantiers avancent.
+                  <span className="mt-1 block text-[#eab956]">Vos chiffres restent clairs.</span>
+                </h1>
+
+                <p className="mt-3 max-w-xl text-sm leading-6 text-[#dfd9ce] sm:mt-5 sm:text-lg sm:leading-8">
+                  Suivez vos chantiers, vos devis, vos dépenses, vos équipes terrain et vos encaissements en français et en FCFA, avec une séparation nette entre simple référence et pièce justificative jointe.
+                </p>
+
+                <div className="mt-4 flex flex-wrap items-center gap-2.5 sm:mt-7 sm:gap-3">
+                  <Link
+                    to="/inscription"
+                    className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#e5a93b] px-5 py-2.5 text-sm font-extrabold text-[#141210] shadow-md transition hover:bg-[#f0b84c]"
+                  >
+                    Créer mon espace entreprise
+                  </Link>
+                  <Link
+                    to="/connexion"
+                    className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#eab956]/40 bg-white/[0.06] px-4 py-2.5 text-sm font-bold text-[#fbf8f1] transition hover:bg-white/[0.12]"
+                  >
+                    Se connecter
+                  </Link>
+                </div>
+
+                <p className="mt-3 text-xs leading-5 text-[#cfc7b8] sm:mt-4">
+                  14 jours d’essai sans carte · paiement sécurisé via SasPay · données isolées par entreprise.
+                </p>
+              </div>
+
+              {/* Colonne droite : illustration BTP visible immédiatement dès le premier écran + aperçu fictif */}
+              <div className="min-w-0 lg:col-span-6">
+                <div className="overflow-hidden rounded-3xl border border-[#eab956]/35 bg-[#1b1815] shadow-2xl">
+                  <div className="relative">
+                    <picture>
+                      <source srcSet="/images/landing/chantier-abidjan.webp" type="image/webp" />
+                      <img
+                        src="/images/landing/chantier-abidjan.jpg"
+                        alt="Deux professionnels du BTP vérifiant un plan et le suivi d’un chantier à Abidjan"
+                        width="1600"
+                        height="900"
+                        loading="eager"
+                        fetchPriority="high"
+                        decoding="sync"
+                        className="h-52 w-full object-cover object-center sm:h-64"
+                      />
+                    </picture>
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-y border-[#eab956]/25 bg-[#141210]/95 px-4 py-2.5">
+                      <span className="text-xs font-extrabold tracking-wide text-[#fbf8f1]">
+                        APERÇU D’INTERFACE · CHANTIER BTP
+                      </span>
+                      <span className="rounded-full border border-[#eab956]/45 bg-[#eab956]/15 px-2.5 py-0.5 text-[11px] font-bold text-[#eab956]">
+                        Données fictives
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-4 sm:p-5">
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {DEMO_STATS.map(([label, value, hint]) => (
+                        <div key={label} className="rounded-2xl border border-white/10 bg-[#12100e] p-3">
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-[#b9b0a1]">{label}</p>
+                          <p className="mt-1 text-sm font-extrabold tabular text-[#eab956] sm:text-base">{value}</p>
+                          <p className="mt-0.5 text-[11px] text-[#9c9488]">{hint}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-3 rounded-2xl border border-white/10 bg-[#12100e] p-3.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-bold uppercase tracking-wide text-[#cfc7b8]">Activité récente (exemple)</p>
+                        <span className="text-xs font-semibold text-[#eab956]">Solde client fictif : 3 000 000 FCFA</span>
+                      </div>
+                      <div className="mt-2.5 divide-y divide-white/10">
+                        {DEMO_MOVEMENTS.map(([label, meta, amount, color]) => (
+                          <div key={label} className="flex items-center justify-between gap-3 py-2 text-xs">
+                            <div className="min-w-0">
+                              <p className="truncate font-semibold text-[#fbf8f1]">{label}</p>
+                              <p className="text-[#a89f91]">{meta}</p>
+                            </div>
+                            <span className={`shrink-0 font-extrabold tabular ${color}`}>{amount}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <p className="mt-2.5 text-[11px] leading-5 text-[#a89f91]">
+                      Aperçu de présentation : chiffres fictifs, à titre de démonstration. Votre espace entreprise démarre vierge, uniquement avec vos propres saisies.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="relative z-10 py-4 sm:px-3 lg:py-8"><DashboardPreview /></div>
         </section>
 
-        <section className="border-y border-slate-200/80 bg-white py-7"><div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-4 px-4 sm:px-6 md:flex-row md:items-center lg:px-8"><p className="max-w-lg text-sm font-semibold text-slate-700">Les informations essentielles de votre activité, réunies au même endroit.</p><div className="flex flex-wrap gap-2"><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">Chantiers</span><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">Dépenses</span><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">Encaissements déclarés</span><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">Rapports PDF</span></div></div></section>
+        {/* FONCTIONNALITÉS */}
+        <section id="fonctionnalites" className="scroll-mt-20 border-b border-[#dfd8c8] bg-white py-14 sm:py-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="max-w-2xl">
+              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#854d0e]">Conçu pour le terrain et le bureau</p>
+              <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-[#141210] sm:text-3xl">
+                L’essentiel pour piloter vos chantiers sans confusion.
+              </h2>
+              <p className="mt-3 text-base leading-7 text-[#574f45]">
+                Pas de menus obscurs ni de jargon inutile : chaque écran répond à une question concrète de dirigeant, de conducteur de travaux ou d’assistant administratif.
+              </p>
+            </div>
 
-        <section id="fonctionnalites" className="scroll-mt-20 py-20 sm:py-24"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><div className="max-w-2xl"><p className="text-xs font-extrabold uppercase tracking-[.18em] text-amber-700">Tout suivre, sans s’éparpiller</p><h2 className="mt-3 text-3xl font-extrabold tracking-tight text-[#102a43] sm:text-4xl">Le pilotage quotidien, simplement.</h2><p className="mt-4 text-base leading-7 text-slate-600">Une base claire pour savoir où en est chaque chantier et retrouver les éléments utiles à votre équipe.</p></div><div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{features.map((feature, index) => <article key={feature.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_-24px_rgba(15,23,42,.28)]"><span className={`flex h-11 w-11 items-center justify-center rounded-xl ${index % 2 ? 'bg-sky-50 text-sky-800' : 'bg-amber-50 text-amber-800'}`}><Icon path={feature.icon} /></span><h3 className="mt-5 text-base font-bold text-[#102a43]">{feature.title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{feature.text}</p></article>)}</div></div></section>
+            <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {FEATURES.map((feature) => (
+                <article
+                  key={feature.title}
+                  className="flex flex-col rounded-2xl border border-[#e3ddd0] bg-[#faf7f0] p-5 shadow-sm transition hover:border-[#eab956]"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#141210] text-[#eab956] ring-1 ring-[#eab956]/40">
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d={feature.icon} />
+                    </svg>
+                  </div>
+                  <h3 className="mt-4 text-base font-extrabold text-[#141210]">{feature.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-[#574f45]">{feature.text}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
 
-        <section id="methode" className="scroll-mt-20 bg-[#102a43] py-20 text-white sm:py-24"><div className="mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-[.85fr_1.15fr] lg:items-center lg:px-8"><div><p className="text-xs font-extrabold uppercase tracking-[.18em] text-amber-300">Du terrain au rapport</p><h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Un fil de suivi, de la création au bilan.</h2><p className="mt-4 max-w-lg text-sm leading-7 text-slate-300">Commencez par enregistrer un chantier. Ajoutez ensuite ses mouvements et justificatifs au fil de l’eau. Les informations restent consultables dans votre espace entreprise.</p><Link to="/inscription" className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-lg bg-amber-500 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-400">Découvrir ChantierPilot <span aria-hidden="true">→</span></Link></div><div className="grid gap-3 sm:grid-cols-3">{[['01', 'Créez', 'Renseignez le chantier, le client et le budget prévisionnel.'], ['02', 'Suivez', 'Saisissez les dépenses et encaissements déclarés.'], ['03', 'Partagez', 'Joignez vos pièces et exportez un rapport PDF.']].map(([num, title, text]) => <article key={num} className="rounded-xl border border-white/15 bg-white/[.06] p-5"><span className="text-xs font-bold tracking-widest text-amber-300">{num}</span><h3 className="mt-5 text-lg font-bold">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-300">{text}</p></article>)}</div></div></section>
+        {/* MÉTHODE & DISTINCTION DÉCLARATION / PREUVE */}
+        <section id="methode" className="scroll-mt-20 py-14 sm:py-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-10 lg:grid-cols-12 lg:items-center">
+              <div className="lg:col-span-5">
+                <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#854d0e]">Prise en main immédiate</p>
+                <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-[#141210] sm:text-3xl">
+                  Une méthode honnête sur ce qui est déclaré et ce qui est justifié.
+                </h2>
+                <p className="mt-3 text-base leading-7 text-[#574f45]">
+                  Une référence n’est pas une preuve. ChantierPilot exige une référence écrite pour chaque encaissement ou accord client, et n’affiche un règlement comme justifié que lorsqu’une pièce est jointe.
+                </p>
+                <div className="cp-charcoal-panel mt-6 rounded-2xl p-5 shadow-md">
+                  <p className="text-xs font-extrabold uppercase tracking-wider text-[#eab956]">Rigueur documentaire</p>
+                  <p className="mt-1.5 text-sm leading-6 text-[#dfd9ce]">
+                    Devis, factures, avances de caisse et présences conservent leur historique par entreprise et restent consultables hors connexion sur le terrain.
+                  </p>
+                </div>
+              </div>
 
-        <section className="py-20 sm:py-24"><div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8"><div className="grid overflow-hidden rounded-3xl bg-[#f2eee5] md:grid-cols-[.9fr_1.1fr]"><div className="flex flex-col justify-center p-7 sm:p-10"><p className="text-xs font-extrabold uppercase tracking-[.18em] text-amber-800">Clair sur les encaissements</p><h2 className="mt-3 text-3xl font-extrabold tracking-tight text-[#102a43]">Une référence n’est pas une preuve.</h2><p className="mt-4 text-sm leading-7 text-slate-600">ChantierPilot distingue les encaissements déclarés de ceux accompagnés d’un justificatif. Le statut « prouvé » n’est attribué que lorsqu’une pièce est jointe.</p><Link to="/cgu" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[#102a43] underline decoration-amber-500 decoration-2 underline-offset-4">Lire les conditions d’utilisation <span aria-hidden="true">→</span></Link></div><div className="relative min-h-64 overflow-hidden sm:min-h-80"><img src="/images/landing/chantier-abidjan.webp" alt="Deux professionnels du BTP consultent des plans sur un chantier en Côte d’Ivoire" className="absolute inset-0 h-full w-full object-cover" loading="lazy" /><div className="absolute inset-0 bg-gradient-to-r from-[#f2eee5]/40 via-transparent to-transparent md:from-[#f2eee5]/10" /><div className="absolute bottom-4 right-4 rounded-xl border border-white/60 bg-white/90 px-4 py-3 shadow-lg backdrop-blur"><p className="text-xs font-bold text-slate-900">Suivi documenté</p><p className="mt-0.5 text-[11px] text-slate-600">Vos pièces, associées à vos opérations</p></div></div></div></div></section>
+              <div className="space-y-4 lg:col-span-7">
+                {STEPS.map(([number, title, text]) => (
+                  <div key={number} className="flex gap-4 rounded-2xl border border-[#e3ddd0] bg-white p-5 shadow-sm">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#141210] text-sm font-extrabold tabular text-[#eab956] ring-1 ring-[#eab956]/40">
+                      {number}
+                    </span>
+                    <div>
+                      <h3 className="text-base font-extrabold text-[#141210]">{title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-[#574f45]">{text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
 
-        <section className="px-4 pb-20 sm:px-6 lg:px-8"><div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-7 rounded-3xl border border-amber-200 bg-amber-50 px-6 py-9 sm:px-10 md:flex-row md:items-center"><div><p className="text-xs font-extrabold uppercase tracking-[.18em] text-amber-800">Prêt à mieux vous organiser ?</p><h2 className="mt-2 text-2xl font-extrabold tracking-tight text-[#102a43] sm:text-3xl">Donnez un point de repère à votre équipe.</h2><p className="mt-2 text-sm text-slate-600">Créez votre espace ou échangez avec nous sur votre besoin.</p></div><div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"><Link to="/inscription" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#102a43] px-5 py-3 text-sm font-bold text-white hover:bg-[#193b5b]">Créer mon entreprise</Link><a href="tel:+2250501303343" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">Appeler SHOPIN30</a></div></div></section>
+        {/* CTA FINAL Noir Charbon & Or */}
+        <section className="py-10 sm:py-14">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="cp-charcoal-panel flex flex-col justify-between gap-6 rounded-3xl p-7 shadow-xl sm:flex-row sm:items-center sm:p-10">
+              <div className="max-w-xl">
+                <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#eab956]">Démarrage sans carte bancaire</p>
+                <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-[#fbf8f1] sm:text-3xl">
+                  Prêt à mieux vous organiser dès votre prochain chantier ?
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-[#dfd9ce]">
+                  Créez votre compte entreprise, enregistrez votre premier chantier et vérifiez la clarté du suivi avec votre équipe.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 sm:shrink-0 sm:flex-row">
+                <Link
+                  to="/inscription"
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#e5a93b] px-5 py-3 text-sm font-extrabold text-[#141210] transition hover:bg-[#f0b84c]"
+                >
+                  Ouvrir un compte entreprise
+                </Link>
+                <Link
+                  to="/offres"
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#eab956]/40 px-5 py-3 text-sm font-bold text-[#fbf8f1] transition hover:bg-white/[0.08]"
+                >
+                  Consulter les offres
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
+
       <Footer />
     </div>
   );
