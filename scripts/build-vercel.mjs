@@ -18,7 +18,7 @@ const EXPECTED_TABLES = [
   'operation_requests', 'commercial_documents', 'price_items', 'cash_advances', 'advance_entries',
   'workers', 'attendance', 'site_tasks', 'site_journal', 'inventory_items', 'purchase_orders',
   'stock_movements', 'plan_versions', 'plan_annotations', 'schedule_tasks',
-  'warehouses', 'warehouse_movements',
+  'warehouses', 'warehouse_movements', 'subcontracts',
 ];
 
 function quoteIdent(ident) {

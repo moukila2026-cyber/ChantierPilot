@@ -412,9 +412,29 @@ DO $$ BEGIN
     ALTER TABLE payments ADD CONSTRAINT payments_invoice_tenant_fk FOREIGN KEY(company_id,invoice_id) REFERENCES commercial_documents(company_id,id);
   END IF;
 END $$;
--- Extensions chantier : versions immuables, planning, dépôts et paie.
+-- Extensions chantier : versions immuables, planning, dépôts et sous-traitants.
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS tax_number TEXT NOT NULL DEFAULT '' CHECK(length(tax_number)<=100);
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS tax_regime TEXT NOT NULL DEFAULT '' CHECK(length(tax_regime)<=160);
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS client_phone TEXT NOT NULL DEFAULT '' CHECK(length(client_phone)<=40);
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS retention_bps INTEGER NOT NULL DEFAULT 0 CHECK(retention_bps BETWEEN 0 AND 2000);
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS retention_release_date DATE;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS retention_released BOOLEAN NOT NULL DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS subcontracts (
+ id UUID PRIMARY KEY DEFAULT gen_random_uuid(), company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE, project_id UUID NOT NULL,
+ subcontractor_name TEXT NOT NULL CHECK(length(subcontractor_name) BETWEEN 2 AND 160),
+ trade_lot TEXT NOT NULL CHECK(length(trade_lot) BETWEEN 2 AND 160),
+ phone TEXT NOT NULL DEFAULT '' CHECK(length(phone)<=40),
+ agreed_amount BIGINT NOT NULL CHECK(agreed_amount BETWEEN 1 AND 999999999999),
+ progress INTEGER NOT NULL DEFAULT 0 CHECK(progress BETWEEN 0 AND 100),
+ status TEXT NOT NULL DEFAULT 'actif' CHECK(status IN ('actif','termine','suspendu')),
+ notes TEXT NOT NULL DEFAULT '' CHECK(length(notes)<=1000),
+ created_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ UNIQUE(company_id,id),
+ FOREIGN KEY(company_id,project_id) REFERENCES projects(company_id,id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS subcontracts_tenant_idx ON subcontracts(company_id, project_id);
 CREATE TABLE IF NOT EXISTS plan_versions (
  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), company_id UUID NOT NULL REFERENCES companies(id), project_id UUID NOT NULL,
  title TEXT NOT NULL, revision TEXT NOT NULL, file BYTEA NOT NULL CHECK(octet_length(file)<=2097152), mime TEXT NOT NULL CHECK(mime IN ('application/pdf','image/png','image/jpeg')), filename TEXT NOT NULL,

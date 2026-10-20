@@ -68,6 +68,7 @@ export const fileSchema = z.object({
   filename: z.string().min(1).max(180),
   mime: z.enum(['image/jpeg', 'image/png', 'application/pdf']),
   data: z.string().min(8).max(2_800_000), // base64 ≈ 2 Mo max
+  compressed: z.boolean().optional(),
 }).strict();
 
 const uuid = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, 'Identifiant invalide.');
@@ -125,12 +126,16 @@ export const companyUpdateSchema = z.object({
 export const projectCreateSchema = z.object({
   name: trimmed(2, 160, 'Le nom du chantier'),
   client_name: trimmed(2, 160, 'Le nom du client'),
+  client_phone: optionalText(40),
   location: optionalText(200),
   budget: budgetSchema,
   start_date: dateSchema,
   end_date: dateSchema.nullable().optional().default(null),
   status: z.enum(STATUSES).default('en_cours'),
   notes: optionalText(2000),
+  retention_bps: z.number().int().min(0).max(2000).optional().default(0),
+  retention_release_date: dateSchema.nullable().optional().default(null),
+  retention_released: z.boolean().optional().default(false),
 }).strict().refine((d) => !d.end_date || d.end_date >= d.start_date, {
   message: 'La date de fin doit être postérieure à la date de début.',
   path: ['end_date'],
@@ -142,13 +147,43 @@ export const projectCreateSchema = z.object({
 export const projectUpdateSchema = z.object({
   name: trimmed(2, 160, 'Le nom du chantier').optional(),
   client_name: trimmed(2, 160, 'Le nom du client').optional(),
+  client_phone: optionalText(40).optional(),
   location: optionalText(200).optional(),
   budget: budgetSchema.optional(),
   start_date: dateSchema.optional(),
   end_date: dateSchema.nullable().optional(),
   status: z.enum(STATUSES).optional(),
   notes: optionalText(2000).optional(),
+  retention_bps: z.number().int().min(0).max(2000).optional(),
+  retention_release_date: dateSchema.nullable().optional(),
+  retention_released: z.boolean().optional(),
 }).strict().refine((d) => Object.keys(d).length > 0, { message: 'Aucune modification fournie.' });
+
+export const subcontractSchema = z.object({
+  project_id: uuid,
+  subcontractor_name: trimmed(2, 160, 'Le nom du sous-traitant'),
+  trade_lot: trimmed(2, 160, 'Le lot / corps d\'état'),
+  phone: optionalText(40),
+  agreed_amount: amountSchema,
+  progress: z.number().int().min(0).max(100).optional().default(0),
+  status: z.enum(['actif', 'termine', 'suspendu']).optional().default('actif'),
+  notes: optionalText(1000),
+}).strict();
+
+export const subcontractUpdateSchema = z.object({
+  id: uuid,
+  subcontractor_name: trimmed(2, 160, 'Le nom du sous-traitant').optional(),
+  trade_lot: trimmed(2, 160, 'Le lot / corps d\'état').optional(),
+  phone: optionalText(40).optional(),
+  agreed_amount: amountSchema.optional(),
+  progress: z.number().int().min(0).max(100).optional(),
+  status: z.enum(['actif', 'termine', 'suspendu']).optional(),
+  notes: optionalText(1000).optional(),
+  pay_amount: amountSchema.optional(),
+  pay_date: dateSchema.optional(),
+  pay_description: optionalText(500).optional(),
+  receipt: fileSchema.nullable().optional(),
+}).strict();
 
 export const expenseSchema = z.object({
   project_id: uuid,

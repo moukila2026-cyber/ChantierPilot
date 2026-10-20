@@ -1,10 +1,10 @@
-// GET /api/expenses — liste des dépenses (filtres : chantier, catégorie, période).
+// GET /api/expenses — liste des dépenses (filtres : chantier, catégorie, période, recherche plein-texte).
 // POST /api/expenses — enregistrement d'une dépense (justificatif facultatif).
 
 import { withTenant } from '../../_lib/db.js';
 import { expenseSchema, parseOrThrow, CATEGORY_LABELS } from '../../_lib/validate.js';
 import { decodeFileAttachment } from '../../_lib/files.js';
-import { readJsonBody, sendJson, methodNotAllowed, handle, parseQuery, parsePagination, paginationMeta, fail } from '../../_lib/http.js';
+import { readJsonBody, sendJson, methodNotAllowed, handle, parseQuery, parsePagination, paginationMeta } from '../../_lib/http.js';
 import { requireAuth, run, audit } from '../../_lib/pipeline.js';
 
 export default async function handler(req, res) {
@@ -20,15 +20,17 @@ export default async function handler(req, res) {
         const category = q.category && q.category !== 'toutes' ? q.category : null;
         const from = q.from || null;
         const to = q.to || null;
+        const search = q.q ? q.q.trim().slice(0, 120) : null;
         const page = parsePagination(q);
 
         const result = await withTenant(ctx, async (client) => {
           const where = `($1::uuid IS NULL OR e.project_id = $1)
             AND ($2::text IS NULL OR e.category = $2)
             AND ($3::date IS NULL OR e.expense_date >= $3)
-            AND ($4::date IS NULL OR e.expense_date <= $4)`;
-          const params = [projectId, category, from, to];
-          const [{ rows }, countResult] = await Promise.all([
+            AND ($4::date IS NULL OR e.expense_date <= $4)
+            AND ($5::text IS NULL OR e.supplier ILIKE '%' || $5 || '%' OR e.description ILIKE '%' || $5 || '%' OR p.name ILIKE '%' || $5 || '%')`;
+          const params = [projectId, category, from, to, search];
+          const [{ rows }, aggResult] = await Promise.all([
             client.query(
               `SELECT e.id, e.company_id, e.project_id, e.category, e.amount, e.expense_date,
                       e.supplier, e.description,
@@ -40,16 +42,34 @@ export default async function handler(req, res) {
                LEFT JOIN app_users u ON u.id = e.created_by
                WHERE ${where}
                ORDER BY e.expense_date DESC, e.created_at DESC, e.id DESC
-               LIMIT $5 OFFSET $6`,
+               LIMIT $6 OFFSET $7`,
               [...params, page.limit, page.offset],
             ),
-            client.query(`SELECT COUNT(*)::int AS total FROM expenses e WHERE ${where}`, params),
+            client.query(
+              `SELECT COUNT(*)::int AS total,
+                      COALESCE(SUM(e.amount), 0)::bigint AS total_amount,
+                      COUNT(*) FILTER (WHERE e.receipt IS NOT NULL)::int AS with_proof_count
+               FROM expenses e
+               JOIN projects p ON p.id = e.project_id
+               WHERE ${where}`,
+              params,
+            ),
           ]);
-          return { rows, total: countResult.rows[0].total };
+          const agg = aggResult.rows[0];
+          return {
+            rows,
+            total: agg.total,
+            summary: {
+              total_amount: Number(agg.total_amount),
+              count: agg.total,
+              with_proof_count: agg.with_proof_count,
+            },
+          };
         });
 
         return sendJson(res, 200, {
           expenses: result.rows,
+          summary: result.summary,
           pagination: paginationMeta(page.limit, page.offset, result.total),
           labels: { category: CATEGORY_LABELS },
         });

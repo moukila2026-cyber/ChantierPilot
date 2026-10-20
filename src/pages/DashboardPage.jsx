@@ -57,6 +57,11 @@ export default function DashboardPage() {
   if (!data) return <LoadingPage label="Chargement du tableau de bord…" />;
 
   const t = data.totals;
+  const analytics = data.analytics || { by_category: [], top_suppliers: [], monthly_cashflow: [] };
+  const maxMonthVal = Math.max(
+    1,
+    ...analytics.monthly_cashflow.flatMap((m) => [Number(m.payments || 0), Number(m.expenses || 0)]),
+  );
   const firstName = (user?.full_name || '').trim().split(/\s+/)[0];
   const greeting = firstName ? `Bonjour ${firstName}` : 'Tableau de bord';
 
@@ -125,16 +130,16 @@ export default function DashboardPage() {
           {isAdmin && (
             <Link to="/documents?nouveau=1" className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2.5 transition hover:border-[#eab956]/50 hover:bg-white/[0.09]">
               <p className="text-xs font-extrabold text-[#eab956]">+ Devis / facture</p>
-              <p className="mt-0.5 text-[11px] text-[#cfc7b8]">Chiffrage & avancement</p>
+              <p className="mt-0.5 text-[11px] text-[#cfc7b8]">Chiffrage &amp; avancement</p>
             </Link>
           )}
           <Link to="/terrain" className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2.5 transition hover:border-[#eab956]/50 hover:bg-white/[0.09]">
             <p className="text-xs font-extrabold text-[#eab956]">Carnet terrain</p>
-            <p className="mt-0.5 text-[11px] text-[#cfc7b8]">Journal photo & présences</p>
+            <p className="mt-0.5 text-[11px] text-[#cfc7b8]">Journal photo &amp; présences</p>
           </Link>
           <Link to="/gestion" className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2.5 transition hover:border-[#eab956]/50 hover:bg-white/[0.09]">
-            <p className="text-xs font-extrabold text-[#eab956]">Plans & Gantt</p>
-            <p className="mt-0.5 text-[11px] text-[#cfc7b8]">Plans annotés & multi-dépôts</p>
+            <p className="text-xs font-extrabold text-[#eab956]">Plans &amp; Gantt</p>
+            <p className="mt-0.5 text-[11px] text-[#cfc7b8]">Plans annotés &amp; multi-dépôts</p>
           </Link>
         </div>
       </section>
@@ -143,7 +148,12 @@ export default function DashboardPage() {
         <StatCard featured label="Budget prévisionnel" value={formatFcfa(t.budget_total)} sub={`${t.active_projects} chantier(s) actif(s)`} />
         <StatCard label="Dépenses" value={formatFcfa(t.expenses_total)} tone="red" sub={`Soit ${t.budget_total ? Math.round((t.expenses_total / t.budget_total) * 100) : 0} % du budget`} />
         <StatCard label="Encaissements" value={formatFcfa(t.payments_total)} tone="green" sub="Déclarations documentées" />
-        <StatCard label="Solde client" value={formatFcfa(t.reste_a_encaisser)} tone="amber" sub="Reste à encaisser" />
+        <StatCard
+          label="Solde client"
+          value={formatFcfa(t.reste_a_encaisser)}
+          tone="amber"
+          sub={t.retention_held > 0 ? `Dont ${formatFcfa(t.retention_held)} en retenue` : 'Reste à encaisser'}
+        />
         <div className="col-span-2 lg:col-span-1">
           <StatCard label="Résultat provisoire" value={formatFcfa(t.resultat_provisionnel)} tone={t.resultat_provisionnel >= 0 ? 'blue' : 'red'}
             sub="Encaissements − dépenses" />
@@ -176,35 +186,137 @@ export default function DashboardPage() {
             </div>
             <div className="rounded-xl border border-[#e3ddd0] bg-[#faf7f0] p-4">
               <span className="inline-block rounded-lg bg-[#141210] px-2.5 py-0.5 text-xs font-extrabold text-[#eab956]">02</span>
-              <h3 className="mt-2 text-sm font-bold text-[#141210]">Noter dépenses & avances</h3>
+              <h3 className="mt-2 text-sm font-bold text-[#141210]">Noter dépenses &amp; avances</h3>
               <p className="mt-1 text-xs leading-5 text-[#574f45]">Enregistrez chaque achat fournisseur et chaque règlement client avec sa référence écrite.</p>
             </div>
             <div className="rounded-xl border border-[#e3ddd0] bg-[#faf7f0] p-4">
               <span className="inline-block rounded-lg bg-[#141210] px-2.5 py-0.5 text-xs font-extrabold text-[#eab956]">03</span>
-              <h3 className="mt-2 text-sm font-bold text-[#141210]">Suivre le terrain & exporter</h3>
-              <p className="mt-1 text-xs leading-5 text-[#574f45]">Ajoutez photos, présences et réserves, puis éditez vos rapports PDF à tout moment.</p>
+              <h3 className="mt-2 text-sm font-bold text-[#141210]">Suivre le terrain &amp; exporter</h3>
+              <p className="mt-1 text-xs leading-5 text-[#574f45]">Ajoutez photos, présences et réserves, puis éditez vos rapports et PV de réception PDF.</p>
             </div>
           </div>
         </section>
       )}
 
+      {/* Centre d'alertes proactives */}
       <section className="mt-6 rounded-2xl border border-[#e3ddd0] bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-extrabold text-[#141210]">À traiter en priorité</h2>
-        <p className="mt-1 text-xs text-[#574f45]">Alertes calculées sur vos saisies, pas des créances certifiées.</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-extrabold text-[#141210]">À traiter en priorité</h2>
+            <p className="mt-0.5 text-xs text-[#574f45]">
+              Surveillance automatique des budgets, échéances, retenues de garantie, sous-traitants et stocks.
+            </p>
+          </div>
+          {data.alerts?.length > 0 && (
+            <Badge className="bg-amber-100 text-amber-900 ring-amber-300">
+              {data.alerts.length} point(s) d’attention
+            </Badge>
+          )}
+        </div>
         {data.alerts?.length ? (
           <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-            {data.alerts.map((alert, i) => (
-              <li key={`${alert.project_id}-${i}`} className={`rounded-xl border p-4 ${alert.kind === 'danger' ? 'border-rose-300 bg-rose-50' : 'border-amber-300 bg-amber-50'}`}>
-                <Link to={`/chantiers/${alert.project_id}`} className="font-bold text-[#141210] underline">{alert.project_name}</Link>
-                <p className="mt-1 text-sm font-semibold text-[#141210]">{alert.title}</p>
-                <p className="mt-1 text-sm text-[#574f45]">{alert.action}</p>
-              </li>
-            ))}
+            {data.alerts.map((alert, i) => {
+              const target = alert.href || (alert.project_id ? `/chantiers/${alert.project_id}` : '/chantiers');
+              return (
+                <li key={`${alert.project_id || alert.title}-${i}`} className={`rounded-xl border p-4 ${alert.kind === 'danger' ? 'border-rose-300 bg-rose-50' : 'border-amber-300 bg-amber-50'}`}>
+                  <Link to={target} className="font-bold text-[#141210] underline">{alert.project_name}</Link>
+                  <p className="mt-1 text-sm font-semibold text-[#141210]">{alert.title}</p>
+                  <p className="mt-1 text-sm text-[#574f45]">{alert.action}</p>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className="mt-3 text-sm text-[#574f45]">Aucune alerte détectée sur les saisies actuelles.</p>
         )}
       </section>
+
+      {/* Pilotage analytique : flux 6 mois, postes de coûts & top fournisseurs */}
+      {(t.expenses_total > 0 || t.payments_total > 0) && (
+        <div className="mt-6 grid gap-6 lg:grid-cols-3">
+          <Card>
+            <h2 className="font-extrabold text-[#141210]">Trésorerie mensuelle (6 mois)</h2>
+            <p className="mt-0.5 text-xs text-[#574f45]">Encaissements reçus vs dépenses engagées</p>
+            <div className="mt-4 space-y-3">
+              {analytics.monthly_cashflow.map((m) => (
+                <div key={m.month} className="space-y-1 text-xs">
+                  <div className="flex items-center justify-between font-semibold text-[#141210]">
+                    <span>{m.month}</span>
+                    <span className={`tabular ${m.net >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      {m.net >= 0 ? '+' : ''}{formatFcfa(m.net)}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-[#faf7f0]">
+                      <div
+                        className="h-full rounded-full bg-emerald-600"
+                        style={{ width: `${Math.round((Number(m.payments || 0) / maxMonthVal) * 100)}%` }}
+                        title={`Encaissements : ${formatFcfa(m.payments)}`}
+                      />
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-[#faf7f0]">
+                      <div
+                        className="h-full rounded-full bg-rose-600"
+                        style={{ width: `${Math.round((Number(m.expenses || 0) / maxMonthVal) * 100)}%` }}
+                        title={`Dépenses : ${formatFcfa(m.expenses)}`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div className="flex items-center gap-4 pt-2 text-[11px] font-semibold text-[#574f45]">
+                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-600" /> Encaissements</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-rose-600" /> Dépenses</span>
+              </div>
+            </div>
+          </Card>
+
+          <Card>
+            <h2 className="font-extrabold text-[#141210]">Dépenses par poste BTP</h2>
+            <p className="mt-0.5 text-xs text-[#574f45]">Répartition sur les chantiers actifs</p>
+            {analytics.by_category.length === 0 ? (
+              <p className="mt-6 text-sm text-[#574f45]">Aucune dépense enregistrée.</p>
+            ) : (
+              <ul className="mt-4 space-y-3">
+                {analytics.by_category.map((c) => {
+                  const share = t.expenses_total > 0 ? Math.round((c.amount / t.expenses_total) * 100) : 0;
+                  return (
+                    <li key={c.category} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-[#141210]">{c.label}</span>
+                        <span className="font-semibold tabular text-[#574f45]">{formatFcfa(c.amount)} ({share} %)</span>
+                      </div>
+                      <div className="progress-track">
+                        <div className="progress-fill bg-[#d4941e]" style={{ width: `${Math.max(3, share)}%` }} />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Card>
+
+          <Card>
+            <h2 className="font-extrabold text-[#141210]">Principaux fournisseurs</h2>
+            <p className="mt-0.5 text-xs text-[#574f45]">Volume d’achats cumulé en FCFA</p>
+            {analytics.top_suppliers.length === 0 ? (
+              <p className="mt-6 text-sm text-[#574f45]">Renseignez le nom du fournisseur lors de vos saisies d’achats.</p>
+            ) : (
+              <ul className="mt-4 divide-y divide-[#eee8db]">
+                {analytics.top_suppliers.map((s) => (
+                  <li key={s.supplier} className="flex items-center justify-between gap-2 py-2.5 text-sm">
+                    <div className="min-w-0">
+                      <p className="truncate font-bold text-[#141210]">{s.supplier}</p>
+                      <p className="text-xs text-[#574f45]">{s.count} achat(s)</p>
+                    </div>
+                    <span className="shrink-0 font-bold tabular text-[#141210]">{formatFcfa(s.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2" pad={false}>

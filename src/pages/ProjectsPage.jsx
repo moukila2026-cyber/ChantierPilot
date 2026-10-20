@@ -10,12 +10,13 @@ import {
 } from '../components/ui.jsx';
 
 const EMPTY_PROJECT = {
-  name: '', client_name: '', location: '', budget: '',
-  start_date: todayIso(), end_date: '', status: 'en_cours', notes: '',
+  name: '', client_name: '', client_phone: '', location: '', budget: '',
+  start_date: todayIso(), end_date: '', status: 'en_cours',
+  retention_bps: 0, retention_release_date: '', notes: '',
 };
 
 export function ProjectForm({ initial, onSubmit, onCancel, busy, fields }) {
-  const [form, setForm] = useState(initial || EMPTY_PROJECT);
+  const [form, setForm] = useState(() => ({ ...EMPTY_PROJECT, ...initial }));
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   return (
@@ -23,10 +24,13 @@ export function ProjectForm({ initial, onSubmit, onCancel, busy, fields }) {
       className="space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
+        const bps = Number(form.retention_bps) || 0;
         onSubmit({
           ...form,
           budget: form.budget === '' ? 0 : Number(form.budget),
           end_date: form.end_date || null,
+          retention_bps: bps,
+          retention_release_date: bps > 0 && form.retention_release_date ? form.retention_release_date : null,
         });
       }}
       noValidate
@@ -41,10 +45,16 @@ export function ProjectForm({ initial, onSubmit, onCancel, busy, fields }) {
             placeholder="Nom du client" error={fields?.client_name} />
         </Field>
       </div>
-      <Field label="Localisation" htmlFor="p-loc" error={fields?.location}>
-        <Input id="p-loc" value={form.location} onChange={(e) => set('location', e.target.value)}
-          placeholder="Quartier, ville" error={fields?.location} />
-      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Téléphone client (WhatsApp)" htmlFor="p-phone" error={fields?.client_phone}>
+          <Input id="p-phone" value={form.client_phone || ''} onChange={(e) => set('client_phone', e.target.value)}
+            placeholder="Ex. +225 07 00 00 00 00" error={fields?.client_phone} />
+        </Field>
+        <Field label="Localisation" htmlFor="p-loc" error={fields?.location}>
+          <Input id="p-loc" value={form.location} onChange={(e) => set('location', e.target.value)}
+            placeholder="Quartier, ville" error={fields?.location} />
+        </Field>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Budget prévisionnel (FCFA)" htmlFor="p-budget" error={fields?.budget} required
           hint="Montant entier, sans décimale.">
@@ -64,6 +74,27 @@ export function ProjectForm({ initial, onSubmit, onCancel, busy, fields }) {
         </Field>
         <Field label="Date de fin (optionnelle)" htmlFor="p-end" error={fields?.end_date}>
           <Input id="p-end" type="date" value={form.end_date || ''} onChange={(e) => set('end_date', e.target.value)} error={fields?.end_date} />
+        </Field>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 border-t border-[#eee8db] pt-3">
+        <Field label="Retenue de garantie contractuelle" htmlFor="p-ret" error={fields?.retention_bps}
+          hint="Ex. 5 % ou 10 % libérables à la réception définitive.">
+          <Select id="p-ret" value={String(form.retention_bps || 0)} onChange={(e) => set('retention_bps', Number(e.target.value))}>
+            <option value="0">Aucune retenue (0 %)</option>
+            <option value="500">5 % (retenue courante)</option>
+            <option value="750">7,5 %</option>
+            <option value="1000">10 % (retenue renforcée)</option>
+          </Select>
+        </Field>
+        <Field label="Date prévue de mainlevée" htmlFor="p-ret-date" error={fields?.retention_release_date}>
+          <Input
+            id="p-ret-date"
+            type="date"
+            disabled={!Number(form.retention_bps)}
+            value={form.retention_release_date || ''}
+            onChange={(e) => set('retention_release_date', e.target.value)}
+            error={fields?.retention_release_date}
+          />
         </Field>
       </div>
       <Field label="Notes" htmlFor="p-notes" error={fields?.notes}>

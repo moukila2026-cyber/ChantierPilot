@@ -7,24 +7,57 @@ import { readFileAsAttachment } from '../lib/file.js';
 import { Button, Field, Input, Select, Textarea } from './ui.jsx';
 
 export function FileField({ label, hint, value, onChange, error }) {
+  const [compressing, setCompressing] = useState(false);
+  const [wasCompressed, setWasCompressed] = useState(false);
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) { setWasCompressed(false); onChange(null); return; }
+    setCompressing(true);
+    try {
+      const att = await readFileAsAttachment(file);
+      const finalBytes = Math.round(((att?.data?.length || 0) * 3) / 4);
+      setWasCompressed(Boolean(att && (att.mime !== file.type || finalBytes < file.size * 0.95)));
+      onChange(att);
+    } catch (err) {
+      setWasCompressed(false);
+      onChange(null, err.message);
+      e.target.value = '';
+    } finally {
+      setCompressing(false);
+    }
+  };
+
   return (
-    <Field label={label} error={error} hint={hint}>
-      <input
-        type="file"
-        accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-        className="block w-full text-sm text-[#574f45] file:mr-3 file:rounded-xl file:border file:border-[#e6ce96] file:bg-[#fdf8ec] file:px-4 file:py-2.5 file:text-sm file:font-bold file:text-[#141210] hover:file:bg-[#faeccd]"
-        onChange={async (e) => {
-          const file = e.target.files?.[0];
-          try {
-            onChange(await readFileAsAttachment(file));
-          } catch (err) {
-            onChange(null, err.message);
-          }
-        }}
-      />
-      {value && (
-        <p className="mt-1 text-xs font-semibold text-emerald-700">
-          ✓ {value.filename} ({Math.round((value.data.length * 3) / 4 / 1024)} Ko)
+    <Field label={label} error={error} hint={hint || 'Photo mobile compressée automatiquement ou PDF (2 Mo max).'}>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="file"
+          accept=".jpg,.jpeg,.png,.webp,.pdf,image/*,application/pdf"
+          disabled={compressing}
+          className="block w-full text-sm text-[#574f45] file:mr-3 file:rounded-xl file:border file:border-[#e6ce96] file:bg-[#fdf8ec] file:px-4 file:py-2.5 file:text-sm file:font-bold file:text-[#141210] hover:file:bg-[#faeccd]"
+          onChange={handleFile}
+        />
+        <label className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-xl border border-[#e6ce96] bg-[#fdf8ec] px-3.5 py-1.5 text-xs font-bold text-[#141210] transition hover:bg-[#faeccd]">
+          <span>📷 Prendre une photo</span>
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            disabled={compressing}
+            className="sr-only"
+            onChange={handleFile}
+          />
+        </label>
+      </div>
+      {compressing && (
+        <p className="mt-1.5 text-xs font-semibold text-amber-800">Optimisation automatique de la photo…</p>
+      )}
+      {value && !compressing && (
+        <p className="mt-1.5 text-xs font-semibold text-emerald-700">
+          ✓ {value.filename} ({Math.max(1, Math.round((value.data.length * 3) / 4 / 1024))} Ko{wasCompressed ? ' · photo optimisée' : ''})
+          {' — '}
+          <button type="button" onClick={() => { setWasCompressed(false); onChange(null); }} className="underline">retirer</button>
         </p>
       )}
     </Field>

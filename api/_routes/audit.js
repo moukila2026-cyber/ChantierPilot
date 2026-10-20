@@ -20,12 +20,15 @@ export default async function handler(req, res) {
             `SELECT a.id, a.action, a.entity, a.entity_id, a.summary, a.created_at,
                     u.full_name AS actor
              FROM audit_log a LEFT JOIN app_users u ON u.id = a.user_id
-             WHERE a.company_id = $1
+             WHERE a.company_id = $1 AND a.entity NOT LIKE '\\_cp:%' ESCAPE '\\'
              ORDER BY a.created_at DESC, a.id DESC
              LIMIT $2 OFFSET $3`,
             [ctx.companyId, page.limit, page.offset],
           ),
-          client.query('SELECT COUNT(*)::int AS total FROM audit_log WHERE company_id = $1', [ctx.companyId]),
+          client.query(
+            "SELECT COUNT(*)::int AS total FROM audit_log WHERE company_id = $1 AND a.entity NOT LIKE '\\_cp:%' ESCAPE '\\'".replace('a.entity', 'entity'),
+            [ctx.companyId],
+          ),
         ]);
         return { rows, total: countResult.rows[0].total };
       });
