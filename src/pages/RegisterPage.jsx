@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import Logo from '../components/Logo.jsx';
+import BtpVisual from '../components/BtpVisual.jsx';
 import { Alert, Button, Card, Field, Footer, Input, PasswordInput } from '../components/ui.jsx';
 
 const EMPTY = {
@@ -39,12 +40,20 @@ export default function RegisterPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#141210] px-4 py-10">
       <div className="w-full max-w-2xl">
-        <div className="mb-8 text-center">
-          <Logo className="mx-auto mb-5 justify-center" inverted />
-          <h1 className="text-2xl font-extrabold text-[#fbf8f1]">Créer votre entreprise sur ChantierPilot</h1>
-          <p className="mt-2 text-sm text-[#cfc7b8]">
-            L'espace de chaque entreprise est isolé. Vous serez l'administrateur de cet espace.
-          </p>
+        <div className="mb-6 overflow-hidden rounded-3xl border border-[#eab956]/35 bg-[#1b1815] shadow-2xl">
+          <BtpVisual
+            kind="hero"
+            eager
+            alt="Ingénieurs et responsables BTP préparant un chantier à Abidjan"
+            className="h-44 w-full object-cover object-center sm:h-56"
+          />
+          <div className="p-6 text-center">
+            <Logo className="mx-auto mb-4 justify-center" inverted />
+            <h1 className="text-2xl font-extrabold text-[#fbf8f1]">Créer votre entreprise sur ChantierPilot</h1>
+            <p className="mt-2 text-sm text-[#cfc7b8]">
+              L'espace de chaque entreprise est isolé. Vous serez l'administrateur de cet espace.
+            </p>
+          </div>
         </div>
 
         <Card>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Logo from '../components/Logo.jsx';
+import BtpVisual from '../components/BtpVisual.jsx';
 import { Footer } from '../components/ui.jsx';
 
 const FEATURES = [
@@ -144,19 +145,12 @@ export default function LandingPage() {
               <div className="min-w-0 lg:col-span-6">
                 <div className="overflow-hidden rounded-3xl border border-[#eab956]/35 bg-[#1b1815] shadow-2xl">
                   <div className="relative">
-                    <picture>
-                      <source srcSet="/images/landing/chantier-abidjan.webp" type="image/webp" />
-                      <img
-                        src="/images/landing/chantier-abidjan.jpg"
-                        alt="Deux professionnels du BTP vérifiant un plan et le suivi d’un chantier à Abidjan"
-                        width="1600"
-                        height="900"
-                        loading="eager"
-                        fetchPriority="high"
-                        decoding="sync"
-                        className="h-52 w-full object-cover object-center sm:h-64"
-                      />
-                    </picture>
+                    <BtpVisual
+                      kind="hero"
+                      eager
+                      alt="Deux professionnels du BTP vérifiant un plan et le suivi d’un chantier à Abidjan"
+                      className="h-52 w-full object-cover object-center sm:h-64"
+                    />
                     <div className="flex flex-wrap items-center justify-between gap-2 border-y border-[#eab956]/25 bg-[#141210]/95 px-4 py-2.5">
                       <span className="text-xs font-extrabold tracking-wide text-[#fbf8f1]">
                         APERÇU D’INTERFACE · CHANTIER BTP
@@ -234,6 +228,38 @@ export default function LandingPage() {
                   <p className="mt-2 text-sm leading-6 text-[#574f45]">{feature.text}</p>
                 </article>
               ))}
+            </div>
+
+            <div className="mt-8 grid gap-6 md:grid-cols-2">
+              <div className="overflow-hidden rounded-3xl border border-[#eab956]/35 bg-[#141210] text-[#fbf8f1] shadow-lg">
+                <BtpVisual
+                  kind="terrain"
+                  alt="Chef de chantier et équipe d’armature contrôlant l’avancement sur le terrain en Côte d’Ivoire"
+                  className="h-56 w-full object-cover object-center sm:h-64"
+                />
+                <div className="p-5 sm:p-6">
+                  <p className="text-xs font-extrabold uppercase tracking-wider text-[#eab956]">Sur le chantier · Même sans réseau</p>
+                  <h3 className="mt-1.5 text-lg font-extrabold text-[#fbf8f1]">Pointage des ouvriers, journal photo et plans PDF annotés</h3>
+                  <p className="mt-1.5 text-sm leading-6 text-[#dfd9ce]">
+                    Les chefs d’équipe notent présences, observations et réserves directement sur mobile ; la synchronisation reprend automatiquement au retour de la connexion.
+                  </p>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-3xl border border-[#eab956]/35 bg-[#141210] text-[#fbf8f1] shadow-lg">
+                <BtpVisual
+                  kind="budget"
+                  alt="Bureau de direction BTP avec plans roulés, casque de sécurité et suivi documentaire"
+                  className="h-56 w-full object-cover object-center sm:h-64"
+                />
+                <div className="p-5 sm:p-6">
+                  <p className="text-xs font-extrabold uppercase tracking-wider text-[#eab956]">Au bureau · Chiffres vérifiables</p>
+                  <h3 className="mt-1.5 text-lg font-extrabold text-[#fbf8f1]">Devis, factures d’avancement, avances de caisse et stocks</h3>
+                  <p className="mt-1.5 text-sm leading-6 text-[#dfd9ce]">
+                    Retrouvez chaque devis accepté, chaque bon fournisseur et chaque mouvement multi-dépôts classé par chantier, exportable en PDF à tout moment.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </section>

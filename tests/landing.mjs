@@ -28,6 +28,7 @@ const built = await build({
   format: 'cjs',
   target: 'node22',
   jsx: 'automatic',
+  loader: { '.jpg': 'dataurl', '.webp': 'dataurl', '.png': 'dataurl', '.svg': 'dataurl' },
   packages: 'external',
   write: false,
 });
