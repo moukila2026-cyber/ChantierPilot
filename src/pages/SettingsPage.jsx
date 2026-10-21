@@ -53,8 +53,8 @@ function TeamSection({ onToast }) {
 
   return (
     <Card className="mt-6">
-      <h2 className="font-bold text-slate-900">Équipe — comptes agents</h2>
-      <p className="mt-1 text-sm text-slate-500">
+      <h2 className="font-bold text-[#141210]">Équipe — comptes agents</h2>
+      <p className="mt-1 text-sm text-[#574f45]">
         Seul l’administrateur peut créer, désactiver ou réinitialiser un compte.
         Un agent voit les chantiers de l’entreprise, saisit dépenses et encaissements
         et joint des justificatifs. Il ne peut ni supprimer, ni gérer les chantiers,
@@ -75,13 +75,13 @@ function TeamSection({ onToast }) {
       {users === null ? (
         <div className="flex justify-center py-6"><Spinner className="h-6 w-6 text-amber-600" /></div>
       ) : (
-        <ul className="mt-5 divide-y divide-slate-100">
+        <ul className="mt-5 divide-y divide-[#ede7da]">
           {users.map((u) => (
             <li key={u.id} className="py-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="text-sm font-semibold text-slate-800">{u.full_name} <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{u.role === 'admin' ? 'Administrateur' : 'Agent'}</span>{!u.is_active && <span className="ml-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs text-rose-700">Désactivé</span>}</p>
-                  <p className="text-xs text-slate-500">{u.email}</p>
+                  <p className="text-sm font-semibold text-[#1c1916]">{u.full_name} <span className="ml-1 rounded-full bg-[#f3eee3] px-2 py-0.5 text-xs text-[#574f45]">{u.role === 'admin' ? 'Administrateur' : 'Agent'}</span>{!u.is_active && <span className="ml-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs text-rose-700">Désactivé</span>}</p>
+                  <p className="text-xs text-[#574f45]">{u.email}</p>
                 </div>
                 {u.role === 'member' && (
                   <div className="flex gap-2">
@@ -188,8 +188,8 @@ export default function SettingsPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <h2 className="font-bold text-slate-900">Profil de l'entreprise</h2>
-          <p className="mt-1 text-sm text-slate-500">Ces informations apparaissent en tête des rapports PDF.</p>
+          <h2 className="font-bold text-[#141210]">Profil de l'entreprise</h2>
+          <p className="mt-1 text-sm text-[#574f45]">Ces informations apparaissent en tête des rapports PDF.</p>
           <form className="mt-4 space-y-4" onSubmit={saveCompany} noValidate><fieldset disabled={!isAdmin} className="space-y-4">
             <Field label="Nom de l'entreprise" htmlFor="s-name" error={fields.name} required>
               <Input id="s-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} error={fields.name} />
@@ -214,14 +214,14 @@ export default function SettingsPage() {
               <Input id="s-rccm" value={form.rccm} onChange={(e) => setForm({ ...form, rccm: e.target.value })} error={fields.rccm} />
             </Field>
             </fieldset>
-            {isAdmin ? <Button type="submit" loading={busy}>Enregistrer</Button> : <p className="mt-3 text-sm text-slate-500">Seul l’administrateur peut modifier le profil de l’entreprise.</p>}
+            {isAdmin ? <Button type="submit" loading={busy}>Enregistrer</Button> : <p className="mt-3 text-sm text-[#574f45]">Seul l’administrateur peut modifier le profil de l’entreprise.</p>}
           </form>
         </Card>
 
         <div className="space-y-6">
           <Card>
-            <h2 className="font-bold text-slate-900">Mon compte</h2>
-            <p className="mt-1 text-sm text-slate-500">{user?.full_name} · {user?.email} · rôle : {user?.role === 'admin' ? 'administrateur' : 'membre'}</p>
+            <h2 className="font-bold text-[#141210]">Mon compte</h2>
+            <p className="mt-1 text-sm text-[#574f45]">{user?.full_name} · {user?.email} · rôle : {user?.role === 'admin' ? 'administrateur' : 'membre'}</p>
             <form className="mt-4 space-y-4" onSubmit={changePassword} noValidate>
               {pwError && <Alert type="error">{pwError}</Alert>}
               <Field label="Mot de passe actuel" htmlFor="pw-current" required>
@@ -237,15 +237,15 @@ export default function SettingsPage() {
           </Card>
 
           {isAdmin && (<Card>
-            <h2 className="font-bold text-slate-900">Export &amp; sauvegarde</h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <h2 className="font-bold text-[#141210]">Export &amp; sauvegarde</h2>
+            <p className="mt-1 text-sm text-[#574f45]">
               Exportez vos données à tout moment (uniquement celles de votre entreprise).
               Pour une sauvegarde complète serveur, voir docs/SAUVEGARDES.md.
             </p>
             <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {EXPORTS.map(([href, label]) => (
                 <a key={href} href={href} download
-                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[#cfc6b2] bg-white px-4 py-2 text-sm font-semibold text-[#2c2721] hover:bg-[#faf7f0]">
                   {label}
                 </a>
               ))}
@@ -258,7 +258,7 @@ export default function SettingsPage() {
 
       {isAdmin && (<Card className="mt-6">
         <div className="flex items-center justify-between">
-          <h2 className="font-bold text-slate-900">Journal d'activité</h2>
+          <h2 className="font-bold text-[#141210]">Journal d'activité</h2>
           {health && (
             <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
               health.database === 'ok' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
@@ -267,25 +267,25 @@ export default function SettingsPage() {
             </span>
           )}
         </div>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-[#574f45]">
           Traçabilité des actions réalisées dans votre espace (créations, modifications, suppressions).
         </p>
         {auditRows === null ? (
           <div className="flex justify-center py-8"><Spinner className="h-6 w-6 text-amber-600" /></div>
         ) : auditRows.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-500">Aucune activité enregistrée.</p>
+          <p className="py-6 text-center text-sm text-[#574f45]">Aucune activité enregistrée.</p>
         ) : (
-          <ul className="mt-4 divide-y divide-slate-100">
+          <ul className="mt-4 divide-y divide-[#ede7da]">
             {auditRows.map((row) => (
               <li key={row.id} className="flex items-start justify-between gap-3 py-2.5">
                 <div>
-                  <p className="text-sm text-slate-800">
+                  <p className="text-sm text-[#1c1916]">
                     <span className="font-semibold">{ACTION_LABELS[row.action] || row.action}</span>
                     {' · '}{row.summary || row.entity}
                   </p>
-                  <p className="text-xs text-slate-500">{row.actor ? `par ${row.actor}` : ''}</p>
+                  <p className="text-xs text-[#574f45]">{row.actor ? `par ${row.actor}` : ''}</p>
                 </div>
-                <span className="shrink-0 text-xs text-slate-400">{formatDate(row.created_at)}</span>
+                <span className="shrink-0 text-xs text-[#786f63]">{formatDate(row.created_at)}</span>
               </li>
             ))}
           </ul>

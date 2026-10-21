@@ -1,9 +1,43 @@
 import pg from 'pg';
 import crypto from 'node:crypto';
 import assert from 'node:assert/strict';
+import { Readable } from 'node:stream';
+import billingRoute from '../api/_routes/billing.js';
 import { reconcile, validSignature, checkoutUrl } from '../api/_lib/saspay.js';
-import { entitlement } from '../shared/plans.js';
+import { entitlement, TRIAL_ROLLOUT_MS, TRIAL_DURATION_MS } from '../shared/plans.js';
 import { projectAlerts } from '../shared/alerts.js';
+
+async function callBillingInProcess(clientObj, body) {
+  const payload = JSON.stringify(body);
+  const baseHeaders = clientObj.header();
+  const req = Object.assign(Readable.from([Buffer.from(payload)]), {
+    method: 'POST',
+    url: '/api/billing',
+    headers: {
+      host: new URL(baseHeaders.Origin).host,
+      origin: baseHeaders.Origin,
+      cookie: baseHeaders.Cookie || '',
+      'x-chantierpilot-client': 'web',
+      'content-type': 'application/json',
+      'content-length': String(Buffer.byteLength(payload)),
+    },
+    socket: { remoteAddress: '127.0.0.1' },
+  });
+  let status = 200;
+  let rawOut = '';
+  const headers = {};
+  const res = {
+    get statusCode() { return status; },
+    set statusCode(v) { status = v; },
+    headersSent: false,
+    setHeader(k, v) { headers[k.toLowerCase()] = v; },
+    getHeader(k) { return headers[k.toLowerCase()]; },
+    writeHead(code, h = {}) { status = code; Object.entries(h).forEach(([k, v]) => { headers[k.toLowerCase()] = v; }); this.headersSent = true; },
+    end(chunk = '') { this.headersSent = true; rawOut += chunk ? chunk.toString() : ''; },
+  };
+  await billingRoute(req, res);
+  return { status, data: JSON.parse(rawOut || '{}') };
+}
 
 export async function billingCases({ A, B, adminUrl, check }) {
   const admin = new pg.Client({ connectionString: adminUrl });
@@ -28,9 +62,13 @@ export async function billingCases({ A, B, adminUrl, check }) {
   try {
     const initialBilling = (await A.get('/api/billing')).data;
     check('Facturation : essai gratuit de 2 semaines (14 jours complets) et quotas affichés', initialBilling.status === 'essai' && initialBilling.trial_days === 14 && initialBilling.trial_days_remaining === 14);
-    await admin.query("UPDATE companies SET created_at = TIMESTAMPTZ '2026-10-18T10:00:00Z', trial_until = now() + interval '1 day' WHERE id = $1", [companyIdB]);
+    await admin.query("UPDATE companies SET created_at = TIMESTAMPTZ '2026-10-18T10:00:00Z', trial_until = TIMESTAMPTZ '2026-10-20T12:00:00Z' WHERE id = $1", [companyIdB]);
     const upgradedBillingB = (await B.get('/api/billing')).data;
-    check('Facturation : un ancien espace avec 1-2 jours restants est prolongé à 2 semaines complètes (14 jours)', upgradedBillingB.status === 'essai' && upgradedBillingB.trial_days_remaining >= 14);
+    check(
+      'Facturation : un ancien espace pré-déploiement est prolongé à 2 semaines complètes depuis le déploiement (14 jours)',
+      new Date(upgradedBillingB.trial_until).getTime() >= TRIAL_ROLLOUT_MS + TRIAL_DURATION_MS - 1000
+        && entitlement({ trial_until: upgradedBillingB.trial_until }, TRIAL_ROLLOUT_MS + 60_000).trial_days_remaining === 14,
+    );
     check('Console : un administrateur client n’est pas opérateur', (await A.get('/api/operator')).status === 403);
     await admin.query('INSERT INTO platform_operators(user_id) VALUES ($1)', [userId]);
     check('Console : opérateur désigné peut lister les entreprises', (await A.get('/api/operator')).data.companies.length >= 2);
@@ -85,10 +123,56 @@ export async function billingCases({ A, B, adminUrl, check }) {
     check('SasPay : accès en modification rétabli après paiement', (await A.patch('/api/company', { name: session.company.name })).status === 200);
     const raw = Buffer.from('{ "event": "transaction.success" }'), timestamp = String(Math.floor(Date.now()/1000));
     const signature = crypto.createHmac('sha256','secret').update(`${timestamp}.`).update(raw).digest('hex');
-    check('Webhook : signature du corps brut acceptée', validSignature(raw,signature,timestamp,'secret'));
+    check('Webhook : signature du corps brut acceptée (y compris secret avec espace/retour ligne)', validSignature(raw,signature,timestamp,'  secret\n '));
     check('Webhook : corps modifié, ancien timestamp et secret absent refusés', !validSignature(Buffer.from('{}'),signature,timestamp,'secret') && !validSignature(raw,signature,timestamp,'secret',Date.now()+301000) && !validSignature(raw,signature,timestamp,''));
     assert.throws(()=>checkoutUrl('https://evil.example/checkout'));
     check('SasPay : redirection vers un domaine tiers rejetée', true);
+
+    // Tests HTTP de bout en bout POST /api/billing : nettoyage des variables Vercel + diagnostics clairs + changement d'offre en attente
+    process.env.DATABASE_URL = adminUrl.replace(/:\/\/([^@/]+)@/, '://chantierpilot_app@');
+    process.env.SASPAY_SECRET_KEY = '  "Bearer sk_test_clean_key\n"  ';
+    process.env.APP_URL = '  chantierpilote.vercel.app  \n';
+    globalThis.fetch = async (url, options) => {
+      if (String(url).startsWith('https://api.saspay.me/api/v1/')) {
+        assert.equal(options.headers.Authorization, 'Bearer sk_test_clean_key');
+        return new Response(JSON.stringify({ success: false, error: { message: 'Invalid API key', code: 'authentication_failed' }, code: 401 }), { status: 401 });
+      }
+      return originalFetch(url, options);
+    };
+    const unauthorizedCheckout = await callBillingInProcess(B, { plan: 'essentiel' });
+    check(
+      'SasPay : erreur 401 amont renvoie un diagnostic français explicite (jamais un 500 aveugle) et nettoie Bearer/retours ligne',
+      unauthorizedCheckout.status === 502 && /sk_test_|sk_live_/i.test(unauthorizedCheckout.data.error?.message || ''),
+    );
+
+    let createdSlugs = 0;
+    globalThis.fetch = async (url, options) => {
+      if (String(url).startsWith('https://api.saspay.me/api/v1/')) {
+        createdSlugs += 1;
+        const body = JSON.parse(options.body);
+        assert.equal(body.fee_charge_mode, 'DEDUCTED');
+        return new Response(JSON.stringify({
+          success: true,
+          data: {
+            id: crypto.randomUUID(),
+            amount: body.amount,
+            currency: 'XOF',
+            checkout_url: `https://pay.saspay.me/checkout/test-${createdSlugs}-${body.amount}`,
+          },
+        }), { status: 201 });
+      }
+      return originalFetch(url, options);
+    };
+    const firstPlan = await callBillingInProcess(B, { plan: 'essentiel' });
+    const switchedPlan = await callBillingInProcess(B, { plan: 'equipe' });
+    check(
+      'SasPay : changer de forfait avant paiement crée une nouvelle session au tarif du forfait choisi',
+      firstPlan.status === 200 && switchedPlan.status === 200
+        && firstPlan.data.url.includes('9900.00')
+        && switchedPlan.data.url.includes('19900.00'),
+    );
+    globalThis.fetch = originalFetch;
+
     check('Forfaits : dates expirées et suspension ferment les écritures', !entitlement({trial_until: '2020-01-01'}).writable && !entitlement({billing_suspended:true,trial_until:'2099-01-01'}).writable);
     check('BTP : alertes budget, trésorerie et retard calculées', projectAlerts([{ id:'a',name:'Test',budget:100,expenses_total:101,payments_total:0,status:'en_cours',end_date:'2020-01-01' }]).length === 3);
   } finally {

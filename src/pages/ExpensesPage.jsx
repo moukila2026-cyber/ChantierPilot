@@ -205,24 +205,24 @@ export default function ExpensesPage() {
                   <th className="px-5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[#ede7da]">
                 {state.expenses.map((e) => (
-                  <tr key={e.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-3 whitespace-nowrap text-slate-600">{formatDate(e.expense_date)}</td>
+                  <tr key={e.id} className="hover:bg-[#faf7f0]">
+                    <td className="px-5 py-3 whitespace-nowrap text-[#574f45]">{formatDate(e.expense_date)}</td>
                     <td className="px-3 py-3">
-                      <Link to={`/chantiers/${e.project_id}`} className="font-medium text-slate-800 hover:text-amber-700">{e.project_name}</Link>
+                      <Link to={`/chantiers/${e.project_id}`} className="font-medium text-[#1c1916] hover:text-amber-700">{e.project_name}</Link>
                     </td>
                     <td className="px-3 py-3">
-                      <Badge className="bg-slate-100 text-slate-700 ring-slate-200">{CATEGORY_LABELS[e.category] || e.category}</Badge>
+                      <Badge className="bg-[#f3eee3] text-[#2c2721] ring-[#ded7c7]">{CATEGORY_LABELS[e.category] || e.category}</Badge>
                     </td>
                     <td className="px-3 py-3">
-                      <p className="font-medium text-slate-800">{e.supplier || '—'}</p>
-                      <p className="text-xs text-slate-500">{e.description}</p>
+                      <p className="font-medium text-[#1c1916]">{e.supplier || '—'}</p>
+                      <p className="text-xs text-[#574f45]">{e.description}</p>
                       {e.has_receipt && (
                         <div className="mt-1 flex items-center gap-3 text-xs font-semibold text-amber-800">
                           <button
                             type="button"
-                            className="underline hover:text-slate-900"
+                            className="underline hover:text-[#141210]"
                             onClick={() => setPreview({
                               url: `/api/files?kind=expense&id=${e.id}`,
                               filename: e.receipt_filename,
@@ -254,8 +254,8 @@ export default function ExpensesPage() {
                 ))}
               </tbody>
             </table>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-5 py-3 text-sm font-bold tabular text-slate-900">
-              <span className="text-xs font-medium text-slate-500">Page affichée : {formatFcfa(pageTotal)}</span>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#ded7c7] px-5 py-3 text-sm font-bold tabular text-[#141210]">
+              <span className="text-xs font-medium text-[#574f45]">Page affichée : {formatFcfa(pageTotal)}</span>
               <span>Total filtré : {formatFcfa(filteredTotal)}</span>
             </div>
           </Card>
@@ -265,13 +265,13 @@ export default function ExpensesPage() {
               <Card key={e.id} className="p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">{CATEGORY_LABELS[e.category] || e.category}</p>
-                    <Link to={`/chantiers/${e.project_id}`} className="text-xs text-slate-500 hover:text-amber-700">{e.project_name}</Link>
+                    <p className="text-sm font-semibold text-[#141210]">{CATEGORY_LABELS[e.category] || e.category}</p>
+                    <Link to={`/chantiers/${e.project_id}`} className="text-xs text-[#574f45] hover:text-amber-700">{e.project_name}</Link>
                   </div>
                   <p className="font-semibold tabular text-rose-700">{formatFcfa(e.amount)}</p>
                 </div>
-                <p className="mt-1 text-xs text-slate-500">{formatDate(e.expense_date)} · {e.supplier || '—'}</p>
-                {e.description && <p className="mt-1 text-xs text-slate-600">{e.description}</p>}
+                <p className="mt-1 text-xs text-[#574f45]">{formatDate(e.expense_date)} · {e.supplier || '—'}</p>
+                {e.description && <p className="mt-1 text-xs text-[#574f45]">{e.description}</p>}
                 {e.has_receipt && (
                   <button
                     type="button"
@@ -297,7 +297,7 @@ export default function ExpensesPage() {
                 </div>
               </Card>
             ))}
-            <p className="text-center text-sm font-bold tabular text-slate-700">Total filtré : {formatFcfa(filteredTotal)}</p>
+            <p className="text-center text-sm font-bold tabular text-[#2c2721]">Total filtré : {formatFcfa(filteredTotal)}</p>
           </div>
         </>
       )}

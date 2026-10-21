@@ -61,7 +61,7 @@ export default function RegisterPage() {
             {error && <Alert type="error">{error}</Alert>}
 
             <fieldset className="space-y-4">
-              <legend className="mb-1 text-sm font-bold uppercase tracking-wide text-slate-500">Votre entreprise</legend>
+              <legend className="mb-1 text-sm font-bold uppercase tracking-wide text-[#574f45]">Votre entreprise</legend>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Nom de l'entreprise" htmlFor="c-name" error={fields['company.name']} required>
                   <Input id="c-name" value={form.company.name} onChange={(e) => setCompany('name', e.target.value)}
@@ -92,7 +92,7 @@ export default function RegisterPage() {
             </fieldset>
 
             <fieldset className="space-y-4">
-              <legend className="mb-1 text-sm font-bold uppercase tracking-wide text-slate-500">Votre compte administrateur</legend>
+              <legend className="mb-1 text-sm font-bold uppercase tracking-wide text-[#574f45]">Votre compte administrateur</legend>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Nom complet" htmlFor="u-name" error={fields['user.full_name']} required>
                   <Input id="u-name" value={form.user.full_name} onChange={(e) => setUser('full_name', e.target.value)}

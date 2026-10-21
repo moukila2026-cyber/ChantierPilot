@@ -86,7 +86,7 @@ function QuoteForm({ data, busy, onSubmit, onCancel, initial }) {
         </Field>
       </div>
 
-      <div className="rounded-xl bg-slate-50 p-4">
+      <div className="rounded-xl bg-[#faf7f0] p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-bold">Prestations &amp; matériaux ({lines.length})</h3>
           <Select
@@ -105,9 +105,9 @@ function QuoteForm({ data, busy, onSubmit, onCancel, initial }) {
 
         <div className="mt-4 space-y-4">
           {lines.map((l, i) => (
-            <div key={i} className="rounded-lg border border-slate-200 bg-white p-3">
+            <div key={i} className="rounded-lg border border-[#ded7c7] bg-white p-3">
               <div className="mb-3 flex items-center justify-between">
-                <label htmlFor={`line-${i}-label`} className="text-xs font-bold text-slate-500">Poste {i + 1}</label>
+                <label htmlFor={`line-${i}-label`} className="text-xs font-bold text-[#574f45]">Poste {i + 1}</label>
                 {lines.length > 1 && (
                   <button type="button" aria-label={`Supprimer le poste ${i + 1}`} className="text-xs font-semibold text-red-700" onClick={() => setLines((ls) => ls.filter((_, n) => n !== i))}>
                     Supprimer
@@ -329,7 +329,7 @@ export default function DocumentsPage() {
         </Button>
       </div>
 
-      <p className="mb-3 text-xs text-slate-500">Indicateurs sur tous les documents · liste limitée aux 500 plus récents.</p>
+      <p className="mb-3 text-xs text-[#574f45]">Indicateurs sur tous les documents · liste limitée aux 500 plus récents.</p>
 
       <div className="space-y-4">
         {data.documents
@@ -342,44 +342,44 @@ export default function DocumentsPage() {
                     {LABELS[d.kind]} {d.invoice_kind ? `· ${LABELS[d.invoice_kind]}` : ''} · {d.number}
                   </p>
                   <h2 className="mt-2 text-lg font-bold">{d.title}</h2>
-                  <p className="mt-1 text-sm text-slate-500">{d.client_name} · {formatDate(d.created_at)} · {LABELS[d.status]}</p>
+                  <p className="mt-1 text-sm text-[#574f45]">{d.client_name} · {formatDate(d.created_at)} · {LABELS[d.status]}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xl font-bold tabular">{formatFcfa(d.total)}</p>
-                  <p className="mt-1 text-xs text-slate-500">dont taxes : {formatFcfa(d.tax)}</p>
+                  <p className="mt-1 text-xs text-[#574f45]">dont taxes : {formatFcfa(d.tax)}</p>
                 </div>
               </div>
 
               <details className="mt-4 text-sm">
-                <summary className="cursor-pointer font-semibold text-slate-600">Détail des postes et échéance</summary>
+                <summary className="cursor-pointer font-semibold text-[#574f45]">Détail des postes et échéance</summary>
                 <ul className="mt-3 space-y-2">
                   {d.lines.map((l, i) => (
-                    <li key={i} className="flex justify-between gap-3 border-t border-slate-100 pt-2">
+                    <li key={i} className="flex justify-between gap-3 border-t border-[#ede7da] pt-2">
                       <span>{l.label} · {l.quantity} {l.unit}</span>
                       <strong>{formatFcfa(l.total)}</strong>
                     </li>
                   ))}
                 </ul>
-                <p className="mt-3 text-xs text-slate-500">
+                <p className="mt-3 text-xs text-[#574f45]">
                   Échéance / validité : {formatDate(d.due_date)}
                   {d.accepted_name ? ` · Acceptation : ${d.accepted_name} (${d.accepted_reference})` : ''}
                 </p>
                 {d.kind === 'quote' && (
-                  <p className="mt-2 text-xs text-slate-500">
+                  <p className="mt-2 text-xs text-[#574f45]">
                     Coût prévisionnel saisi : {formatFcfa(d.estimated_cost)}. La marge n’est fiable que si tous les coûts sont renseignés.
                   </p>
                 )}
               </details>
 
               {d.kind === 'invoice' && (
-                <p className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                <p className="mt-4 rounded-lg bg-[#faf7f0] px-3 py-2 text-sm">
                   Règlements affectés : {formatFcfa(d.paid)} · Avoir : {formatFcfa(d.credited)} ·{' '}
                   <strong>Reste : {formatFcfa(Math.max(0, Number(d.total) - Number(d.paid) - Number(d.credited)))}</strong>
                 </p>
               )}
 
               <div className="mt-4 flex flex-wrap gap-2">
-                <a href={`/api/documents?pdf=${d.id}`} className="inline-flex min-h-11 items-center rounded-xl border border-slate-200 px-4 text-sm font-semibold hover:bg-slate-50">
+                <a href={`/api/documents?pdf=${d.id}`} className="inline-flex min-h-11 items-center rounded-xl border border-[#ded7c7] px-4 text-sm font-semibold hover:bg-[#faf7f0]">
                   Télécharger PDF
                 </a>
                 <a
@@ -452,7 +452,7 @@ export default function DocumentsPage() {
         {data.documents.length === 0 && (
           <Card>
             <h2 className="font-bold">Votre premier devis, sans ressaisie</h2>
-            <p className="mt-2 text-sm text-slate-500">
+            <p className="mt-2 text-sm text-[#574f45]">
               Importez votre bordereau de prix CSV ou créez vos postes, émettez le devis, puis enregistrez l’accord du client : le chantier est créé automatiquement.
             </p>
           </Card>

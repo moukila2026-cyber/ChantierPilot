@@ -324,53 +324,57 @@ export default function ProjectDetailPage() {
 
   return (
     <div>
-      <div className="mb-2">
-        <Link to="/chantiers" className="text-sm font-medium text-slate-500 hover:text-amber-700">← Tous les chantiers</Link>
-      </div>
+      <section className="cp-charcoal-panel cp-page-hero mb-6 p-5 sm:p-6">
+        <div className="mb-3">
+          <Link to="/chantiers" className="inline-flex items-center gap-1 text-xs font-extrabold uppercase tracking-wider text-[#eab956] hover:underline">
+            ← Tous les chantiers
+          </Link>
+        </div>
 
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">{project.name}</h1>
-            <Badge className={STATUS_STYLES[project.status]}>{STATUS_LABELS[project.status]}</Badge>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 border-l-4 border-[#eab956] pl-4">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-2xl font-extrabold tracking-tight text-[#fbf8f1] sm:text-3xl">{project.name}</h1>
+              <Badge className={STATUS_STYLES[project.status]}>{STATUS_LABELS[project.status]}</Badge>
+            </div>
+            <p className="mt-1.5 text-sm leading-6 text-[#dfd9ce]">
+              {project.client_name}
+              {project.client_phone ? ` (${project.client_phone})` : ''}
+              {' · '}{project.location || 'Localisation non renseignée'} · du {formatDateLong(project.start_date)}
+              {project.end_date ? ` au ${formatDateLong(project.end_date)}` : ' (fin non définie)'}
+            </p>
           </div>
-          <p className="mt-1 text-sm text-slate-500">
-            {project.client_name}
-            {project.client_phone ? ` (${project.client_phone})` : ''}
-            {' · '}{project.location || 'Localisation non renseignée'} · du {formatDateLong(project.start_date)}
-            {project.end_date ? ` au ${formatDateLong(project.end_date)}` : ' (fin non définie)'}
-          </p>
+          <div className="flex flex-wrap gap-2">
+            <Link to={`/terrain?chantier=${project.id}`}><Button variant="secondary">Carnet terrain</Button></Link>
+            {isAdmin && (
+              <>
+                <a href={`/api/projects/${project.id}/report`} download>
+                  <Button variant="secondary">Rapport PDF</Button>
+                </a>
+                <a href={`/api/projects/${project.id}/reception`} download>
+                  <Button variant="secondary">PV réception PDF</Button>
+                </a>
+                <a
+                  href={whatsappHref(project.client_phone, summaryText)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-11 items-center rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 text-sm font-bold text-emerald-900 hover:bg-emerald-100"
+                >
+                  WhatsApp client
+                </a>
+                <Button variant="secondary" onClick={copySummary}>Copier le point</Button>
+                <Button variant="secondary" onClick={() => { setFields({}); setModal('edit'); }}>Modifier</Button>
+              </>
+            )}
+            {!isArchived && (
+              <Button onClick={() => { setFields({}); setEditExpense(null); setModal('expense'); }}>+ Dépense</Button>
+            )}
+            {!isArchived && (
+              <Button variant="secondary" onClick={() => { setFields({}); setEditPayment(null); setModal('payment'); }}>+ Encaissement</Button>
+            )}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link to={`/terrain?chantier=${project.id}`}><Button variant="secondary">Carnet terrain</Button></Link>
-          {isAdmin && (
-            <>
-              <a href={`/api/projects/${project.id}/report`} download>
-                <Button variant="secondary">Rapport PDF</Button>
-              </a>
-              <a href={`/api/projects/${project.id}/reception`} download>
-                <Button variant="secondary">PV réception PDF</Button>
-              </a>
-              <a
-                href={whatsappHref(project.client_phone, summaryText)}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex min-h-11 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 text-sm font-bold text-emerald-900 hover:bg-emerald-100"
-              >
-                WhatsApp client
-              </a>
-              <Button variant="secondary" onClick={copySummary}>Copier le point</Button>
-              <Button variant="secondary" onClick={() => { setFields({}); setModal('edit'); }}>Modifier</Button>
-            </>
-          )}
-          {!isArchived && (
-            <Button onClick={() => { setFields({}); setEditExpense(null); setModal('expense'); }}>+ Dépense</Button>
-          )}
-          {!isArchived && (
-            <Button variant="secondary" onClick={() => { setFields({}); setEditPayment(null); setModal('payment'); }}>+ Encaissement</Button>
-          )}
-        </div>
-      </div>
+      </section>
 
       {isArchived && (
         <div className="mb-5">
@@ -425,19 +429,19 @@ export default function ProjectDetailPage() {
             <Link to="/documents" className="text-sm font-semibold text-amber-700">Devis &amp; factures →</Link>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <div><p className="text-xs text-slate-500">Devis accepté (taxes incluses)</p><p className="mt-1 font-bold">{data.commercial.contract_total ? formatFcfa(data.commercial.contract_total) : 'Non renseigné'}</p></div>
-            <div><p className="text-xs text-slate-500">Facturé net des avoirs</p><p className="mt-1 font-bold">{formatFcfa(data.commercial.billed)}</p></div>
-            <div><p className="text-xs text-slate-500">Solde des factures (règlements affectés)</p><p className="mt-1 font-bold">{formatFcfa(Number(data.commercial.billed) - Number(data.commercial.allocated_payments))}</p></div>
-            <div><p className="text-xs text-slate-500">Achats approuvés non réceptionnés</p><p className="mt-1 font-bold">{formatFcfa(data.commercial.committed_purchases)}</p></div>
+            <div><p className="text-xs text-[#574f45]">Devis accepté (taxes incluses)</p><p className="mt-1 font-bold">{data.commercial.contract_total ? formatFcfa(data.commercial.contract_total) : 'Non renseigné'}</p></div>
+            <div><p className="text-xs text-[#574f45]">Facturé net des avoirs</p><p className="mt-1 font-bold">{formatFcfa(data.commercial.billed)}</p></div>
+            <div><p className="text-xs text-[#574f45]">Solde des factures (règlements affectés)</p><p className="mt-1 font-bold">{formatFcfa(Number(data.commercial.billed) - Number(data.commercial.allocated_payments))}</p></div>
+            <div><p className="text-xs text-[#574f45]">Achats approuvés non réceptionnés</p><p className="mt-1 font-bold">{formatFcfa(data.commercial.committed_purchases)}</p></div>
           </div>
-          <p className="mt-4 text-xs leading-5 text-slate-500">
+          <p className="mt-4 text-xs leading-5 text-[#574f45]">
             Coût prévisionnel saisi au devis : {formatFcfa(data.commercial.estimated_cost || 0)} · Main-d’œuvre en attente de validation : {formatFcfa(data.commercial.pending_labor)} · {data.commercial.open_reserves} réserve(s) non validée(s). Ces indicateurs ne sont pas une marge comptable ; les règlements non affectés ne soldent pas automatiquement une facture.
           </p>
         </Card>
       )}
 
       <Card className="mt-4">
-        <div className="flex items-center justify-between text-xs text-slate-500">
+        <div className="flex items-center justify-between text-xs text-[#574f45]">
           <span>Consommation du budget</span>
           <span className="tabular">{formatFcfa(totals.expenses_total)} / {formatFcfa(totals.budget)}</span>
         </div>
@@ -476,14 +480,14 @@ export default function ProjectDetailPage() {
             <EmptyState title="Historique vide" message="Les dépenses, encaissements et événements du chantier apparaîtront ici, du plus récent au plus ancien." />
           ) : (
             <Card pad={false}>
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-[#ede7da]">
                 {timeline.map((ev) => (
                   <li key={`${ev.kind}-${ev.id}`} className="flex items-start gap-3 px-5 py-3.5">
                     <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
-                      ev.kind === 'depense' ? 'bg-rose-500' : ev.kind === 'encaissement' ? 'bg-emerald-500' : 'bg-slate-400'
+                      ev.kind === 'depense' ? 'bg-rose-500' : ev.kind === 'encaissement' ? 'bg-emerald-500' : 'bg-[#e5a93b]'
                     }`} aria-hidden="true" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm text-slate-800">
+                      <p className="text-sm text-[#1c1916]">
                         <span className="font-semibold">
                           {ev.kind === 'depense' ? 'Dépense' : ev.kind === 'encaissement' ? 'Encaissement déclaré' : 'Événement'}
                         </span>
@@ -494,7 +498,7 @@ export default function ProjectDetailPage() {
                             ? `${ev.detail || ''} · réf. ${ev.reference || '—'}${ev.label ? ` · ${ev.label}` : ''}`
                             : (ev.label || '')}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-[#574f45]">
                         {formatDate(ev.date)}{ev.actor ? ` · par ${ev.actor}` : ''}
                       </p>
                     </div>
@@ -522,7 +526,7 @@ export default function ProjectDetailPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                    <tr className="border-b border-[#ded7c7] text-left text-xs uppercase tracking-wide text-[#574f45]">
                       <th className="px-5 py-3">Date</th>
                       <th className="px-3 py-3">Catégorie</th>
                       <th className="px-3 py-3">Fournisseur / description</th>
@@ -530,19 +534,19 @@ export default function ProjectDetailPage() {
                       <th className="px-5 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-[#ede7da]">
                     {expenses.map((e) => (
-                      <tr key={e.id} className="hover:bg-slate-50">
-                        <td className="px-5 py-3 whitespace-nowrap text-slate-600">{formatDate(e.expense_date)}</td>
+                      <tr key={e.id} className="hover:bg-[#faf7f0]">
+                        <td className="px-5 py-3 whitespace-nowrap text-[#574f45]">{formatDate(e.expense_date)}</td>
                         <td className="px-3 py-3">{labels.category[e.category] || e.category}</td>
                         <td className="px-3 py-3">
-                          <p className="font-medium text-slate-800">{e.supplier || '—'}</p>
-                          <p className="text-xs text-slate-500">{e.description}</p>
+                          <p className="font-medium text-[#1c1916]">{e.supplier || '—'}</p>
+                          <p className="text-xs text-[#574f45]">{e.description}</p>
                           {e.has_receipt && (
                             <div className="mt-1 flex items-center gap-3 text-xs font-semibold text-amber-800">
                               <button
                                 type="button"
-                                className="underline hover:text-slate-900"
+                                className="underline hover:text-[#141210]"
                                 onClick={() => setPreview({
                                   url: `/api/files?kind=expense&id=${e.id}`,
                                   filename: e.receipt_filename,
@@ -602,7 +606,7 @@ export default function ProjectDetailPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                    <tr className="border-b border-[#ded7c7] text-left text-xs uppercase tracking-wide text-[#574f45]">
                       <th className="px-5 py-3">Date</th>
                       <th className="px-3 py-3">Client</th>
                       <th className="px-3 py-3">Référence / mode</th>
@@ -610,18 +614,18 @@ export default function ProjectDetailPage() {
                       <th className="px-5 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-[#ede7da]">
                     {payments.map((p) => (
-                      <tr key={p.id} className="hover:bg-slate-50">
-                        <td className="px-5 py-3 whitespace-nowrap text-slate-600">{formatDate(p.payment_date)}</td>
+                      <tr key={p.id} className="hover:bg-[#faf7f0]">
+                        <td className="px-5 py-3 whitespace-nowrap text-[#574f45]">{formatDate(p.payment_date)}</td>
                         <td className="px-3 py-3">
-                          <p className="font-medium text-slate-800">{p.client_name}</p>
-                          {p.memo && <p className="text-xs text-slate-500">{p.memo}</p>}
+                          <p className="font-medium text-[#1c1916]">{p.client_name}</p>
+                          {p.memo && <p className="text-xs text-[#574f45]">{p.memo}</p>}
                         </td>
                         <td className="px-3 py-3">
-                          <p className="font-medium text-slate-800">{p.reference}</p>
-                          <p className="text-xs text-slate-500">{labels.payment_method[p.payment_method] || p.payment_method}</p>
-                          <Badge className={p.has_proof ? 'bg-emerald-100 text-emerald-800 ring-emerald-200' : 'bg-slate-100 text-slate-600 ring-slate-200'}>
+                          <p className="font-medium text-[#1c1916]">{p.reference}</p>
+                          <p className="text-xs text-[#574f45]">{labels.payment_method[p.payment_method] || p.payment_method}</p>
+                          <Badge className={p.has_proof ? 'bg-emerald-100 text-emerald-800 ring-emerald-200' : 'bg-[#f3eee3] text-[#574f45] ring-[#ded7c7]'}>
                             {p.has_proof ? 'Justificatif joint' : 'Déclaration (référence)'}
                           </Badge>
                           {p.has_proof && (
@@ -708,7 +712,7 @@ export default function ProjectDetailPage() {
                           Avance &gt; avancement
                         </Badge>
                       ) : (
-                        <Badge className="bg-slate-100 text-slate-700 ring-slate-200">
+                        <Badge className="bg-[#f3eee3] text-[#2c2721] ring-[#ded7c7]">
                           Avancement {s.progress} %
                         </Badge>
                       )}

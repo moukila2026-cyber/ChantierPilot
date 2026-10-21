@@ -205,19 +205,19 @@ export default function PaymentsPage() {
                   <th className="px-5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[#ede7da]">
                 {state.payments.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-3 whitespace-nowrap text-slate-600">{formatDate(p.payment_date)}</td>
+                  <tr key={p.id} className="hover:bg-[#faf7f0]">
+                    <td className="px-5 py-3 whitespace-nowrap text-[#574f45]">{formatDate(p.payment_date)}</td>
                     <td className="px-3 py-3">
-                      <Link to={`/chantiers/${p.project_id}`} className="font-medium text-slate-800 hover:text-amber-700">{p.project_name}</Link>
-                      <p className="text-xs text-slate-500">{p.client_name}</p>
+                      <Link to={`/chantiers/${p.project_id}`} className="font-medium text-[#1c1916] hover:text-amber-700">{p.project_name}</Link>
+                      <p className="text-xs text-[#574f45]">{p.client_name}</p>
                     </td>
                     <td className="px-3 py-3">
-                      <p className="font-medium text-slate-800">{p.reference}</p>
+                      <p className="font-medium text-[#1c1916]">{p.reference}</p>
                       <div className="mt-1 flex flex-wrap items-center gap-1">
-                        <Badge className="bg-slate-100 text-slate-700 ring-slate-200">{PAYMENT_METHOD_LABELS[p.payment_method] || p.payment_method}</Badge>
-                        <Badge className={p.has_proof ? 'bg-emerald-100 text-emerald-800 ring-emerald-200' : 'bg-slate-100 text-slate-600 ring-slate-200'}>
+                        <Badge className="bg-[#f3eee3] text-[#2c2721] ring-[#ded7c7]">{PAYMENT_METHOD_LABELS[p.payment_method] || p.payment_method}</Badge>
+                        <Badge className={p.has_proof ? 'bg-emerald-100 text-emerald-800 ring-emerald-200' : 'bg-[#f3eee3] text-[#574f45] ring-[#ded7c7]'}>
                           {p.has_proof ? 'Prouvé' : 'Déclaré'}
                         </Badge>
                       </div>
@@ -225,7 +225,7 @@ export default function PaymentsPage() {
                         <div className="mt-1 flex items-center gap-3 text-xs font-semibold text-amber-800">
                           <button
                             type="button"
-                            className="underline hover:text-slate-900"
+                            className="underline hover:text-[#141210]"
                             onClick={() => setPreview({
                               url: `/api/files?kind=proof&id=${p.id}`,
                               filename: p.proof_filename,
@@ -257,8 +257,8 @@ export default function PaymentsPage() {
                 ))}
               </tbody>
             </table>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-5 py-3 text-sm font-bold tabular text-slate-900">
-              <span className="text-xs font-medium text-slate-500">Page affichée : {formatFcfa(pageTotal)}</span>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#ded7c7] px-5 py-3 text-sm font-bold tabular text-[#141210]">
+              <span className="text-xs font-medium text-[#574f45]">Page affichée : {formatFcfa(pageTotal)}</span>
               <span>Total filtré : {formatFcfa(filteredTotal)}</span>
             </div>
           </Card>
@@ -268,13 +268,13 @@ export default function PaymentsPage() {
               <Card key={p.id} className="p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">{p.client_name}</p>
-                    <Link to={`/chantiers/${p.project_id}`} className="text-xs text-slate-500 hover:text-amber-700">{p.project_name}</Link>
+                    <p className="text-sm font-semibold text-[#141210]">{p.client_name}</p>
+                    <Link to={`/chantiers/${p.project_id}`} className="text-xs text-[#574f45] hover:text-amber-700">{p.project_name}</Link>
                   </div>
                   <p className="font-semibold tabular text-emerald-700">{formatFcfa(p.amount)}</p>
                 </div>
-                <p className="mt-1 text-xs text-slate-500">{formatDate(p.payment_date)} · {p.reference}</p>
-                <Badge className={`mt-1 ${p.has_proof ? 'bg-emerald-100 text-emerald-800 ring-emerald-200' : 'bg-slate-100 text-slate-600 ring-slate-200'}`}>
+                <p className="mt-1 text-xs text-[#574f45]">{formatDate(p.payment_date)} · {p.reference}</p>
+                <Badge className={`mt-1 ${p.has_proof ? 'bg-emerald-100 text-emerald-800 ring-emerald-200' : 'bg-[#f3eee3] text-[#574f45] ring-[#ded7c7]'}`}>
                   {p.has_proof ? 'Justificatif joint' : 'Déclaré (référence)'}
                 </Badge>
                 {p.has_proof && (
@@ -302,7 +302,7 @@ export default function PaymentsPage() {
                 </div>
               </Card>
             ))}
-            <p className="text-center text-sm font-bold tabular text-slate-700">Total filtré : {formatFcfa(filteredTotal)}</p>
+            <p className="text-center text-sm font-bold tabular text-[#2c2721]">Total filtré : {formatFcfa(filteredTotal)}</p>
           </div>
         </>
       )}

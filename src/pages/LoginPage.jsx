@@ -65,7 +65,7 @@ export default function LoginPage() {
           <div className="flex flex-col justify-center lg:col-span-6">
             <Card>
               <form onSubmit={onSubmit} className="space-y-4" noValidate>
-                <h2 className="text-lg font-bold text-slate-900">Connexion</h2>
+                <h2 className="text-lg font-bold text-[#141210]">Connexion</h2>
                 {error && <Alert type="error">{error}</Alert>}
                 <Field label="Adresse e-mail" htmlFor="email" error={fields.email} required>
                   <Input

@@ -216,7 +216,7 @@ export default function ProjectsPage() {
             aria-label="Rechercher un chantier"
             className="pl-10"
           />
-          <svg className="pointer-events-none absolute left-3 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
+          <svg className="pointer-events-none absolute left-3 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-[#786f63]" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.45 4.39l3.15 3.15a1 1 0 01-1.42 1.42l-3.15-3.15A7 7 0 012 9z" clipRule="evenodd" />
           </svg>
         </div>
@@ -253,15 +253,15 @@ export default function ProjectsPage() {
                   <th className="px-5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[#ede7da]">
                 {state.projects.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50">
+                  <tr key={p.id} className="hover:bg-[#faf7f0]">
                     <td className="px-5 py-3">
-                      <Link to={`/chantiers/${p.id}`} className="font-semibold text-slate-900 hover:text-amber-700">{p.name}</Link>
-                      <p className="text-xs text-slate-500">{p.client_name}{p.location ? ` · ${p.location}` : ''}</p>
+                      <Link to={`/chantiers/${p.id}`} className="font-semibold text-[#141210] hover:text-amber-700">{p.name}</Link>
+                      <p className="text-xs text-[#574f45]">{p.client_name}{p.location ? ` · ${p.location}` : ''}</p>
                     </td>
                     <td className="px-3 py-3"><Badge className={STATUS_STYLES[p.status]}>{STATUS_LABELS[p.status]}</Badge></td>
-                    <td className="px-3 py-3 text-xs text-slate-500">
+                    <td className="px-3 py-3 text-xs text-[#574f45]">
                       {formatDate(p.start_date)} → {p.end_date ? formatDate(p.end_date) : '—'}
                     </td>
                     <td className="px-3 py-3 text-right tabular">{formatFcfa(p.budget)}</td>
@@ -290,21 +290,21 @@ export default function ProjectsPage() {
             {state.projects.map((p) => (
               <Card key={p.id} className="p-4">
                 <div className="flex items-start justify-between gap-2">
-                  <Link to={`/chantiers/${p.id}`} className="font-semibold text-slate-900">{p.name}</Link>
+                  <Link to={`/chantiers/${p.id}`} className="font-semibold text-[#141210]">{p.name}</Link>
                   <Badge className={STATUS_STYLES[p.status]}>{STATUS_LABELS[p.status]}</Badge>
                 </div>
-                <p className="mt-1 text-xs text-slate-500">{p.client_name}{p.location ? ` · ${p.location}` : ''}</p>
+                <p className="mt-1 text-xs text-[#574f45]">{p.client_name}{p.location ? ` · ${p.location}` : ''}</p>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                   <div>
-                    <p className="text-slate-400">Budget</p>
-                    <p className="font-semibold tabular text-slate-800">{formatFcfa(p.budget)}</p>
+                    <p className="text-[#786f63]">Budget</p>
+                    <p className="font-semibold tabular text-[#1c1916]">{formatFcfa(p.budget)}</p>
                   </div>
                   <div>
-                    <p className="text-slate-400">Dépenses</p>
+                    <p className="text-[#786f63]">Dépenses</p>
                     <p className="font-semibold tabular text-rose-700">{formatFcfa(p.expenses_total)}</p>
                   </div>
                   <div>
-                    <p className="text-slate-400">Encaissé</p>
+                    <p className="text-[#786f63]">Encaissé</p>
                     <p className="font-semibold tabular text-emerald-700">{formatFcfa(p.payments_total)}</p>
                   </div>
                 </div>

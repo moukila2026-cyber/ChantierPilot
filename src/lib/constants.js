@@ -38,3 +38,21 @@ export const STATUS_STYLES = {
   termine: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
   archive: 'bg-[#eae4d7] text-[#574f45] ring-[#d5cdbd]',
 };
+
+export const PROOF_LEVEL = {
+  justificatif: {
+    label: 'Pièce jointe',
+    hint: 'Un reçu, une photo ou un PDF est joint à l’opération.',
+    style: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
+  },
+  reference: {
+    label: 'Référence seule',
+    hint: 'Déclaration avec référence écrite, sans pièce jointe.',
+    style: 'bg-[#fdf8ec] text-[#854d0e] ring-[#e6ce96]',
+  },
+  aucun: {
+    label: 'Non justifié',
+    hint: 'Aucune pièce jointe.',
+    style: 'bg-[#eae4d7] text-[#574f45] ring-[#d5cdbd]',
+  },
+};

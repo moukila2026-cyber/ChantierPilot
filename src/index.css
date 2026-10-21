@@ -21,18 +21,34 @@
   --color-ink: #141210;
 }
 
+/* ==========================================================================
+   ChantierPilot — Système de Design Exécutif BTP (Côte d'Ivoire)
+   Noir Charbon (#141210) · Or Chantier (#eab956 / #e5a93b) · Pierre Ivoire (#f5f2eb)
+   100 % CSS3 universel (HEX / RGB physiques — zéro oklch / @layer / @property)
+   ========================================================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 html {
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
   background-color: #f5f2eb;
+  color: #141210;
 }
 
 body {
+  margin: 0;
+  min-height: 100vh;
   background-color: #f5f2eb;
-  background-image: radial-gradient(ellipse 90% 420px at 50% 0%, rgba(234, 185, 86, 0.10) 0%, rgba(245, 242, 235, 0) 75%);
+  background-image:
+    radial-gradient(ellipse 90% 420px at 50% -100px, rgba(234, 185, 86, 0.14) 0%, rgba(245, 242, 235, 0) 72%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(245, 242, 235, 0) 260px);
   background-repeat: no-repeat;
   color: #141210;
-  font-family: var(--font-sans);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -42,10 +58,20 @@ body {
   color: #141210;
 }
 
-/* Panneau signature Noir Charbon & filet Or (contraste AAA >= 16:1 avec #fbf8f1) */
+.tabular {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* ==========================================================================
+   Panneaux Signature Noir Charbon & Or Chantier
+   ========================================================================== */
+
 .cp-charcoal-panel {
+  position: relative;
   background-color: #141210;
-  background-image: linear-gradient(155deg, #1b1814 0%, #141210 55%, #0c0b09 100%);
+  background-image:
+    radial-gradient(circle at 92% 14%, rgba(234, 185, 86, 0.16) 0%, rgba(234, 185, 86, 0) 48%),
+    linear-gradient(155deg, #1c1915 0%, #141210 58%, #0c0b09 100%);
   color: #fbf8f1;
   border: 1px solid rgba(234, 185, 86, 0.36);
   box-shadow:
@@ -53,33 +79,121 @@ body {
     0 12px 28px -12px rgba(12, 11, 9, 0.45);
 }
 
-/* Surface carte BTP : bordure pierre chaude, ombre douce et transition soignée */
+.cp-page-hero {
+  position: relative;
+  overflow: hidden;
+  background-color: #141210;
+  background-image:
+    radial-gradient(circle at 88% 18%, rgba(234, 185, 86, 0.18) 0%, rgba(234, 185, 86, 0) 48%),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(234, 185, 86, 0.028) 0px,
+      rgba(234, 185, 86, 0.028) 1px,
+      transparent 1px,
+      transparent 14px
+    ),
+    linear-gradient(145deg, #1d1915 0%, #141210 62%, #0d0b09 100%);
+  color: #fbf8f1;
+  border: 1px solid rgba(234, 185, 86, 0.36);
+  border-radius: 1.5rem;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 28px -10px rgba(12, 11, 9, 0.4);
+}
+
+.cp-page-hero::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #e5a93b 0%, #f5ce78 52%, rgba(229, 169, 59, 0.18) 100%);
+}
+
+/* ==========================================================================
+   Cartes, Indicateurs KPI & Barres d'outils
+   ========================================================================== */
+
+.cp-card,
 .cp-card-surface {
   background-color: #ffffff;
-  border: 1px solid #dfd8c8;
+  border: 1px solid #ded7c7;
+  border-radius: 1rem;
   box-shadow:
     0 1px 2px rgba(20, 18, 16, 0.04),
     0 8px 22px -14px rgba(20, 18, 16, 0.14);
   transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
-.cp-card-lift {
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
-}
+.cp-card-interactive:hover,
 .cp-card-lift:hover {
   border-color: #eab956;
   box-shadow:
-    0 4px 12px rgba(20, 18, 16, 0.07),
-    0 14px 28px -14px rgba(20, 18, 16, 0.18);
+    0 6px 16px -4px rgba(20, 18, 16, 0.09),
+    0 16px 30px -14px rgba(20, 18, 16, 0.18);
   transform: translateY(-1px);
 }
 
-/* Barre de filtres & zone de prise de photo BTP */
-.cp-filter-bar {
-  background-color: #faf7f0;
-  border: 1px solid #dfd8c8;
+.cp-kpi {
+  position: relative;
+  overflow: hidden;
+  background-color: #ffffff;
+  border: 1px solid #ded7c7;
   border-radius: 1rem;
-  padding: 0.875rem 1rem;
+  padding: 1rem 1.125rem;
+  box-shadow:
+    0 1px 2px rgba(20, 18, 16, 0.04),
+    0 8px 20px -12px rgba(20, 18, 16, 0.11);
+}
+
+.cp-kpi::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: #141210;
+}
+
+.cp-kpi-amber::before { background-color: #e5a93b; }
+.cp-kpi-green::before { background-color: #059669; }
+.cp-kpi-red::before { background-color: #dc2626; }
+.cp-kpi-blue::before { background-color: #0284c7; }
+.cp-kpi-slate::before { background-color: #141210; }
+
+.cp-kpi-featured {
+  position: relative;
+  overflow: hidden;
+  background-color: #141210;
+  background-image:
+    radial-gradient(circle at 90% 15%, rgba(234, 185, 86, 0.22) 0%, rgba(234, 185, 86, 0) 55%),
+    linear-gradient(145deg, #1d1915 0%, #141210 100%);
+  border: 1px solid rgba(234, 185, 86, 0.45);
+  border-radius: 1rem;
+  padding: 1rem 1.125rem;
+  color: #fbf8f1;
+  box-shadow: 0 10px 24px -10px rgba(12, 11, 9, 0.42);
+}
+
+.cp-kpi-featured::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #e5a93b, #f5ce78);
+}
+
+.cp-filter-bar {
+  background-color: #ffffff;
+  background-image: linear-gradient(180deg, #ffffff 0%, #faf7f0 100%);
+  border: 1px solid #ded7c7;
+  border-radius: 1rem;
+  padding: 0.875rem 1.1rem;
+  box-shadow: 0 2px 10px -6px rgba(20, 18, 16, 0.1);
 }
 
 .cp-dropzone {
@@ -89,21 +203,122 @@ body {
   border-radius: 1rem;
   transition: background-color 0.16s ease, border-color 0.16s ease;
 }
+
 .cp-dropzone:hover {
   border-color: #854d0e;
   background-color: #faeccd;
 }
 
-/* Tableaux métier unifiés dans tout l'espace applicatif : en-tête Noir Charbon & Or */
+/* ==========================================================================
+   Boutons Signature & Micro-interactions
+   ========================================================================== */
+
+.cp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  border-radius: 0.75rem;
+  padding: 0.55rem 1.05rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.25;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, transform 0.12s ease;
+}
+
+.cp-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.cp-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.cp-btn-primary {
+  background-color: #e5a93b;
+  background-image: linear-gradient(180deg, #ecc05b 0%, #e5a93b 100%);
+  color: #141210;
+  border: 1px solid #c98c1e;
+  box-shadow: 0 2px 6px rgba(20, 18, 16, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+
+.cp-btn-primary:hover:not(:disabled) {
+  background-color: #f0b84c;
+  background-image: linear-gradient(180deg, #f4ca6d 0%, #eab140 100%);
+  border-color: #b87d15;
+  box-shadow: 0 4px 12px rgba(229, 169, 59, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.cp-btn-secondary {
+  background-color: #ffffff;
+  color: #141210;
+  border: 1px solid #cfc6b2;
+  box-shadow: 0 1px 2px rgba(20, 18, 16, 0.05);
+}
+
+.cp-btn-secondary:hover:not(:disabled) {
+  background-color: #faf7f0;
+  border-color: #b8a98e;
+}
+
+.cp-btn-dark {
+  background-color: #141210;
+  color: #fbf8f1;
+  border: 1px solid rgba(234, 185, 86, 0.42);
+  box-shadow: 0 2px 8px rgba(20, 18, 16, 0.2);
+}
+
+.cp-btn-dark:hover:not(:disabled) {
+  background-color: #221e1a;
+  border-color: #eab956;
+}
+
+.cp-btn-ghost {
+  background-color: transparent;
+  color: #3f3932;
+  border: 1px solid transparent;
+}
+
+.cp-btn-ghost:hover:not(:disabled) {
+  background-color: #eae4d7;
+  color: #141210;
+}
+
+.cp-btn-danger {
+  background-color: #be123c;
+  color: #ffffff;
+  border: 1px solid #9f1239;
+  box-shadow: 0 2px 6px rgba(190, 18, 60, 0.22);
+}
+
+.cp-btn-danger:hover:not(:disabled) {
+  background-color: #9f1239;
+}
+
+/* ==========================================================================
+   Tableaux Exécutifs unifiés dans tout le SaaS
+   ========================================================================== */
+
 main table {
   width: 100%;
   border-collapse: collapse;
 }
+
 main table thead {
   background-color: #141210;
   color: #eab956;
   border-bottom: 1px solid rgba(234, 185, 86, 0.35);
 }
+
+main table thead tr {
+  background-color: #141210;
+  color: #eab956;
+}
+
 main table thead th {
   font-size: 0.72rem;
   font-weight: 800;
@@ -112,24 +327,37 @@ main table thead th {
   color: #eab956;
   padding-top: 0.8rem;
   padding-bottom: 0.8rem;
+  white-space: nowrap;
 }
+
 main table tbody tr {
   border-bottom: 1px solid #ece6d9;
   transition: background-color 0.14s ease;
 }
+
 main table tbody tr:last-child {
   border-bottom: none;
 }
+
 main table tbody tr:hover {
-  background-color: rgba(253, 248, 236, 0.72);
+  background-color: #faf7f0;
 }
 
-/* Filet de sécurité universel sur les champs de formulaire dans main (jamais de champ HTML brut) */
-main :where(
+main table tbody td {
+  color: #1c1916;
+  vertical-align: middle;
+}
+
+/* ==========================================================================
+   Formulaires & Champs de saisie unifiés (main + modales)
+   ========================================================================== */
+
+:where(main, [role="dialog"]) :where(
   input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="hidden"]),
   select,
   textarea
-) {
+),
+.cp-input {
   border-radius: 0.75rem;
   border-width: 1px;
   border-style: solid;
@@ -139,46 +367,158 @@ main :where(
   padding: 0.5rem 0.85rem;
   font-size: 0.875rem;
   line-height: 1.4;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
-main :where(
+
+:where(main, [role="dialog"]) :where(
   input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="hidden"]),
   select
 ) {
   min-height: 2.75rem;
 }
-main :where(input, select, textarea):focus {
+
+:where(main, [role="dialog"]) :where(input, select, textarea):focus,
+.cp-input:focus {
   border-color: #b7791f;
   outline: none;
   box-shadow: 0 0 0 3px rgba(229, 169, 59, 0.28);
 }
 
-/* Chiffres alignés dans les tableaux et KPI */
-.tabular {
-  font-variant-numeric: tabular-nums lining-nums;
+:where(main, [role="dialog"]) input[type="checkbox"],
+:where(main, [role="dialog"]) input[type="radio"] {
+  accent-color: #141210;
+  width: 1.05rem;
+  height: 1.05rem;
+  cursor: pointer;
 }
 
-/* Barres de progression */
+:where(main, [role="dialog"]) input[type="file"]:not(.sr-only):not(.hidden) {
+  display: block;
+  width: 100%;
+  font-size: 0.8125rem;
+  color: #574f45;
+  background-color: #faf7f0;
+  border: 1px dashed #c7bda7;
+  border-radius: 0.75rem;
+  padding: 0.45rem;
+  cursor: pointer;
+}
+
+:where(main, [role="dialog"]) input[type="file"]::file-selector-button {
+  margin-right: 0.75rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(234, 185, 86, 0.45);
+  background-color: #141210;
+  color: #eab956;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+:where(main, [role="dialog"]) input[type="file"]::file-selector-button:hover {
+  background-color: #24201b;
+}
+
+/* ==========================================================================
+   Accordéons Exécutifs (<details> / <summary>)
+   ========================================================================== */
+
+main details {
+  border-radius: 0.9rem;
+  border: 1px solid #ded7c7;
+  background-color: #faf7f0;
+  padding: 0.75rem 1rem;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+main details[open] {
+  border-color: #d4941e;
+  background-color: #ffffff;
+  box-shadow: 0 6px 18px -10px rgba(20, 18, 16, 0.14);
+}
+
+main details > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  cursor: pointer;
+  font-weight: 700;
+  color: #141210;
+}
+
+main details > summary::-webkit-details-marker {
+  display: none;
+}
+
+main details > summary::after {
+  content: "+";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 0.45rem;
+  background-color: #141210;
+  color: #eab956;
+  border: 1px solid rgba(234, 185, 86, 0.45);
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+main details[open] > summary::after {
+  content: "−";
+  background-color: #e5a93b;
+  color: #141210;
+  border-color: #c98c1e;
+}
+
+/* ==========================================================================
+   Colonnes Kanban & Barres de progression
+   ========================================================================== */
+
+.cp-kanban-col {
+  background-color: #faf7f0;
+  border: 1px solid #ded7c7;
+  border-radius: 1rem;
+  padding: 0.9rem;
+}
+
 .progress-track {
-  @apply h-2.5 w-full overflow-hidden rounded-full;
+  height: 0.625rem;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 9999px;
   background-color: #e6dfd2;
 }
+
 .progress-fill {
-  @apply h-full rounded-full transition-all duration-500;
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Barres de défilement discrètes et harmonisées */
+/* Barres de défilement */
 ::-webkit-scrollbar {
   width: 9px;
   height: 9px;
 }
+
 ::-webkit-scrollbar-track {
   background: #ede8dc;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #b9b0a1;
   border-radius: 9999px;
   border: 2px solid #ede8dc;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #8a8072;
 }
@@ -189,16 +529,24 @@ main :where(input, select, textarea):focus {
   outline-offset: 2px;
 }
 
-/* Animation légère pour les modales et cartes */
 @keyframes fade-in-up {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
 .animate-fade-in {
   animation: fade-in-up 0.18s ease-out;
 }
 
-/* Impression propre des états et tableaux chantier */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 @media print {
   aside,
   header,

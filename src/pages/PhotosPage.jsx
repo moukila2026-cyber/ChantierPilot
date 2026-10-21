@@ -118,8 +118,8 @@ export default function PhotosPage() {
         date: p.payment_date,
         amount: Number(p.amount || 0),
         mime: p.proof_mime || 'image/jpeg',
-        url: `/api/files?kind=payment&id=${p.id}&inline=1`,
-        downloadUrl: `/api/files?kind=payment&id=${p.id}`,
+        url: `/api/files?kind=proof&id=${p.id}&inline=1`,
+        downloadUrl: `/api/files?kind=proof&id=${p.id}`,
       })),
     ];
 
@@ -605,12 +605,14 @@ export default function PhotosPage() {
       </Modal>
 
       <AttachmentPreviewModal
+        item={preview ? {
+          title: `${preview.projectName} — ${preview.title}`,
+          url: preview.url,
+          downloadUrl: preview.downloadUrl,
+          mime: preview.mime,
+        } : null}
         open={Boolean(preview)}
         onClose={() => setPreview(null)}
-        title={preview ? `${preview.projectName} — ${preview.title}` : ''}
-        url={preview?.url || ''}
-        downloadUrl={preview?.downloadUrl || ''}
-        mime={preview?.mime || ''}
       />
 
       <Toast toast={toast} onClose={() => setToast(null)} />
