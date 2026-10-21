@@ -8,6 +8,7 @@ import { requireAuth, run } from '../_lib/pipeline.js';
 const KINDS = {
   expense: { table: 'expenses', column: 'receipt', nameCol: 'receipt_filename', mimeCol: 'receipt_mime' },
   proof: { table: 'payments', column: 'proof', nameCol: 'proof_filename', mimeCol: 'proof_mime' },
+  payment: { table: 'payments', column: 'proof', nameCol: 'proof_filename', mimeCol: 'proof_mime' },
 };
 
 export default async function handler(req, res) {

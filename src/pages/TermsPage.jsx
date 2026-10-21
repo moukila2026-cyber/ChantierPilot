@@ -71,29 +71,43 @@ const sections = [
 export default function TermsPage() {
   return (
     <div className="min-h-screen bg-[#f5f2eb]">
-      <header className="border-b border-[#eab956]/25 bg-[#141210] px-4 py-4">
+      <header className="sticky top-0 z-40 border-b border-[#eab956]/25 bg-[#141210]/95 px-4 py-3.5 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-between">
           <Logo inverted to="/" />
-          <Link to="/connexion" className="text-sm font-bold text-[#eab956] hover:underline">Connexion</Link>
+          <div className="flex items-center gap-3">
+            <Link to="/offres" className="text-sm font-bold text-[#dfd9ce] hover:text-[#eab956]">Offres</Link>
+            <Link to="/connexion" className="cp-btn cp-btn-primary min-h-10 px-4 py-2 text-xs sm:text-sm">Connexion</Link>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Conditions générales d’utilisation</h1>
-        <p className="mt-2 text-sm text-slate-500">Version du 17 octobre 2026 · Service ChantierPilot</p>
-        <div className="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+        <section className="cp-charcoal-panel cp-page-hero mb-6 p-6 sm:p-8">
+          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#eab956]">Cadre contractuel BTP · Côte d’Ivoire</p>
+          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-[#fbf8f1] sm:text-3xl">
+            Conditions générales d’utilisation
+          </h1>
+          <p className="mt-2 text-sm text-[#dfd9ce]">Version du 17 octobre 2026 · Service ChantierPilot édité par SHOPIN30</p>
+        </section>
+
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950 shadow-sm">
           <strong>À valider avant commercialisation :</strong> l’identité juridique complète de l’éditeur (raison sociale, adresse et immatriculation) ainsi que la politique de confidentialité doivent être complétées et vérifiées avant la mise en production commerciale.
         </div>
+
         <div className="mt-6 space-y-4">
           {sections.map(({ title, paragraphs }) => (
             <Card key={title}>
-              <h2 className="font-bold text-slate-900">{title}</h2>
-              {paragraphs.map((paragraph) => <p key={paragraph} className="mt-3 text-sm leading-6 text-slate-600">{paragraph}</p>)}
+              <h2 className="text-base font-extrabold text-[#141210]">{title}</h2>
+              {paragraphs.map((paragraph) => (
+                <p key={paragraph} className="mt-3 text-sm leading-6 text-[#574f45]">{paragraph}</p>
+              ))}
             </Card>
           ))}
         </div>
-        <p className="mt-6 text-center text-sm text-slate-600">
-          <Link to="/offres" className="font-semibold text-amber-700 underline">Consulter les offres</Link>
-        </p>
+
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Link to="/offres" className="cp-btn cp-btn-primary">Consulter les offres</Link>
+          <Link to="/" className="cp-btn cp-btn-secondary">Retour à l’accueil</Link>
+        </div>
       </main>
       <Footer />
     </div>

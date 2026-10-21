@@ -1,9 +1,13 @@
 import { bootQuery, withTenant } from '../_lib/db.js';
 import { sendJson, fail } from '../_lib/http.js';
-import { validSignature, saspay, reconcile } from '../_lib/saspay.js';
+import { validSignature, saspay, reconcile, webhookSecret } from '../_lib/saspay.js';
+
 export default async function handler(req, res) {
-  if (!process.env.SASPAY_WEBHOOK_SECRET) return fail(res, 503, 'configuration_absente', 'Webhook non configuré.');
-  if (!validSignature(req.rawBody, req.headers['x-webhook-signature'], req.headers['x-webhook-timestamp'], process.env.SASPAY_WEBHOOK_SECRET)) return fail(res, 400, 'signature_invalide', 'Signature invalide.');
+  const secret = webhookSecret();
+  if (!secret) return fail(res, 503, 'configuration_absente', 'Webhook non configuré.');
+  if (!validSignature(req.rawBody, req.headers['x-webhook-signature'], req.headers['x-webhook-timestamp'], secret)) {
+    return fail(res, 400, 'signature_invalide', 'Signature invalide.');
+  }
   let event;
   try { event = JSON.parse(req.rawBody.toString()); } catch { return fail(res, 400, 'json_invalide', 'JSON invalide.'); }
   if (event.event !== 'transaction.success') return sendJson(res, 200, { received: true });

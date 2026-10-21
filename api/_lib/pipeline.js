@@ -46,6 +46,10 @@ export async function run(res, fn) {
     if (mapped.status === 503 && mapped.code === 'migration_requise') {
       return fail(res, 503, mapped.code, mapped.message);
     }
+    if (mapped.code === 'abonnement_requis' && (mapped.status === 502 || mapped.status === 503)) {
+      console.error('[api:billing]', mapped.status, mapped.message);
+      return fail(res, mapped.status, mapped.code, mapped.message);
+    }
     if (mapped.status >= 500) {
       console.error('[api]', err);
       return fail(res, 500, 'erreur_serveur', 'Erreur interne. L\'incident est journalisé ; réessayez ou contactez le support.');

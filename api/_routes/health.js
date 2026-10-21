@@ -1,8 +1,9 @@
 // GET /api/health — état du service (aucune donnée sensible).
-// Permet de savoir si la base est configurée, si les 27 tables actives existent et quel pilote est actif.
+// Permet de savoir si la base est configurée, si les 28 tables actives existent et quel pilote est actif.
 
 import { bootQuery, driverName } from '../_lib/db.js';
-import { sendJson, methodNotAllowed, handle } from '../_lib/http.js';
+import { sendJson, methodNotAllowed, handle, rateLimit } from '../_lib/http.js';
+import { probeSaspay } from '../_lib/saspay.js';
 
 const EXPECTED_TABLES = [
   'companies', 'app_users', 'sessions', 'projects', 'expenses', 'payments', 'audit_log',
@@ -16,6 +17,9 @@ const EXPECTED_TABLES = [
 export default async function handler(req, res) {
   await handle(req, res, async () => {
     if (req.method !== 'GET') return methodNotAllowed(res, 'GET');
+    const url = new URL(req.url || '/', 'http://local');
+    const checkSaspay = url.searchParams.get('saspay') === '1';
+
     let db = 'inconnu';
     let schema = 'inconnu';
     try {
@@ -32,13 +36,20 @@ export default async function handler(req, res) {
     } catch {
       db = 'indisponible';
     }
-    sendJson(res, 200, {
+
+    const payload = {
       status: db === 'ok' ? 'ok' : 'degrade',
       time: new Date().toISOString(),
       database: db,
       schema,
       driver: driverName(),
       currency: 'XOF (FCFA)',
-    });
+    };
+
+    if (checkSaspay && rateLimit(req, 'health-saspay', 12, 60000).ok) {
+      payload.saspay = await probeSaspay();
+    }
+
+    sendJson(res, 200, payload);
   });
 }
