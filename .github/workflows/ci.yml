@@ -8,7 +8,7 @@ on:
 
 jobs:
   quality:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -18,4 +18,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npm run test:all
+      - name: Run full test suite
+        run: |
+          set -o pipefail
+          npm run test:all 2>&1 | tee /tmp/cp-ci.log || {
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 80 /tmp/cp-ci.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          }
