@@ -24,21 +24,132 @@
 html {
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
+  background-color: #f5f2eb;
 }
 
 body {
   background-color: #f5f2eb;
+  background-image: radial-gradient(ellipse 90% 420px at 50% 0%, rgba(234, 185, 86, 0.10) 0%, rgba(245, 242, 235, 0) 75%);
+  background-repeat: no-repeat;
   color: #141210;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Panneau signature Noir Charbon & filet Or */
+::selection {
+  background-color: #eab956;
+  color: #141210;
+}
+
+/* Panneau signature Noir Charbon & filet Or (contraste AAA >= 16:1 avec #fbf8f1) */
 .cp-charcoal-panel {
-  background: linear-gradient(155deg, #1a1714 0%, #141210 55%, #0c0b09 100%);
+  background-color: #141210;
+  background-image: linear-gradient(155deg, #1b1814 0%, #141210 55%, #0c0b09 100%);
   color: #fbf8f1;
-  border: 1px solid rgba(234, 185, 86, 0.32);
+  border: 1px solid rgba(234, 185, 86, 0.36);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 28px -12px rgba(12, 11, 9, 0.45);
+}
+
+/* Surface carte BTP : bordure pierre chaude, ombre douce et transition soignée */
+.cp-card-surface {
+  background-color: #ffffff;
+  border: 1px solid #dfd8c8;
+  box-shadow:
+    0 1px 2px rgba(20, 18, 16, 0.04),
+    0 8px 22px -14px rgba(20, 18, 16, 0.14);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.cp-card-lift {
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+.cp-card-lift:hover {
+  border-color: #eab956;
+  box-shadow:
+    0 4px 12px rgba(20, 18, 16, 0.07),
+    0 14px 28px -14px rgba(20, 18, 16, 0.18);
+  transform: translateY(-1px);
+}
+
+/* Barre de filtres & zone de prise de photo BTP */
+.cp-filter-bar {
+  background-color: #faf7f0;
+  border: 1px solid #dfd8c8;
+  border-radius: 1rem;
+  padding: 0.875rem 1rem;
+}
+
+.cp-dropzone {
+  background-color: #fdf8ec;
+  background-image: linear-gradient(180deg, #fdf8ec 0%, #faf3e1 100%);
+  border: 1.5px dashed #d4941e;
+  border-radius: 1rem;
+  transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+.cp-dropzone:hover {
+  border-color: #854d0e;
+  background-color: #faeccd;
+}
+
+/* Tableaux métier unifiés dans tout l'espace applicatif : en-tête Noir Charbon & Or */
+main table {
+  width: 100%;
+  border-collapse: collapse;
+}
+main table thead {
+  background-color: #141210;
+  color: #eab956;
+  border-bottom: 1px solid rgba(234, 185, 86, 0.35);
+}
+main table thead th {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #eab956;
+  padding-top: 0.8rem;
+  padding-bottom: 0.8rem;
+}
+main table tbody tr {
+  border-bottom: 1px solid #ece6d9;
+  transition: background-color 0.14s ease;
+}
+main table tbody tr:last-child {
+  border-bottom: none;
+}
+main table tbody tr:hover {
+  background-color: rgba(253, 248, 236, 0.72);
+}
+
+/* Filet de sécurité universel sur les champs de formulaire dans main (jamais de champ HTML brut) */
+main :where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="hidden"]),
+  select,
+  textarea
+) {
+  border-radius: 0.75rem;
+  border-width: 1px;
+  border-style: solid;
+  border-color: #c7beae;
+  background-color: #ffffff;
+  color: #141210;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+main :where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="hidden"]),
+  select
+) {
+  min-height: 2.75rem;
+}
+main :where(input, select, textarea):focus {
+  border-color: #b7791f;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(229, 169, 59, 0.28);
 }
 
 /* Chiffres alignés dans les tableaux et KPI */
@@ -55,17 +166,50 @@ body {
   @apply h-full rounded-full transition-all duration-500;
 }
 
+/* Barres de défilement discrètes et harmonisées */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-track {
+  background: #ede8dc;
+}
+::-webkit-scrollbar-thumb {
+  background: #b9b0a1;
+  border-radius: 9999px;
+  border: 2px solid #ede8dc;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #8a8072;
+}
+
 /* Accessibilité : focus haute visibilité Or */
 :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 2px solid #d4941e;
   outline-offset: 2px;
 }
 
-/* Animation légère pour les modales */
+/* Animation légère pour les modales et cartes */
 @keyframes fade-in-up {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-in {
   animation: fade-in-up 0.18s ease-out;
+}
+
+/* Impression propre des états et tableaux chantier */
+@media print {
+  aside,
+  header,
+  nav[aria-label="Accès rapides mobile"] {
+    display: none !important;
+  }
+  body {
+    background: #ffffff !important;
+  }
+  main {
+    padding-left: 0 !important;
+    padding-bottom: 0 !important;
+  }
 }

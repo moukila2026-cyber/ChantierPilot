@@ -305,11 +305,40 @@ try {
   await appPage.waitForTimeout(150);
   await appPage.screenshot({ path: path.join(SCREENSHOTS_DIR, 'dashboard-populated-mobile.png') });
 
+  // Vérification complète du CSS & rendu sans débordement sur TOUTES les pages applicatives + nouvel onglet /photos
+  await appPage.setViewportSize({ width: 1440, height: 900 });
+  for (const [internalRoute, headingText] of [
+    ['/chantiers', 'Chantiers'],
+    ['/documents', 'Devis & facturation'],
+    ['/depenses', 'Dépenses'],
+    ['/encaissements', 'Encaissements'],
+    ['/photos', 'Photos & reçus'],
+    ['/terrain', 'Carnet de chantier'],
+    ['/gestion', 'Gestion avancée'],
+    ['/parametres', 'Paramètres'],
+  ]) {
+    await appPage.goto(`${origin}${internalRoute}`, { waitUntil: 'networkidle' });
+    await appPage.getByRole('heading', { name: headingText }).first().waitFor();
+    const internalStyle = await appPage.evaluate(() => {
+      const header = document.querySelector('main section.cp-charcoal-panel');
+      const headerBg = header ? getComputedStyle(header).backgroundColor : '';
+      return {
+        hasCharcoalHeader: Boolean(header),
+        headerBg,
+        overflowX: document.documentElement.scrollWidth > window.innerWidth + 1,
+      };
+    });
+    assert.ok(internalStyle.hasCharcoalHeader, `En-tête Noir Charbon & Or présent sur ${internalRoute}`);
+    assert.equal(internalStyle.overflowX, false, `Aucun débordement horizontal sur ${internalRoute}`);
+  }
+  console.log('  ✓ 8/8 pages internes (dont /photos) : en-tête Noir Charbon & Or, CSS complet et zéro débordement vérifiés');
+
   // 4. Vérification Service Worker + préservation IndexedDB (chantierpilot-terrain-v1)
   await appPage.evaluate(async () => {
-    // Crée un ancien cache obsolète ET une saisie hors-ligne dans IndexedDB
+    // Crée un ancien cache obsolète (y compris préfixe historique hors cp-shell-) ET une saisie hors-ligne dans IndexedDB
     for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
     await caches.open('cp-shell-legacy-old').then((c) => c.put('/old', new Response('old')));
+    await caches.open('chantierpilot-legacy-v0').then((c) => c.put('/ancient', new Response('ancient')));
     await new Promise((resolve, reject) => {
       const req = indexedDB.open('chantierpilot-terrain-v1', 1);
       req.onupgradeneeded = () => {
@@ -356,7 +385,7 @@ try {
         const tx = db.transaction('entries', 'readonly');
         const all = tx.objectStore('entries').getAll();
         all.onsuccess = () => { db.close(); resolve(all.result); };
-        all.onerror = () => reject(all.error);
+        tx.onerror = () => reject(all.error);
       };
       req.onerror = () => reject(req.error);
     });
@@ -371,6 +400,7 @@ try {
 
   assert.equal(swCheck.activeState, 'activated', 'Service worker actif');
   assert.ok(!swCheck.cacheKeys.includes('cp-shell-legacy-old'), 'L’ancien cache HTTP obsolète a été nettoyé');
+  assert.ok(!swCheck.cacheKeys.includes('chantierpilot-legacy-v0'), 'Les très anciens caches pré-rollout ont été nettoyés aussi');
   assert.ok(swCheck.cacheKeys.some((k) => k.startsWith('cp-shell-')), 'Le cache shell courant est actif');
   assert.equal(swCheck.idbCount, 1, 'IndexedDB chantierpilot-terrain-v1 n’est JAMAIS effacée lors de la mise à jour du SW');
   assert.equal(swCheck.preservedTitle, 'Saisie terrain hors ligne précieuse');
@@ -380,7 +410,9 @@ try {
 } finally {
   await sharedCtx.close();
   await browser.close();
+  web.closeAllConnections?.();
   web.close();
   apiProc.kill();
   await pg.stop();
 }
+process.exit(0);
