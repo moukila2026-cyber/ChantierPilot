@@ -1,7 +1,9 @@
 // Cache public de la coque uniquement ; aucune réponse API, aucune photo privée
-// et aucune altération des saisies terrain locales (file hors connexion préservée intégralement).
+// et aucune altération des saisies terrain locales (file hors connexion IndexedDB préservée intégralement).
 const PRECACHE = __PRECACHE__;
 const CACHE = __CACHE_NAME__;
+const PRIMARY_CSS = PRECACHE.find((p) => /^\/assets\/index-[^/]+\.css$/.test(p)) || '';
+const HASHED_INDEX_CSS_RE = /^\/assets\/index-[A-Za-z0-9_-]+\.css$/;
 const STATIC_ASSET_RE = /\.(?:css|js|mjs|png|jpg|jpeg|gif|webp|avif|svg|ico|woff2?|ttf|wasm|bcmap|webmanifest)$/i;
 
 function isValidAssetResponse(pathname, response) {
@@ -30,13 +32,19 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  // Nettoyage exclusif des anciens CacheStorage de la coque.
-  // IndexedDB (saisies terrain et file de synchronisation) n'est jamais touché.
+  // Nettoyage complet de TOUS les anciens CacheStorage HTTP obsolètes (y compris les versions historiques).
+  // IndexedDB (chantierpilot-terrain-v1 : saisies terrain et file de synchronisation) n'est JAMAIS touché.
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('cp-shell-') && k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim()),
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
+      .then(async () => {
+        const windows = await self.clients.matchAll({ type: 'window' });
+        for (const client of windows) {
+          client.postMessage({ type: 'CP_SW_ACTIVATED', cache: CACHE });
+        }
+      }),
   );
 });
 
@@ -47,7 +55,7 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: 'no-store' })
         .then((response) => {
           if (response.ok && (url.pathname === '/' || url.pathname === '/terrain')) {
             const copy = response.clone();
@@ -62,6 +70,19 @@ self.addEventListener('fetch', (event) => {
           if (terrain) return terrain;
           return caches.match('/', { ignoreVary: true });
         }),
+    );
+    return;
+  }
+
+  // Auto-réparation CSS : si un onglet resté sur un ancien HTML réclame un ancien bundle index-<hash>.css
+  // supprimé lors d'un redéploiement Vercel, on lui sert la feuille CSS universelle courante au lieu d'un 404.
+  if (HASHED_INDEX_CSS_RE.test(url.pathname) && !PRECACHE.includes(url.pathname) && PRIMARY_CSS) {
+    event.respondWith(
+      caches.open(CACHE).then(async (cache) => {
+        const fallbackCss = await cache.match(PRIMARY_CSS, { ignoreVary: true });
+        if (fallbackCss && isValidAssetResponse(PRIMARY_CSS, fallbackCss)) return fallbackCss;
+        return fetch(PRIMARY_CSS);
+      }),
     );
     return;
   }

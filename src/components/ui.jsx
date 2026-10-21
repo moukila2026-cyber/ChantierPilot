@@ -101,7 +101,7 @@ export function Textarea({ error, className = '', ...props }) {
 
 export function Card({ children, className = '', pad = true }) {
   return (
-    <div className={`rounded-2xl border border-[#e3ddd0] bg-white shadow-sm ${pad ? 'p-4 sm:p-6' : ''} ${className}`}>
+    <div className={`cp-card-surface rounded-2xl ${pad ? 'p-4 sm:p-6' : ''} ${className}`}>
       {children}
     </div>
   );
@@ -118,16 +118,16 @@ export function StatCard({ label, value, sub, tone = 'slate', featured = false }
     );
   }
   const tones = {
-    slate: 'border-[#e3ddd0]',
-    default: 'border-[#e3ddd0]',
-    green: 'border-emerald-300',
-    red: 'border-rose-300',
-    amber: 'border-[#e6ce96]',
-    gold: 'border-[#e6ce96]',
-    blue: 'border-sky-300',
-  }[tone] || 'border-[#e3ddd0]';
+    slate: 'border-[#dfd8c8] border-t-2 border-t-[#141210]',
+    default: 'border-[#dfd8c8] border-t-2 border-t-[#141210]',
+    green: 'border-emerald-300 border-t-2 border-t-emerald-600 bg-emerald-50/25',
+    red: 'border-rose-300 border-t-2 border-t-rose-600 bg-rose-50/25',
+    amber: 'border-[#e6ce96] border-t-2 border-t-[#e5a93b] bg-[#fdf8ec]/45',
+    gold: 'border-[#e6ce96] border-t-2 border-t-[#e5a93b] bg-[#fdf8ec]/45',
+    blue: 'border-sky-300 border-t-2 border-t-sky-600',
+  }[tone] || 'border-[#dfd8c8] border-t-2 border-t-[#141210]';
   return (
-    <div className={`rounded-2xl border ${tones} bg-white p-4 shadow-sm`}>
+    <div className={`cp-card-surface rounded-2xl ${tones} p-4`}>
       <p className="text-xs font-bold uppercase tracking-wide text-[#574f45]">{label}</p>
       <p className="mt-1.5 text-lg font-extrabold tabular text-[#141210] sm:text-xl">{value}</p>
       {sub && <p className="mt-1 text-xs text-[#574f45]">{sub}</p>}
@@ -284,18 +284,16 @@ export function Pagination({ pagination, onPageChange }) {
 
 export function PageHeader({ title, subtitle, actions, eyebrow }) {
   return (
-    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        {eyebrow && (
-          <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.16em] text-[#854d0e]">
-            {eyebrow}
-          </p>
-        )}
-        <h1 className="text-2xl font-extrabold tracking-tight text-[#141210]">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-[#574f45]">{subtitle}</p>}
+    <section className="cp-charcoal-panel mb-6 flex flex-col gap-4 rounded-3xl p-5 shadow-lg sm:flex-row sm:items-center sm:justify-between sm:p-6">
+      <div className="min-w-0 border-l-4 border-[#eab956] pl-4">
+        <p className="mb-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#eab956]">
+          {eyebrow || 'ChantierPilot · Gestion BTP'}
+        </p>
+        <h1 className="text-2xl font-extrabold tracking-tight text-[#fbf8f1] sm:text-3xl">{title}</h1>
+        {subtitle && <p className="mt-1 text-sm leading-6 text-[#dfd9ce]">{subtitle}</p>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
-    </div>
+      {actions && <div className="flex flex-wrap items-center gap-2 sm:justify-end">{actions}</div>}
+    </section>
   );
 }
 

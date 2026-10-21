@@ -305,16 +305,16 @@ export default function DocumentsPage() {
       </div>
 
       {error && !modal && <div className="mb-4"><Alert type="error">{error}</Alert></div>}
-      {notice && <div className="mb-4"><Alert>{notice}</Alert></div>}
+      {notice && <div className="mb-4"><Alert type="success">{notice}</Alert></div>}
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard featured label="Devis à suivre" value={data.summary.open_quotes} />
-        <StatCard label="Facturé net des avoirs" value={formatFcfa(data.summary.net_billed)} />
-        <StatCard label="Solde facturé à encaisser" value={formatFcfa(data.summary.outstanding)} />
-        <StatCard label="Factures échues non soldées" value={data.summary.overdue} />
+        <StatCard tone="green" label="Facturé net des avoirs" value={formatFcfa(data.summary.net_billed)} />
+        <StatCard tone="gold" label="Solde facturé à encaisser" value={formatFcfa(data.summary.outstanding)} />
+        <StatCard tone={data.summary.overdue > 0 ? 'red' : 'slate'} label="Factures échues non soldées" value={data.summary.overdue} />
       </div>
 
-      <div className="mb-5 flex flex-wrap gap-3">
+      <div className="cp-filter-bar mb-5 flex flex-wrap gap-3">
         <Input aria-label="Rechercher un document" className="max-w-sm" placeholder="Client, numéro, travaux…" value={search} onChange={(e) => setSearch(e.target.value)} />
         <Select aria-label="Type de document" className="max-w-44" value={filter} onChange={(e) => setFilter(e.target.value)}>
           {[['all', 'Tous'], ['quote', 'Devis'], ['invoice', 'Factures'], ['credit', 'Avoirs']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}

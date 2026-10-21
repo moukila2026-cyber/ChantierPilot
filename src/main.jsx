@@ -20,10 +20,21 @@ createRoot(document.getElementById('root')).render(
 
 // Purge automatique des anciens CacheStorage HTTP obsolètes (jamais d'IndexedDB :
 // toutes les saisies hors connexion dans chantierpilot-terrain-v1 restent intactes)
-// et enregistrement versionné du Service Worker pour contourner tout cache HTTP 24h.
+// et rafraîchissement doux unique si une nouvelle version du Service Worker s'active.
 async function syncServiceWorkerSafely() {
   if (!('serviceWorker' in navigator)) return;
   const expectedCache = document.querySelector('meta[name="cp-cache-version"]')?.getAttribute('content') || '';
+
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    const incomingCache = event.data?.cache;
+    if (event.data?.type === 'CP_SW_ACTIVATED' && incomingCache && expectedCache && incomingCache !== expectedCache) {
+      const guardKey = `cp-reloaded-${incomingCache}`;
+      if (!sessionStorage.getItem(guardKey)) {
+        sessionStorage.setItem(guardKey, '1');
+        window.location.reload();
+      }
+    }
+  });
 
   try {
     if ('caches' in window && expectedCache) {

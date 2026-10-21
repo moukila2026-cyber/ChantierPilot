@@ -196,12 +196,18 @@ export default function ProjectsPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Portefeuille BTP"
         title="Chantiers"
-        subtitle={isAdmin ? "Créez, modifiez et archivez vos chantiers." : "Consultez les chantiers de votre entreprise et saisissez les opérations de terrain."}
-        actions={isAdmin ? <Button onClick={() => { setEditTarget(null); setFields({}); setModalOpen(true); }}>+ Nouveau chantier</Button> : null}
+        subtitle={isAdmin ? "Créez, suivez en FCFA et archivez l’ensemble de vos chantiers." : "Consultez les chantiers de votre entreprise et saisissez les opérations de terrain."}
+        actions={isAdmin ? (
+          <div className="flex flex-wrap gap-2">
+            <Link to="/photos"><Button variant="secondary">📷 Photos & reçus</Button></Link>
+            <Button onClick={() => { setEditTarget(null); setFields({}); setModalOpen(true); }}>+ Nouveau chantier</Button>
+          </div>
+        ) : <Link to="/photos"><Button>📷 Photos & reçus</Button></Link>}
       />
 
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="cp-filter-bar mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
           <Input
             value={search}

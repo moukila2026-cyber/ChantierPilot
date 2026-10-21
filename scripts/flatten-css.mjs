@@ -1,11 +1,12 @@
 // Transforme le CSS généré par Tailwind CSS v4 en CSS3 universel compatible
 // tous navigateurs desktop & mobiles (y compris Safari/iOS anciens, Android WebView,
-// Chrome/Edge anciens) :
+// Samsung Internet, Firefox, Chrome/Edge toutes versions) :
 //   1. Remplace les variables initialisées via @property par une règle universelle *,::before,::after
-//   2. Aplatit tous les blocs @layer dans l'ordre exact de cascade CSS
+//   2. Aplatit tous les blocs @layer et @media (hover: hover) dans l'ordre exact de cascade CSS
 //   3. Supprime les surcharges progressives @supports (color: color-mix(...))
 //   4. Convertit mathématiquement toutes les couleurs oklch(...) et oklab(...) en #hex / rgba(...)
-//   5. Passe par esbuild CSS target safari13 / chrome79 (convertit inset, logical props, #rrggbbaa, etc.)
+//   5. Remplace les unités récentes (1lh) et passe par esbuild CSS target large (safari11.1 / chrome61)
+//      pour convertir margin-inline, padding-inline, inset-inline, inset, #rrggbbaa en pur CSS3.
 
 import * as esbuild from 'esbuild';
 
@@ -82,7 +83,6 @@ export function convertOklchAndOklab(css) {
   return out;
 }
 
-// Extrait un bloc équilibré { ... } à partir de l'accolade ouvrante à `openIdx`.
 function findMatchingBrace(src, openIdx) {
   let depth = 0;
   let quote = '';
@@ -160,7 +160,7 @@ export async function flattenToUniversalCss(rawCss) {
     return false;
   });
 
-  // 2. Retire @supports contenant color-mix / lab / -webkit-hyphens (le fallback universel est fourni via propertyDefaults)
+  // 2. Retire @supports contenant color-mix / lab / -webkit-hyphens
   step1 = stripAtBlocks(step1, (header) => {
     if (
       header.startsWith('@supports')
@@ -171,12 +171,15 @@ export async function flattenToUniversalCss(rawCss) {
     return false;
   });
 
-  // 3. Déplie tous les @layer <nom> { ... } en conservant exactement leur ordre d'apparition
+  // 3. Déplie tous les @layer <nom> { ... } et @media (hover: hover) { ... } dans l'ordre exact
   let unlayered = step1;
-  while (unlayered.includes('@layer')) {
+  while (unlayered.includes('@layer') || /@media\s*\(\s*hover\s*:\s*hover\s*\)/i.test(unlayered)) {
     unlayered = stripAtBlocks(unlayered, (header, inner) => {
       if (header.startsWith('@layer')) {
         return inner === null ? '' : inner;
+      }
+      if (/^@media\s*\(\s*hover\s*:\s*hover\s*\)$/i.test(header) && inner !== null) {
+        return inner;
       }
       return false;
     });
@@ -187,17 +190,39 @@ export async function flattenToUniversalCss(rawCss) {
     ? `*,::before,::after,::backdrop{${propertyDefaults.join(';')}}`
     : '';
 
-  // 5. Convertit toutes les couleurs oklch() / oklab() en #hex / rgba()
+  // 5. Convertit toutes les couleurs oklch() / oklab() en #hex / rgba(), remplace 1lh,
+  //    et convertit 100 % des propriétés logiques CSS (margin-inline, padding-inline, inset-inline, etc.)
+  //    en propriétés physiques CSS2/CSS3 universelles reconnues sur tous les navigateurs et WebViews mobiles.
   let clean = convertOklchAndOklab(`${initBlock}\n${unlayered}`);
-  // Nettoyage de sûreté si un color-mix résiduel subsistait (ex. placeholder)
   clean = clean.replace(/color-mix\([^)]*\)/gi, 'rgba(120,113,108,0.65)');
+  clean = clean.replace(/\b1lh\b/g, '1.5em');
 
-  // 6. Passe finale esbuild synchrone (aucun démon résident ; cible navigateurs larges : convertit inset, padding-inline, #rrggbbaa, etc.)
+  // 6. Passe esbuild puis conversion physique explicite des propriétés logiques résiduelles
   const result = esbuild.transformSync(clean, {
     loader: 'css',
-    target: ['chrome79', 'safari13', 'ios13', 'firefox72'],
+    target: ['chrome61', 'safari11.1', 'ios11.3', 'firefox60', 'edge79'],
     minify: true,
   });
 
-  return result.code;
+  let universal = result.code
+    .replace(/margin-inline-start:([^;}]+)/g, 'margin-left:$1')
+    .replace(/margin-inline-end:([^;}]+)/g, 'margin-right:$1')
+    .replace(/margin-inline:([^;}]+)/g, 'margin-left:$1;margin-right:$1')
+    .replace(/margin-block-start:([^;}]+)/g, 'margin-top:$1')
+    .replace(/margin-block-end:([^;}]+)/g, 'margin-bottom:$1')
+    .replace(/margin-block:([^;}]+)/g, 'margin-top:$1;margin-bottom:$1')
+    .replace(/padding-inline-start:([^;}]+)/g, 'padding-left:$1')
+    .replace(/padding-inline-end:([^;}]+)/g, 'padding-right:$1')
+    .replace(/padding-inline:([^;}]+)/g, 'padding-left:$1;padding-right:$1')
+    .replace(/padding-block-start:([^;}]+)/g, 'padding-top:$1')
+    .replace(/padding-block-end:([^;}]+)/g, 'padding-bottom:$1')
+    .replace(/padding-block:([^;}]+)/g, 'padding-top:$1;padding-bottom:$1')
+    .replace(/inset-inline-start:([^;}]+)/g, 'left:$1')
+    .replace(/inset-inline-end:([^;}]+)/g, 'right:$1')
+    .replace(/inset-inline:([^;}]+)/g, 'left:$1;right:$1')
+    .replace(/inset-block-start:([^;}]+)/g, 'top:$1')
+    .replace(/inset-block-end:([^;}]+)/g, 'bottom:$1')
+    .replace(/inset-block:([^;}]+)/g, 'top:$1;bottom:$1');
+
+  return universal;
 }

@@ -122,9 +122,15 @@ export default function ExpensesPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Trésorerie & Achats"
         title="Dépenses"
-        subtitle="Toutes les dépenses de votre entreprise, tous chantiers confondus."
-        actions={<Button onClick={() => { setEditTarget(null); setFields({}); setModalOpen(true); }} disabled={state.projects.length === 0}>+ Nouvelle dépense</Button>}
+        subtitle="Toutes les dépenses de votre entreprise, avec recherche instantanée et photos de reçus."
+        actions={(
+          <div className="flex flex-wrap gap-2">
+            <Link to="/photos"><Button variant="secondary">📷 Photos & reçus</Button></Link>
+            <Button onClick={() => { setEditTarget(null); setFields({}); setModalOpen(true); }} disabled={state.projects.length === 0}>+ Nouvelle dépense</Button>
+          </div>
+        )}
       />
 
       {state.projects.length === 0 && !state.loading && (

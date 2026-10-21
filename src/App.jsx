@@ -1,6 +1,7 @@
 import AdvancedPage from './pages/AdvancedPage.jsx';
 import OperationsPage from './pages/OperationsPage.jsx';
 import DocumentsPage from './pages/DocumentsPage.jsx';
+import PhotosPage from './pages/PhotosPage.jsx';
 import OperatorPage from './pages/OperatorPage.jsx';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext.jsx';
@@ -54,6 +55,7 @@ export default function App() {
     <Routes>
       <Route path="/gestion" element={<RequireAuth><AdvancedPage /></RequireAuth>} />
       <Route path="/terrain" element={<RequireAuth><OperationsPage /></RequireAuth>} />
+      <Route path="/photos" element={<RequireAuth><PhotosPage /></RequireAuth>} />
       <Route path="/documents" element={<RequireAuth><DocumentsPage /></RequireAuth>} />
       <Route path="/shopin30" element={<RequireAuth><OperatorPage /></RequireAuth>} />
       <Route path="/connexion" element={<PublicOnly><LoginPage /></PublicOnly>} />

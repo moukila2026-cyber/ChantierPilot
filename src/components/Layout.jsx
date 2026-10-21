@@ -53,6 +53,12 @@ const NAV_GROUPS = [
     group: 'Terrain & coordination',
     items: [
       {
+        to: '/photos',
+        label: 'Photos & reçus',
+        keywords: 'camera appareil photo prise photo recus factures preuves justificatifs galerie zoom',
+        icon: 'M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z',
+      },
+      {
         to: '/terrain',
         label: 'Carnet de chantier',
         keywords: 'terrain journal photo taches reserves caisse avances presences ouvriers achats stock hors ligne',
@@ -101,6 +107,7 @@ const DEEP_SHORTCUTS = [
 const MOBILE_BAR = [
   { to: '/', label: 'Accueil', icon: 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM13.5 6A2.25 2.25 0 0115.75 3.75H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z' },
   { to: '/chantiers', label: 'Chantiers', icon: 'M8.25 21v-5.25c0-.621.504-1.125 1.125-1.125h7.5c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3.545l-4.5 1.636M2.25 9l4.5 1.636M2.25 9v10.125M2.25 9l13.5-4.909' },
+  { to: '/photos', label: 'Photos', icon: 'M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z' },
   { to: '/terrain', label: 'Terrain', icon: 'M9 3h6v4H9zM6 5H4v16h16V5h-2M8 11h8M8 15h8' },
   { to: '/depenses', label: 'Dépenses', icon: 'M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z' },
 ];
@@ -393,7 +400,7 @@ export default function Layout({ children }) {
       {/* Barre d’accès rapide mobile */}
       <nav
         aria-label="Accès rapides mobile"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-[#eab956]/25 bg-[#141210]/95 px-1 pb-[env(safe-area-inset-bottom)] pt-1 backdrop-blur lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-[#eab956]/25 bg-[#141210]/95 px-1 pb-[env(safe-area-inset-bottom)] pt-1 backdrop-blur lg:hidden"
       >
         {MOBILE_BAR.map((item) => (
           <NavLink

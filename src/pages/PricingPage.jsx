@@ -70,7 +70,7 @@ export default function PricingPage({ standalone = false }) {
       </div>
     </div>
     {error && <div className="mt-5"><Alert type="error">{error}</Alert></div>}
-    {message && <div className="mt-5"><Alert>{message}</Alert></div>}
+    {message && <div className="mt-5"><Alert type="success">{message}</Alert></div>}
     {status === 'auth' && !data && !error && <p className="mt-5" role="status">Chargement de votre abonnement…</p>}
     {data && <section className="mt-7 rounded-2xl border border-slate-200 bg-white p-6" aria-label="Mon abonnement">
       <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">Mon espace · {data.status === 'essai' ? 'Essai Essentiel' : data.plan.name}</h2>

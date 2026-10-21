@@ -123,9 +123,15 @@ export default function PaymentsPage() {
   return (
     <div>
       <PageHeader
+        eyebrow="Trésorerie & Clients"
         title="Encaissements"
         subtitle="Paiements clients déclarés, documentés par une référence — prouvés lorsqu’un justificatif est joint."
-        actions={<Button onClick={() => { setEditTarget(null); setFields({}); setModalOpen(true); }} disabled={state.projects.length === 0}>+ Nouvel encaissement</Button>}
+        actions={(
+          <div className="flex flex-wrap gap-2">
+            <Link to="/photos"><Button variant="secondary">📷 Photos & reçus</Button></Link>
+            <Button onClick={() => { setEditTarget(null); setFields({}); setModalOpen(true); }} disabled={state.projects.length === 0}>+ Nouvel encaissement</Button>
+          </div>
+        )}
       />
 
       {state.projects.length === 0 && !state.loading && (
