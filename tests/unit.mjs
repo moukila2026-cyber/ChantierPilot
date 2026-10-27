@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { buildProjectReport } from '../api/_lib/pdf.js';
 import { api } from '../src/lib/api.js';
 import { runMonitor } from '../scripts/monitor.mjs';
+import { summarizeFailure } from '../scripts/ci-report-failure.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let passed = 0;
@@ -197,6 +198,35 @@ function vercelFunctions(dir = path.join(ROOT, 'api'), rel = 'api') {
   }
   return out;
 }
+
+await test('CI : un résumé d’échec ne divulgue pas les valeurs des fixtures', () => {
+  const marker = 'fixture-privee-ne-pas-afficher';
+  const summary = summarizeFailure(`> chantierpilot@1.0.0 test:features\nTimeoutError ${marker}`, 'test:all');
+  assert.equal(summary.includes(marker), false);
+  assert.equal(summary.includes('test:features'), true);
+  assert.equal(summary.includes('TimeoutError'), true);
+});
+
+await test('Build : aucun accès automatique à la base, y compris sur Vercel', () => {
+  const marker = 'fixture-privee-ne-pas-afficher';
+  for (const extra of [
+    { VERCEL: '1', NODE_ENV: 'production', FORCE_SAFE_MIGRATE: '1' },
+    { NODE_ENV: 'test', FORCE_SAFE_MIGRATE: '1' },
+  ]) {
+    const child = spawnSync(process.execPath, ['scripts/build-vercel.mjs'], {
+      cwd: ROOT, env: isolatedTestEnv({ ...extra, DATABASE_URL_ADMIN: marker }),
+      encoding: 'utf8', timeout: 3000,
+    });
+    assert.equal(child.status, 0, 'Le build ne doit pas accéder à une base.');
+    assert.equal((child.stdout + child.stderr).includes(marker), false);
+  }
+  const refused = spawnSync(process.execPath, ['scripts/build-vercel.mjs', '--cible-isolee-confirmee'], {
+    cwd: ROOT, env: isolatedTestEnv({ VERCEL: '1', NODE_ENV: 'test', DATABASE_URL_ADMIN: marker }),
+    encoding: 'utf8', timeout: 3000,
+  });
+  assert.equal(refused.status, 1, 'Le diagnostic manuel doit être interdit sur Vercel.');
+  assert.equal((refused.stdout + refused.stderr).includes(marker), false);
+});
 
 await test('Vercel : au plus 12 fonctions serverless (limite du plan Hobby)', () => {
   const fns = vercelFunctions();

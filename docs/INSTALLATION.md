@@ -1,5 +1,7 @@
 # Installation (développement & Neon)
 
+> **Prudence — migration non validée pour une cible réelle.** Les commandes historiques ci-dessous ne doivent pas être lancées sur une base réelle sans revue, sauvegarde, restauration testée et autorisation. Le chemin général peut modifier des essais et des droits ; suivre d'abord [migration et préproduction](MIGRATIONS_ET_PREPROD.md). Le build ne lance plus de migration automatique.
+
 ## 1. Prérequis
 
 - Node.js ≥ 20
@@ -36,7 +38,7 @@ L'API tourne avec le rôle **limité** `chantierpilot_app` (le RLS est donc rée
 2. Créez le fichier `.env` (voir `.env.example`) :
 
 ```env
-DATABASE_URL_ADMIN=postgresql://<propriétaire>:<motdepasse>@<ep>.neon.tech/neondb?sslmode=require
+# Configurez la connexion à la base de test en privé, sans afficher sa valeur.
 APP_DB_PASSWORD=<mot_de_passe_solide_pour_le_rôle_app>
 ```
 
@@ -70,7 +72,7 @@ Les tests démarrent leur propre PostgreSQL isolé et imposent explicitement leu
 | --- | --- |
 | `npm run dev` | PostgreSQL local (si besoin) + migration + API + interface |
 | `npm run build` | Build de production (dans `dist/`) |
-| `npm run migrate` | Applique `db/schema.sql` + `db/rls.sql` sur `DATABASE_URL_ADMIN` (à défaut `DATABASE_URL`) |
+| `npm run migrate` | Applique le schéma, les politiques et la migration de quota sur `DATABASE_URL_ADMIN` (à défaut `DATABASE_URL`) ; la migration générale n'est pas purement additive |
 | `npm run db:test-rls` | Vérifie l'isolation multi-entreprise au niveau SQL |
 | `npm run test` | Tests d'intégration de bout en bout |
 
@@ -91,6 +93,6 @@ Les tests démarrent leur propre PostgreSQL isolé et imposent explicitement leu
 | `DATABASE_URL_ADMIN est absente` (migration) | Exportez l'URL propriétaire dans le terminal ou renseignez `.env` (mode B) |
 | `permission denied for schema public` (migration) | Code antérieur à la V1.2 : mettez à jour le dépôt (`db/rls.sql` corrigé pour les propriétaires non superuser) |
 | `SÉCURITÉ — connexion refusée : … superuser ou BYPASSRLS` | `DATABASE_URL` utilise le propriétaire de la base. Utilisez le rôle `chantierpilot_app` créé par la migration |
-| `relation … does not exist` | Lancez `npm run migrate` |
+| `relation … does not exist` | Vérifiez la cible et le plan de migration ; ne lancez pas la migration générale sur une base réelle sans les prérequis et l'autorisation |
 | Port déjà utilisé (55432, 8787, 5173) | Une ancienne session tourne encore : arrêtez-la ou changez `PG_PORT` / `API_PORT` |
 | `initdb: error: invalid locale name` | Utilisez `server/embedded-pg.mjs` (il force `C.UTF8`) — ne passez pas par la librairie `embedded-postgres` directement |

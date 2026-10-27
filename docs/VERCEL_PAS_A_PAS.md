@@ -1,5 +1,7 @@
 # Vercel + Neon pas à pas — de zéro à l'application en ligne
 
+> **Prudence — migration non validée pour une cible réelle.** Les commandes historiques ci-dessous ne doivent pas être lancées sur une base réelle sans revue, sauvegarde, restauration testée et autorisation. Le chemin général peut modifier des essais et des droits ; suivre d'abord [migration et préproduction](MIGRATIONS_ET_PREPROD.md). Le build ne lance plus de migration automatique.
+
 Ce guide mène **d'aucun compte jusqu'à l'application en production**, avec une
 **préproduction** séparée. Comptez 1 h 30 la première fois.
 

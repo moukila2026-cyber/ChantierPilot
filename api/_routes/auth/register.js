@@ -4,14 +4,19 @@
 import { withTenant } from '../../_lib/db.js';
 import { hashPassword, setSessionCookie, sha256hex, newSessionToken, SESSION_TTL_MS } from '../../_lib/auth.js';
 import { registerSchema, parseOrThrow } from '../../_lib/validate.js';
-import { readJsonBody, rateLimit, sendJson, fail, methodNotAllowed, handle } from '../../_lib/http.js';
+import { readJsonBody, sendJson, fail, methodNotAllowed, handle } from '../../_lib/http.js';
+import { registrationRateLimit } from '../../_lib/register-rate-limit.js';
 import { run, audit } from '../../_lib/pipeline.js';
 import crypto from 'node:crypto';
 
 export default async function handler(req, res) {
   await handle(req, res, async () => {
     if (req.method !== 'POST') return methodNotAllowed(res, 'POST');
-    const rl = rateLimit(req, 'register', 10, 60 * 60 * 1000);
+    const rl = await registrationRateLimit(req);
+    if (rl.unavailable) {
+      return fail(res, 503, 'limitation_indisponible',
+        'Inscription temporairement indisponible. Réessayez plus tard ou contactez le support.');
+    }
     if (!rl.ok) {
       res.setHeader('Retry-After', String(rl.retryAfter));
       return fail(res, 429, 'trop_de_tentatives', `Trop d'inscriptions depuis cette adresse. Réessayez dans ${rl.retryAfter} s.`);

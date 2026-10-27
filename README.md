@@ -63,6 +63,7 @@ npm run test:all        # suites API, migrations, unitaires et navigateurs exist
 npm run test:browser    # parcours produit supplémentaires, PostgreSQL temporaire isolé
 npm run db:test-rls     # tests d'isolation RLS avec deux entreprises fictives
 npm run test:migration  # simulation de migration sur base isolée
+npm run test:rate-limit # quota partagé, concurrence et refus sûr en base isolée
 npm run test:unit       # validation, CSV, montants, PDF, routeur et limites Vercel
 npm run test            # intégration API, quotas, facturation et droits
 ```
@@ -98,7 +99,7 @@ npm run test            # intégration API, quotas, facturation et droits
 2. **Rôle de connexion limité** (`chantierpilot_app`) : l'API **refuse de démarrer** avec un rôle superuser/BYPASSRLS (garde de sécurité active).
 3. **Mots de passe** : scrypt (sel aléatoire, comparaison à temps constant) — jamais en clair, jamais dans le navigateur.
 4. **Sessions** : jetons opaques, seul leur hash SHA-256 est stocké, cookies `HttpOnly` (+ `Secure` et préfixe `__Host-` en production).
-5. **Anti-force brute** : limitation de débit + verrouillage de compte persistant en base.
+5. **Anti-force brute** : quota d'inscription partagé en base après application contrôlée de sa migration ; connexion limitée par instance avec verrouillage de compte persistant. La limitation d'inscription renvoie 503 si sa base ou sa migration est indisponible.
 6. **Anti-CSRF** : vérification d'origine + cookies `SameSite`.
 7. **Validation serveur ET base** : zod + contraintes `CHECK` (montants entiers FCFA bornés, dates cohérentes).
 8. **Journal d'audit** inaltérable (pas d'UPDATE/DELETE possibles).
@@ -106,13 +107,13 @@ npm run test            # intégration API, quotas, facturation et droits
 
 Détail complet : [docs/SECURITE.md](docs/SECURITE.md).
 
-## Déploiement (production)
+## Préparation du déploiement — production non autorisée
 
-1. Créer une base **Neon** (PostgreSQL) — sans l'intégration automatique Vercel, qui injecterait l'URL du propriétaire.
-2. Exécuter `node db/migrate.mjs` avec `DATABASE_URL_ADMIN` (crée schéma, RLS et le rôle `chantierpilot_app`).
-3. Déployer sur **Vercel** avec `DATABASE_URL` = URL du rôle **limité** `chantierpilot_app` — jamais l'URL administrateur.
+Un build ne lance plus automatiquement de migration ni de sauvegarde. Le parcours de mot de passe oublié et un préflight strict restent à construire ; l'application n'est donc pas déclarée prête pour la production. La nouvelle protection d'inscription nécessite sa migration SQL : sans elle, les inscriptions échouent volontairement avec une erreur 503.
 
-**Plan complet (préproduction, sécurité, juridique, sauvegardes, budget) : [docs/PLAN_MISE_EN_PRODUCTION.md](docs/PLAN_MISE_EN_PRODUCTION.md).**
+Avant toute cible réelle, revoir les migrations, disposer d'une sauvegarde et tester sa restauration sur une base isolée. Tester d'abord la migration en préproduction, puis envisager une application séparée en production par la personne autorisée. **Ne pas lancer `npm run migrate` sur la production en l'état :** la migration générale modifie aussi certains essais et privilèges. Les bases Preview et Production doivent être séparées et l'API doit employer le rôle applicatif limité.
+
+Détails et ordre des opérations : [docs/MIGRATIONS_ET_PREPROD.md](docs/MIGRATIONS_ET_PREPROD.md). Plan complet : [docs/PLAN_MISE_EN_PRODUCTION.md](docs/PLAN_MISE_EN_PRODUCTION.md).
 Guide pas à pas complet (de zéro au produit fini) : [docs/VERCEL_PAS_A_PAS.md](docs/VERCEL_PAS_A_PAS.md) · Détails : [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md) · [docs/INSTALLATION.md](docs/INSTALLATION.md).
 Sauvegardes & exports : [docs/SAUVEGARDES.md](docs/SAUVEGARDES.md).
 Authentification managée (Neon Auth, optionnel) : [docs/NEON_AUTH.md](docs/NEON_AUTH.md).

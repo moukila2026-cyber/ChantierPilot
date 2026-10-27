@@ -1,5 +1,7 @@
 # Déploiement sur Vercel + Neon (référence technique)
 
+> **Prudence — migration non validée pour une cible réelle.** Les commandes historiques ci-dessous ne doivent pas être lancées sur une base réelle sans revue, sauvegarde, restauration testée et autorisation. Le chemin général peut modifier des essais et des droits ; suivre d'abord [migration et préproduction](MIGRATIONS_ET_PREPROD.md). Le build ne lance plus de migration automatique.
+
 Procédure détaillée, écran par écran : [VERCEL_PAS_A_PAS.md](VERCEL_PAS_A_PAS.md).
 Plan d'ensemble (préproduction, sécurité, juridique, budget) : [PLAN_MISE_EN_PRODUCTION.md](PLAN_MISE_EN_PRODUCTION.md).
 

@@ -54,6 +54,7 @@ async function main() {
 
   const schema = stripTransactionMarkers(readFileSync(path.join(ROOT, 'db', 'schema.sql'), 'utf8'));
   const rls = stripTransactionMarkers(readFileSync(path.join(ROOT, 'db', 'rls.sql'), 'utf8'));
+  const registerLimit = readFileSync(path.join(ROOT, 'db', 'migrations', '20261027_register_rate_limit.sql'), 'utf8');
 
   try {
     console.log('· Application du schéma (db/schema.sql)…');
@@ -62,6 +63,9 @@ async function main() {
     console.log('· Application des politiques RLS (db/rls.sql)…');
     await client.query(rls);
     console.log('  ✓ RLS activé et forcé sur toutes les tables');
+    console.log('· Application de la migration additive du quota d’inscription…');
+    await client.query(registerLimit);
+    console.log('  ✓ quota d’inscription préparé');
 
     // Rôle applicatif : connexion LIMITÉE (jamais superuser — le RLS s'applique).
     const appPassword = process.env.APP_DB_PASSWORD || null;

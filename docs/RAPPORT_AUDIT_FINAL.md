@@ -17,7 +17,9 @@ L'[inventaire détaillé des interactions](INVENTAIRE_BOUTONS.md) contient **500
 | Exports | Cellules texte à risque de formule neutralisées dans les CSV ; cinq téléchargements administrateur exercés. L'interface signale que l'export JSON est partiel et ne remplace pas une sauvegarde serveur. | `api/_lib/csv.js`, `api/_routes/export.js`, `src/pages/SettingsPage.jsx`, `tests/browser-interactions.mjs` |
 | Journaux et tests isolés | Migration, API et serveur local ne publient plus de message, détail ou objet d'erreur brut dans les journaux ; une liste fermée de codes techniques reste disponible. Les suites npm utilisent un environnement minimal et ne chargent pas `.env` en mode test. | `db/migrate.mjs`, `api/_lib/safe-log.js`, `server/env.mjs`, `tests/helpers/`, suites de test |
 | Surveillance | Une sonde HTTP en lecture seule est disponible sans afficher la cible. Son mode strict échoue tant que l'API ne déclare pas explicitement une disponibilité complète ; elle ne remplace pas un préflight. | `scripts/monitor.mjs`, `tests/unit.mjs`, `package.json` |
-| Documentation et CI | Documentation de sauvegarde et de reprise corrigée ; étapes navigateur et audit ajoutées à la configuration CI. La CI distante a réussi sur le commit initial de la PR ; les nouvelles modifications doivent y être vérifiées après publication. | `CHANGELOG.md`, `CORRECTIONS_POST_AUDIT.md`, `SAUVEGARDES.md`, `.github/workflows/ci.yml` |
+| Inscription multi-instance | Quota partagé par IP sur une heure glissante, contrôlé atomiquement en base ; refus sûr en cas d'indisponibilité. Migration et tests sur base jetable uniquement ; en absence de migration sur une cible, les inscriptions y renverront 503. | `api/_lib/register-rate-limit.js`, `api/_routes/auth/register.js`, `db/migrations/20261027_register_rate_limit.sql`, `tests/register-rate-limit.mjs` |
+| Build et migration | Les builds Vercel n'accèdent plus automatiquement à la base et ne lancent plus de copie ou de migration ; procédure de revue et préproduction ajoutée. Les accès éventuels des anciens builds restent à vérifier. | `scripts/build-vercel.mjs`, `docs/MIGRATIONS_ET_PREPROD.md`, `tests/unit.mjs` |
+| Documentation et CI | Documentation de sauvegarde et de reprise corrigée ; étapes navigateur et audit ajoutées. Les deux jobs `quality` du commit `e219afc` ont échoué, sans journaux détaillés accessibles depuis le sandbox ; les nouveaux contrôles devront être examinés après publication. | `CHANGELOG.md`, `CORRECTIONS_POST_AUDIT.md`, `SAUVEGARDES.md`, `.github/workflows/ci.yml` |
 
 ## 2. Dernière vérification locale
 
@@ -27,7 +29,8 @@ Exécutée après les corrections ci-dessus, avec PostgreSQL isolé et données 
 | --- | --- |
 | `npm ci` | Réussi, code 0 |
 | `npm run build` | Réussi, code 0 |
-| `npm run test:all` | Réussi, code 0 : 22 tests RLS, 25 unitaires, 45 interface et 207 intégration réussis, zéro échec ; simulation de migration, thème et fonctionnalités navigateur réussis |
+| `npm run test:all` | Réussi, code 0 : suites RLS, unitaires, interface, intégration, simulation de migration, quota partagé, thème et fonctionnalités navigateur ; résultats locaux seulement |
+| `npm run test:rate-limit` | Réussi sur une base jetable : deux processus, concurrence, démarrage à froid, RLS, réapplication et panne ; exécuté aussi dans `test:all` |
 | `npm run test:browser` | Réussi, code 0 : parcours isolés métier et interactions, rôles, isolation entre entreprises, erreurs, exports et vérifications mobiles ciblées |
 | `npm audit` | Réussi, code 0 ; 0 vulnérabilité signalée |
 | `git diff --check` | Réussi, code 0 |
@@ -36,14 +39,15 @@ Exécutée après les corrections ci-dessus, avec PostgreSQL isolé et données 
 
 Les tests navigateur couvrent notamment des scénarios desktop et mobile, la création d'entreprise et de chantier, les droits agent, les erreurs d'équipe, cinq exports et 13 routes mobiles. Ils ne prouvent pas que chaque bouton, formulaire, erreur, rôle, format d'écran ou interaction dynamique fonctionne.
 
-Les tests ne vérifient pas la configuration réelle de Neon ou Vercel, la délivrabilité d'e-mails, les paiements réels, la conformité juridique ou la restauration d'une sauvegarde réelle. La limitation d'inscription actuelle est en mémoire par instance : sa portée globale sur plusieurs instances n'est pas démontrée.
+Les tests ne vérifient pas la configuration réelle de Neon ou Vercel, la délivrabilité d'e-mails, les paiements réels, la conformité juridique ou la restauration d'une sauvegarde réelle. Le quota partagé a été vérifié sur deux processus et une base jetable ; il reste à appliquer et à valider sur une préproduction séparée. La limitation de connexion reste, elle, en mémoire par instance en complément du verrouillage de compte en base.
 
 ## 3. Bloquants techniques et fonctionnels
 
 - Le commit `be100e7`, ses fichiers et le patch annoncés manquent. L'utilisateur ne possède pas l'archive : reconstruire les fonctions requises à partir du code existant plutôt que bloquer sur sa recherche ; ne pas prétendre qu'il s'agit du même patch.
-- `scripts/preflight.mjs`, `scripts/backup-dump.mjs` et `docs/MIGRATIONS_ET_PREPROD.md` sont absents. Les tables `password_resets`, `rate_limit_counters`, `kv_store` et les fonctions `api_rate_limit_hit`, `api_password_reset_create`, `api_password_reset_consume` annoncées ne figurent pas dans le schéma et les politiques disponibles. Une nouvelle sonde `npm run monitor` existe ; son mode strict n'atteste pas la disponibilité tant que l'API ne fournit pas de signal fiable.
+- `scripts/preflight.mjs` et `scripts/backup-dump.mjs` sont absents. Les structures du mot de passe oublié et `kv_store` annoncées restent absentes. Une migration distincte pour `rate_limit_counters` et ses fonctions existe mais n'a été appliquée que sur des bases de test ; la [procédure de préproduction](MIGRATIONS_ET_PREPROD.md) reste à valider. La sonde `npm run monitor` ne peut pas attester la disponibilité complète sans signal fiable.
 - Le parcours de mot de passe oublié par e-mail, une politique de confidentialité et des mentions légales complètes, les exports XLSX/DOCX et les imports DQE/BGP sont absents de cet arbre. Une réinitialisation d'agent par un administrateur et un import BPU CSV existent, mais ne remplacent pas ces fonctions.
 - L'export JSON inclut une partie des données métier et les archives historiques de paie, mais exclut des tables et des fichiers binaires. Un téléchargement JSON réussi n'est pas une sauvegarde complète ni une restauration testée.
+- Les deux jobs `quality` du commit `e219afc` ont échoué sur GitHub. Les noms des étapes en échec sont connus, mais les journaux détaillés n'étaient pas accessibles depuis le sandbox ; leur cause reste donc inconnue.
 
 ## 4. Migration : ce qui doit être revu avant toute cible réelle
 
