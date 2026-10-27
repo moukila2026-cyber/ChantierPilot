@@ -18,7 +18,7 @@ Budgets, dépenses, encaissements, rapports PDF — en FCFA, en français, utili
 | **Tableau de bord** | Budget, dépenses, encaissements, solde client, résultat provisoire — calculés côté SQL |
 | **Fiche chantier** | Totaux, consommation du budget, historique chronologique complet |
 | **Rapport PDF** | Par chantier, avec le nom et les coordonnées de l'entreprise, généré côté serveur |
-| **Exports** | CSV (chantiers / dépenses / encaissements / complet) + sauvegarde JSON |
+| **Exports** | CSV (chantiers / dépenses / encaissements / complet) + export JSON partiel, distinct d'une sauvegarde serveur |
 | **Interface** | Navigation latérale sur ordinateur, menu adapté au mobile, tableaux lisibles, montants FCFA explicites |
 | **Robustesse** | Messages d'erreur français clairs, validation des montants (entiers FCFA), états de chargement partout |
 
@@ -55,7 +55,7 @@ npm install
 npm run dev
 ```
 
-Sans base configurée (ni `DATABASE_URL` ni `DATABASE_URL_ADMIN`), `npm run dev` démarre un **PostgreSQL embarqué local** (binaires officiels, données dans `.pgdata/`), applique le schéma et les politiques RLS, puis lance l'API et l'interface. Pour un développement réel sur Neon, renseignez `.env` (voir [docs/INSTALLATION.md](docs/INSTALLATION.md)).
+Sans base configurée (ni `DATABASE_URL` ni `DATABASE_URL_ADMIN`), `npm run dev` démarre un **PostgreSQL embarqué local** (binaires officiels, données dans `.pgdata/`), applique le schéma et les politiques RLS, puis lance l'API et l'interface. **Attention :** avec une base configurée, cette commande peut appliquer la migration à cette cible ; ne l'exécutez pas contre la production. Voir [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
 ```bash
 npm run build           # nécessaire avant les tests navigateur
@@ -67,7 +67,9 @@ npm run test:unit       # validation, CSV, montants, PDF, routeur et limites Ver
 npm run test            # intégration API, quotas, facturation et droits
 ```
 
-> Les suites tournent sur un vrai PostgreSQL. Les réponses de SasPay sont simulées dans les tests du contrat de paiement ; aucun débit réel n’est effectué.
+> Les suites tournent sur un vrai PostgreSQL temporaire. Les réponses de SasPay sont simulées dans les tests du contrat de paiement ; aucun débit réel n’est effectué.
+
+`npm run monitor` vérifie en lecture seule la santé HTTP de la cible déjà configurée dans `APP_URL`, sans afficher sa valeur. Ce contrôle limité ne prouve pas que la production est prête. Le mode `MONITOR_REQUIRE_READY` échoue tant que l'API ne fournit pas un signal `ready` fiable ; aucun préflight strict n'est disponible dans cet arbre. Voir [le plan de reprise sans archive](docs/PLAN_REPRISE_SANS_ARCHIVE.md).
 
 ## Architecture
 

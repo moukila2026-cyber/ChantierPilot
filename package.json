@@ -11,6 +11,7 @@
     "build": "node scripts/build-vercel.mjs && vite build",
     "preview": "vite preview",
     "migrate": "node db/migrate.mjs",
+    "monitor": "node scripts/monitor.mjs",
     "check:assets": "node scripts/check-assets.mjs",
     "db:test-rls": "node tests/helpers/isolated-exec.mjs db/test-rls.mjs",
     "test:migration": "node tests/helpers/isolated-exec.mjs tests/migration-neon.mjs",

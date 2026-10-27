@@ -5,6 +5,7 @@
 // d'entreprise dans la transaction — les politiques RLS font le reste.
 
 import pg from 'pg';
+import { logTechnicalError } from './safe-log.js';
 
 const pools = new Map();
 
@@ -66,7 +67,7 @@ async function createPool() {
  */
 function watchIdleErrors(pool) {
   pool.on('error', (err) => {
-    console.warn('[db] connexion inactive fermée par le serveur :', err.message);
+    logTechnicalError('db', err, { level: 'warn' });
   });
   return pool;
 }

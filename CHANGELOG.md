@@ -6,7 +6,7 @@
 - Mise à jour de Zod vers une version corrigée de l’avis GHSA-mrhx-c7xc-m3w5 ; messages de validation par défaut en français et tests des collections surdimensionnées.
 - Rejet des dates calendaires impossibles avant l’enregistrement.
 - Neutralisation des cellules texte pouvant être interprétées comme formules dans les exports CSV, sans modifier les données enregistrées.
-- Le journal de migration ne publie plus de chaîne de connexion ni les détails bruts d’une erreur de pilote.
+- Les journaux de migration et d'erreurs API ne publient plus de chaîne de connexion, détails ni objets d'erreur bruts ; seuls certains codes techniques non sensibles sont conservés.
 - Les suites npm s'exécutent avec un environnement enfant minimal sans configuration applicative héritée ; le mode test ne charge pas `.env`. PostgreSQL et les ports de test sont éphémères ; les anciens répertoires locaux ne sont plus effacés par les suites RLS et API.
 
 ### Parcours
@@ -19,4 +19,5 @@
 ### Vérification et documentation
 - Ajout de parcours navigateur isolés sur inscription, mobile, rôles, entreprises, exports et erreurs ; intégration des suites navigateur supplémentaires et de l’audit de dépendances à la CI.
 - Inventaire statique et état de couverture dans `docs/INVENTAIRE_BOUTONS.md` ; procédure de sauvegarde clarifiée.
-- **Blocages :** le commit d’audit initial et ses livrables ne sont pas disponibles. La migration courante n'est pas purement additive : elle met à jour certains essais et modifie temporairement le RLS ; elle doit être revue avant toute exécution réelle. Les fonctionnalités manquantes et les autres prérequis restent à traiter ; cette reprise ne constitue pas une validation de production.
+- Ajout d'une sonde `npm run monitor` sans affichage de cible : contrôle de santé limité et mode strict qui échoue tant que l'API n'atteste pas explicitement sa disponibilité complète. Cette sonde ne remplace pas un préflight.
+- **Limites :** le commit d’audit initial et ses livrables ne sont pas disponibles et l'utilisateur ne possède pas d'archive ; poursuivre en reconstruisant et testant les éléments requis, sans prétendre retrouver le patch à l'identique. La migration courante n'est pas purement additive : elle met à jour certains essais et modifie temporairement le RLS ; elle doit être revue avant toute exécution réelle. Cette reprise ne constitue pas une validation de production.

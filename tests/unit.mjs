@@ -5,14 +5,19 @@ import { z } from 'zod';
 import { expenseSchema, paymentSchema, projectCreateSchema, parseOrThrow } from '../api/_lib/validate.js';
 import { parseBpuCsv, MAX_BPU_TEXT_LENGTH } from '../src/lib/bpuCsv.js';
 import { toCsv } from '../api/_lib/csv.js';
-import { parsePagination, paginationMeta, isProductionEnv } from '../api/_lib/http.js';
+import { parsePagination, paginationMeta, isProductionEnv, handle } from '../api/_lib/http.js';
+import { logTechnicalError } from '../api/_lib/safe-log.js';
+import { run, audit } from '../api/_lib/pipeline.js';
 import { ROUTES, resolvePath, dispatch } from '../api/_lib/router.js';
 import { readdirSync, readFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
+import { isolatedTestEnv } from './helpers/isolation.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildProjectReport } from '../api/_lib/pdf.js';
 import { api } from '../src/lib/api.js';
+import { runMonitor } from '../scripts/monitor.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let passed = 0;
@@ -271,6 +276,123 @@ await test('Les suites enfants ne reçoivent aucune configuration sensible du sh
     stdio: 'ignore',
   });
   assert.equal(result.status, 0, 'Le processus de test doit ignorer les variables héritées.');
+});
+
+await test('Les erreurs techniques ne divulguent ni message ni détail dans les journaux', async () => {
+  const marker = `fixture-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const failure = Object.assign(new Error(marker), { code: marker, detail: marker, stack: marker });
+  const inaccessibleCode = { get code() { throw new Error(marker); } };
+  const messages = [];
+  const previousError = console.error;
+  const previousWarn = console.warn;
+  console.error = (...args) => messages.push(args.join(' '));
+  console.warn = (...args) => messages.push(args.join(' '));
+  const outer = fakeRes();
+  const pipeline = fakeRes();
+  try {
+    logTechnicalError(marker, failure);
+    logTechnicalError('api', inaccessibleCode);
+    logTechnicalError('db', { code: 'ECONNRESET', message: marker }, { level: 'warn' });
+    await handle({ method: 'GET', headers: {} }, outer, async () => { throw failure; });
+    await run(pipeline, async () => { throw failure; });
+    await audit({ query: async () => { throw failure; } }, {}, 'test', 'test', null, marker);
+  } finally {
+    console.error = previousError;
+    console.warn = previousWarn;
+  }
+  const recorded = messages.join('\n');
+  assert.equal(recorded.includes(marker), false, 'Les erreurs brutes ne doivent pas être affichées.');
+  assert.match(recorded, /\[db\].*ECONNRESET/);
+  assert.equal(outer.statusCode, 500);
+  assert.equal(pipeline.statusCode, 500);
+  assert.equal(outer.body.includes(marker), false);
+  assert.equal(pipeline.body.includes(marker), false);
+});
+
+await test('Le moniteur distingue la santé de base de la disponibilité complète', async () => {
+  const marker = `surveillance-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const origin = `https://${marker}.invalid`;
+  const output = [];
+  const report = (message) => output.push(message);
+  let seen;
+  let payload = { status: 'ok', database: 'ok', schema: 'ok' };
+  const fetcher = async (url, options) => {
+    seen = { url, options };
+    return new Response(JSON.stringify(payload), { headers: { 'Content-Type': 'application/json' } });
+  };
+  assert.equal(await runMonitor({ env: { APP_URL: origin }, fetcher, report }), 0);
+  assert.equal(seen.url === `${origin}/api/health`, true);
+  assert.equal(seen.options.redirect, 'manual');
+  const strict = { APP_URL: origin, MONITOR_REQUIRE_READY: '1' };
+  assert.equal(await runMonitor({ env: strict, fetcher, report }), 1);
+  payload = { ...payload, ready: true };
+  assert.equal(await runMonitor({ env: strict, fetcher, report }), 0);
+  payload = { ...payload, schema: 'migration_requise' };
+  assert.equal(await runMonitor({ env: strict, fetcher, report }), 1);
+  assert.equal(output.join(' ').includes(marker), false, 'La cible ne doit jamais être affichée.');
+});
+
+await test('Le moniteur refuse les cibles ou réponses non sûres sans fuite', async () => {
+  const marker = `controle-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const output = [];
+  const report = (message) => output.push(message);
+  let calls = 0;
+  const fetcher = async () => { calls += 1; throw new Error(marker); };
+  assert.equal(await runMonitor({ env: {}, fetcher, report }), 1);
+  assert.equal(await runMonitor({ env: { APP_URL: `http://${marker}.invalid` }, fetcher, report }), 1);
+  assert.equal(await runMonitor({ env: { APP_URL: `https://${marker}@test.invalid` }, fetcher, report }), 1);
+  assert.equal(calls, 0);
+  const valid = { APP_URL: `https://${marker}.invalid` };
+  assert.equal(await runMonitor({ env: valid, fetcher, report }), 1);
+  const tooLarge = async () => new Response(' '.repeat(64 * 1024 + 1), {
+    headers: { 'Content-Type': 'application/json' },
+  });
+  assert.equal(await runMonitor({ env: valid, fetcher: tooLarge, report }), 1);
+  assert.equal(output.join(' ').includes(marker), false, 'Les valeurs et erreurs brutes ne doivent pas être affichées.');
+});
+
+await test('Le moniteur CLI sonde une API fictive sans exposer la cible', async () => {
+  let payload = { status: 'ok', database: 'ok', schema: 'ok' };
+  const server = createServer((request, response) => {
+    if (request.url !== '/api/health' || request.method !== 'GET') {
+      response.writeHead(404); response.end(); return;
+    }
+    response.writeHead(200, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify(payload));
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const invoke = (strict) => new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ['scripts/monitor.mjs'], {
+      cwd: ROOT,
+      env: isolatedTestEnv({ APP_URL: origin, ...(strict ? { MONITOR_REQUIRE_READY: '1' } : {}) }),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let output = '';
+    child.stdout.on('data', (chunk) => { output += chunk; });
+    child.stderr.on('data', (chunk) => { output += chunk; });
+    const timer = setTimeout(() => { child.kill(); reject(new Error('Moniteur de test interrompu.')); }, 15_000);
+    child.once('error', (error) => { clearTimeout(timer); reject(error); });
+    child.once('close', (code) => { clearTimeout(timer); resolve({ code, output }); });
+  });
+  try {
+    const basic = await invoke(false);
+    assert.equal(basic.code, 0);
+    assert.equal(basic.output.includes(origin), false);
+    const absent = await invoke(true);
+    assert.equal(absent.code, 1);
+    assert.equal(absent.output.includes(origin), false);
+    payload = { ...payload, ready: true };
+    assert.equal((await invoke(true)).code, 0);
+    payload = { ...payload, database: 'indisponible' };
+    assert.equal((await invoke(false)).code, 1);
+  } finally {
+    server.closeAllConnections?.();
+    await new Promise((resolve) => server.close(resolve));
+  }
 });
 
 console.log(`  RÉSULTAT : ${passed} réussis, 0 échoués`);
