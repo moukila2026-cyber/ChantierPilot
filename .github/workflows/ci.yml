@@ -20,10 +20,19 @@ jobs:
       - run: npm run build
       - name: Run full test suite
         run: |
-          set -o pipefail
-          npm run test:all 2>&1 | tee /tmp/cp-ci.log || {
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            tail -n 80 /tmp/cp-ci.log >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          if npm run test:all > /tmp/cp-ci.log 2>&1; then
+            echo 'Tests complets réussis.'
+          else
+            node scripts/ci-report-failure.mjs /tmp/cp-ci.log test:all
             exit 1
-          }
+          fi
+      - name: Parcours navigateur isolés
+        run: |
+          if npm run test:browser > /tmp/cp-browser.log 2>&1; then
+            echo 'Parcours navigateur réussis.'
+          else
+            node scripts/ci-report-failure.mjs /tmp/cp-browser.log test:browser
+            exit 1
+          fi
+      - name: Audit des dépendances
+        run: npm audit --audit-level=high

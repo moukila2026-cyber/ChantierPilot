@@ -4,10 +4,12 @@
 // Cible : DATABASE_URL_ADMIN (URL du PROPRIÉTAIRE de la base, réservée aux
 // migrations). À défaut, DATABASE_URL (compatibilité : base locale).
 //
-//   DATABASE_URL_ADMIN="postgresql://…" APP_DB_PASSWORD="…" node db/migrate.mjs
+//   node db/migrate.mjs  (configurer la cible par un canal privé au préalable)
 //
-// Le script est idempotent : il peut être relancé sans risque.
-// Il n'affiche JAMAIS de mot de passe.
+// Ce script réapplique schéma et politiques, mais n'est pas purement additif :
+// le schéma modifie notamment d'anciens essais et recrée des déclencheurs ;
+// les politiques RLS sont également recréées. Sauvegarder et tester d'abord.
+// Il n'affiche pas de mot de passe ni de chaîne de connexion.
 
 import pg from 'pg';
 import { readFileSync } from 'node:fs';
@@ -45,13 +47,14 @@ async function main() {
     process.exit(1);
   }
   // Affiché sans identifiants : permet de vérifier qu'on migre la bonne base.
-  console.log(`· Cible : ${target.hostname}${target.pathname} (rôle « ${decodeURIComponent(target.username)} »)`);
+  console.log('· Cible : base de migration configurée.');
 
   const client = new pg.Client({ connectionString: url, ssl: url.includes('localhost') || url.includes('127.0.0.1') ? undefined : { rejectUnauthorized: true } });
   await client.connect();
 
   const schema = stripTransactionMarkers(readFileSync(path.join(ROOT, 'db', 'schema.sql'), 'utf8'));
   const rls = stripTransactionMarkers(readFileSync(path.join(ROOT, 'db', 'rls.sql'), 'utf8'));
+  const registerLimit = readFileSync(path.join(ROOT, 'db', 'migrations', '20261027_register_rate_limit.sql'), 'utf8');
 
   try {
     console.log('· Application du schéma (db/schema.sql)…');
@@ -60,6 +63,9 @@ async function main() {
     console.log('· Application des politiques RLS (db/rls.sql)…');
     await client.query(rls);
     console.log('  ✓ RLS activé et forcé sur toutes les tables');
+    console.log('· Application de la migration additive du quota d’inscription…');
+    await client.query(registerLimit);
+    console.log('  ✓ quota d’inscription préparé');
 
     // Rôle applicatif : connexion LIMITÉE (jamais superuser — le RLS s'applique).
     const appPassword = process.env.APP_DB_PASSWORD || null;
@@ -86,22 +92,19 @@ async function main() {
     await client.end();
   }
 
-  const app = new URL(url);
-  app.username = 'chantierpilot_app';
-  app.password = 'MOT_DE_PASSE_APP';
-  const appUrl = app.toString().replace('MOT_DE_PASSE_APP', '<APP_DB_PASSWORD>');
   console.log('✓ Migration terminée.');
   console.log('');
   console.log('IMPORTANT — sécurité :');
-  console.log('  • L\'API doit se connecter avec le RÔLE LIMITÉ chantierpilot_app :');
-  console.log(`      DATABASE_URL=${appUrl}`);
-  console.log('    Remplacez <APP_DB_PASSWORD> par le mot de passe choisi (jamais affiché ici),');
-  console.log('    puis saisissez cette URL dans Vercel → Settings → Environment Variables.');
+  console.log('  • Configurez DATABASE_URL avec le rôle limité chantierpilot_app.');
+  console.log('    Ne transmettez jamais ses identifiants dans les journaux.');
   console.log('  • La clé d\'administration (propriétaire) sert uniquement aux migrations.');
   console.log('  • Un rôle superuser/BYPASSRLS est REFUSÉ par l\'API (garde de sécurité active).');
 }
 
 main().catch((e) => {
-  console.error('✗ Migration échouée :', e.message);
+  // Les messages de pilotes peuvent contenir des informations de connexion.
+  // Ne conserver qu'un éventuel code technique court, jamais les valeurs.
+  const code = typeof e.code === 'string' && /^[A-Z0-9_]{1,20}$/i.test(e.code) ? ` (code ${e.code})` : '';
+  console.error(`✗ Migration échouée${code}. Vérifiez la connexion, les droits et l’état du schéma.`);
   process.exit(1);
 });

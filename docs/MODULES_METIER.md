@@ -4,7 +4,7 @@ Les modules ci-dessous sont accessibles dans **Devis & factures** (`/documents`,
 
 ## Installation et validation
 
-Sauvegarder la base de production puis appliquer **`npm run migrate`** avec le rôle d'administration habituel. Le schéma est idempotent et les nouvelles tables disposent toutes du RLS activé et forcé. Les références inter-tables incluent l'entreprise pour interdire les associations croisées. Redéployer l'API et l'interface ensemble ; ces changements ne sont pas déployés automatiquement par la modification du dépôt.
+Avant toute migration réelle, examiner les effets de `db/schema.sql` et `db/rls.sql`, préparer une sauvegarde vérifiée et tester une restauration isolée. La migration actuelle n'est pas strictement additive : elle modifie certains essais existants et recrée des éléments RLS et des déclencheurs. La tester en préproduction, puis seulement après validation et autorisation explicite envisager son exécution en production par l'utilisateur. Voir [les blocages post-audit](CORRECTIONS_POST_AUDIT.md). Les changements du dépôt ne sont pas déployés automatiquement.
 
 ```sh
 npm run test:all
@@ -15,17 +15,16 @@ Les tests de modules métier sont exécutés par `npm test` via `tests/operation
 
 Test navigateur supplémentaire (Linux x64, Node 22 ; Chromium fourni par npm, pas de téléchargement externe de navigateur) :
 
-1. `npm run dev` : API locale, migration et PostgreSQL local.
-2. `npm run build`, puis dans un autre terminal `npm run preview -- --port 4173`.
-3. `npm run test:browser`.
+1. `npm run build`.
+2. `npm run test:browser`.
 
-Ce test cible exclusivement `localhost:4173`. Il crée une entreprise fictive dans la base locale, ouvre les formulaires, crée et accepte un devis, saisit un journal et une présence sans réseau, recharge la page hors ligne puis vérifie la synchronisation sans doublon. Les éventuelles captures d'erreur sont ignorées par Git dans `.arena/`. Le test navigateur est séparé de `test:all` car il requiert les serveurs locaux.
+Le test démarre ses propres PostgreSQL, API et interface sur des ports locaux temporaires et les arrête ensuite. Il ne charge pas le fichier `.env` en mode test et ne transmet pas les variables de services réels aux processus de test. Il crée uniquement des entreprises fictives, contrôle notamment les rôles, l'isolation entre entreprises, les exports, les liens mobile et le parcours hors ligne/synchronisation. Les éventuelles captures d'erreur sont ignorées par Git dans `.arena/`. `test:browser` est une suite supplémentaire à `test:all` et ne remplace pas une revue exhaustive de toutes les interactions.
 
 ## 1. Devis, bibliothèque et facturation
 
 ### Parcours
 
-1. Ajouter si nécessaire des prix réutilisables : libellé, unité, prix de vente, coût prévu.
+1. Ajouter si nécessaire des prix réutilisables : libellé, unité, prix de vente, coût prévu. Pour le BPU CSV, les montants doivent être des entiers FCFA positifs ou nuls ; les espaces de milliers sont admis par groupes de trois. Les prix négatifs, décimaux, ambigus ou les lignes invalides bloquent l'import entier au lieu d'être convertis silencieusement. La limite est de 200 postes par import ; CSV, tabulation et champs entre guillemets sont pris en charge.
 2. Créer un devis pour un chantier existant ou sans chantier. Ajouter les postes, quantités (3 décimales maximum), prix, coûts et taux de taxe.
 3. Modifier le brouillon au besoin. **Émettre** le devis : les montants sont alors figés.
 4. Enregistrer l'accord réellement reçu du client : nom, référence du document signé/courrier/e-mail et date de début. Si aucun chantier n'existe, il est créé automatiquement (quota contrôlé). Son budget initial reprend le total du devis ; il reste possible de le modifier dans la fiche.

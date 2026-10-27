@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { readFileAsAttachment } from '../lib/file.js';
@@ -7,7 +6,7 @@ import { CATEGORIES, CATEGORY_LABELS, PAYMENT_METHODS, PAYMENT_METHOD_LABELS } f
 import { formatDate, formatFcfa, todayIso } from '../lib/format.js';
 import { AttachmentPreviewModal } from '../components/AttachmentPreviewModal.jsx';
 import {
-  Alert, Badge, Button, Card, EmptyState, Field, Input, LoadingPage, Modal, PageHeader, Select, StatCard, Textarea, Toast,
+  ButtonLink, Alert, Badge, Button, Card, EmptyState, Field, Input, LoadingPage, Modal, PageHeader, Select, StatCard, Textarea, Toast,
 } from '../components/ui.jsx';
 
 export default function PhotosPage() {
@@ -245,9 +244,7 @@ export default function PhotosPage() {
             <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={handleQuickPick} />
           </label>
         ) : isAdmin ? (
-          <Link to="/chantiers?nouveau=1">
-            <Button>+ Créer d’abord un chantier</Button>
-          </Link>
+          <ButtonLink to="/chantiers?nouveau=1">+ Créer d’abord un chantier</ButtonLink>
         ) : null}
       />
 
@@ -296,7 +293,7 @@ export default function PhotosPage() {
           <EmptyState
             title="Créez votre premier chantier pour y rattacher des photos et reçus"
             message="Chaque photo d’avancement, facture matériau ou preuve Mobile Money est automatiquement rangée dans le dossier de son chantier."
-            action={isAdmin ? <Link to="/chantiers?nouveau=1"><Button>+ Nouveau chantier</Button></Link> : null}
+            action={isAdmin ? <ButtonLink to="/chantiers?nouveau=1">+ Nouveau chantier</ButtonLink> : null}
           />
         </Card>
       )}

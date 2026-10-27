@@ -5,7 +5,7 @@ import { formatFcfa, formatDate, todayIso } from '../lib/format.js';
 import { STATUSES, STATUS_LABELS, STATUS_STYLES } from '../lib/constants.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
-  Alert, Badge, Button, Card, ConfirmDialog, EmptyState, Field, Input, LoadingPage,
+  ButtonLink, Alert, Badge, Button, Card, ConfirmDialog, EmptyState, Field, Input, LoadingPage,
   Modal, PageHeader, Pagination, Select, Spinner, Textarea, Toast,
 } from '../components/ui.jsx';
 
@@ -201,10 +201,10 @@ export default function ProjectsPage() {
         subtitle={isAdmin ? "Créez, suivez en FCFA et archivez l’ensemble de vos chantiers." : "Consultez les chantiers de votre entreprise et saisissez les opérations de terrain."}
         actions={isAdmin ? (
           <div className="flex flex-wrap gap-2">
-            <Link to="/photos"><Button variant="secondary">📷 Photos & reçus</Button></Link>
+            <ButtonLink to="/photos" variant="secondary">📷 Photos & reçus</ButtonLink>
             <Button onClick={() => { setEditTarget(null); setFields({}); setModalOpen(true); }}>+ Nouveau chantier</Button>
           </div>
-        ) : <Link to="/photos"><Button>📷 Photos & reçus</Button></Link>}
+        ) : <ButtonLink to="/photos">📷 Photos & reçus</ButtonLink>}
       />
 
       <div className="cp-filter-bar mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">

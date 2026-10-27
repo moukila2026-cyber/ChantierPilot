@@ -1,10 +1,12 @@
 # Gestion avancée — périmètre et mise en service
 
+> **Prudence — migration non validée pour une cible réelle.** Les commandes historiques ci-dessous ne doivent pas être lancées sur une base réelle sans revue, sauvegarde, restauration testée et autorisation. Le chemin général peut modifier des essais et des droits ; suivre d'abord [migration et préproduction](MIGRATIONS_ET_PREPROD.md). Le build ne lance plus de migration automatique.
+
 Menu **Gestion avancée**, route `/gestion`. Modules actifs : plans PDF/images (pas de BIM 3D), Gantt et stocks multi-dépôts. La paie et la signature électronique certifiée ont été retirées à la demande du propriétaire.
 
 ## Déploiement
 
-Sauvegarder PostgreSQL, exécuter `npm run migrate` avec le rôle propriétaire, puis redéployer ensemble API et interface. Tables métier avec RLS forcé et clés étrangères composites entreprise/identifiant ; aucune nouvelle fonction Vercel indépendante. Les commandes utilisent le verrou d’entreprise et la déduplication existants. Les tests utilisent PostgreSQL réel : `npm run test:all`, puis `npm run build` et `npm run test:browser` avec API locale et preview 4173 lancées.
+Après sauvegarde, restauration testée et revue de la migration générale, valider la préproduction avant tout redéploiement de l'API et de l'interface. Tables métier avec RLS forcé et clés étrangères composites entreprise/identifiant ; aucune nouvelle fonction Vercel indépendante. Les commandes utilisent le verrou d’entreprise et la déduplication existants. Les tests utilisent PostgreSQL isolé : `npm run test:all`, puis `npm run build` et `npm run test:browser`.
 
 ## Plans PDF/images versionnés
 
@@ -50,7 +52,7 @@ Le parcours chantier reste autonome :
 
 ### Données historiques
 
-Aucune table contenant d’éventuelles données de paie n’est détruite. Les tables historiques `payroll_profiles` et `payroll_slips` restent isolées par RLS et disponibles uniquement dans l’export complet administrateur et les sauvegardes PostgreSQL. Elles ne sont plus lues ni modifiées par les parcours métier. Leur maintien technique assure les migrations idempotentes et la récupération des données, sans réactiver les fonctionnalités. La suppression définitive de ces archives nécessiterait une décision distincte après sauvegarde et contrôle des obligations de conservation.
+Aucune table contenant d’éventuelles données de paie n’est détruite. Les tables historiques `payroll_profiles` et `payroll_slips` restent isolées par RLS et disponibles uniquement dans l’export complet administrateur et les sauvegardes PostgreSQL. Elles ne sont plus lues ni modifiées par les parcours métier. Leur maintien technique évite la suppression de ces tables et préserve leur récupération, sans réactiver les fonctionnalités ; la migration dans son ensemble doit néanmoins être revue avant toute exécution réelle. La suppression définitive de ces archives nécessiterait une décision distincte après sauvegarde et contrôle des obligations de conservation.
 
 ## Entreprises immatriculées et factures officielles
 

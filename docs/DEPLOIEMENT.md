@@ -1,5 +1,7 @@
 # Déploiement sur Vercel + Neon (référence technique)
 
+> **Prudence — migration non validée pour une cible réelle.** Les commandes historiques ci-dessous ne doivent pas être lancées sur une base réelle sans revue, sauvegarde, restauration testée et autorisation. Le chemin général peut modifier des essais et des droits ; suivre d'abord [migration et préproduction](MIGRATIONS_ET_PREPROD.md). Le build ne lance plus de migration automatique.
+
 Procédure détaillée, écran par écran : [VERCEL_PAS_A_PAS.md](VERCEL_PAS_A_PAS.md).
 Plan d'ensemble (préproduction, sécurité, juridique, budget) : [PLAN_MISE_EN_PRODUCTION.md](PLAN_MISE_EN_PRODUCTION.md).
 
@@ -55,8 +57,8 @@ car elle injecterait le rôle propriétaire.
 ## Mises à jour
 
 - **Code** : Pull Request → CI verte → vérification sur la prévisualisation → fusion dans `main` → production.
-- **Schéma** : migration sur `preprod`, puis production, **avant** de fusionner le code qui en dépend (idempotente).
-- **Mot de passe applicatif** : relancer la migration avec le nouvel `APP_DB_PASSWORD`, mettre à jour `DATABASE_URL` dans Vercel, redéployer.
+- **Schéma** : la migration actuelle n'est pas purement additive. La faire revoir, sauvegarder et tester une restauration, puis valider sur `preprod` avant toute opération séparée sur production, réalisée par l'utilisateur après autorisation explicite. Voir [CORRECTIONS_POST_AUDIT.md](CORRECTIONS_POST_AUDIT.md).
+- **Mot de passe applicatif** : la migration peut le modifier si `APP_DB_PASSWORD` est défini. Tout changement d'accès nécessite une décision et une procédure séparées ; ne jamais afficher les valeurs.
 
 ## Limites connues (volontaires)
 

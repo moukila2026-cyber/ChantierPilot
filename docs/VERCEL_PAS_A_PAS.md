@@ -1,5 +1,7 @@
 # Vercel + Neon pas à pas — de zéro à l'application en ligne
 
+> **Prudence — migration non validée pour une cible réelle.** Les commandes historiques ci-dessous ne doivent pas être lancées sur une base réelle sans revue, sauvegarde, restauration testée et autorisation. Le chemin général peut modifier des essais et des droits ; suivre d'abord [migration et préproduction](MIGRATIONS_ET_PREPROD.md). Le build ne lance plus de migration automatique.
+
 Ce guide mène **d'aucun compte jusqu'à l'application en production**, avec une
 **préproduction** séparée. Comptez 1 h 30 la première fois.
 
@@ -72,52 +74,21 @@ Pas de `@`, `#`, `/`, `:`, `?` ni espace : ils casseraient l'URL de connexion.
 
 ---
 
-## Étape 4 — Initialiser chaque base (migration)
+## Étape 4 — Préparer les migrations (bloquées en attente de revue)
 
-La migration crée tables, contraintes, politiques RLS (activées **et forcées**) et les
-rôles `chantierpilot_app` / `chantierpilot_definer`. Elle est **idempotente** et
-vérifiée en CI avec un propriétaire non superuser, comme sur Neon.
+**Ne pas lancer de migration en production à ce stade.** Le commit d'audit attendu et le préflight strict sont absents. Le schéma actuel ajoute des éléments mais modifie aussi certains essais existants, change temporairement le RLS forcé et recrée des déclencheurs et politiques. Sa sûreté sur vos données et son atomicité n'ont pas été vérifiées. Voir [CORRECTIONS_POST_AUDIT.md](CORRECTIONS_POST_AUDIT.md).
 
-**4.1 — Récupérer l'URL administrateur de `preprod`** (à ne copier que dans le terminal) :
-Neon → **Connect** → *Branch* `preprod`, *Database* `neondb`, *Role* `neondb_owner`,
-**Connection pooling désactivé** (connexion directe) → copiez la chaîne.
+1. Récupérez les corrections manquantes et faites revoir la migration et le plan de retour arrière.
+2. Vérifiez que Preview, préproduction et production ciblent des bases distinctes, sans partager leurs identifiants. Configurez les accès par un canal privé ; ne publiez aucune chaîne de connexion ou valeur de variable.
+3. Préparez une sauvegarde Neon et testez sa restauration sur une cible isolée : voir [SAUVEGARDES.md](SAUVEGARDES.md).
+4. Après accord, l'utilisateur pourra tester la migration sur la préproduction **uniquement après avoir vérifié la cible par un moyen indépendant** :
 
-**4.2 — Lancer la migration sur votre poste**
+   ```bash
+   node db/migrate.mjs
+   ```
 
-```bash
-git clone https://github.com/moukila2026-cyber/ChantierPilot.git
-cd ChantierPilot
-npm ci
-
-# Saisie masquée : rien n'apparaît à l'écran ni dans l'historique du terminal.
-read -rs -p "URL administrateur Neon : " DATABASE_URL_ADMIN; echo; export DATABASE_URL_ADMIN
-read -rs -p "Mot de passe chantierpilot_app : " APP_DB_PASSWORD; echo; export APP_DB_PASSWORD
-node db/migrate.mjs
-unset DATABASE_URL_ADMIN APP_DB_PASSWORD
-```
-
-> Windows (PowerShell) : `$env:DATABASE_URL_ADMIN = Read-Host "URL administrateur Neon"`,
-> puis `$env:APP_DB_PASSWORD = Read-Host "Mot de passe chantierpilot_app"`, puis
-> `node db/migrate.mjs`, puis fermez la fenêtre PowerShell.
-
-**Contrôlez la ligne `· Cible :`** avant tout : elle affiche l'hôte et le rôle, sans mot de passe.
-L'hôte de `preprod` est différent de celui de la production.
-
-Le script se termine par une URL du type :
-
-```
-DATABASE_URL=postgresql://chantierpilot_app:<APP_DB_PASSWORD>@ep-xxxx.eu-central-1.aws.neon.tech/neondb?sslmode=require
-```
-
-**4.3 — Recommencer 4.1 et 4.2 pour la branche de production**, avec le mot de passe `PROD`.
-
-**4.4 — Construire les deux URL applicatives** (dans le gestionnaire de mots de passe, pas ailleurs) :
-- Neon → **Connect** → branche voulue, rôle `neondb_owner`, **Connection pooling activé**
-  (l'hôte contient `-pooler`, recommandé pour Vercel).
-- Remplacez `neondb_owner:<mot de passe du propriétaire>` par
-  `chantierpilot_app:<mot de passe PREPROD ou PROD>`.
-- Gardez le reste à l'identique (`?sslmode=require…`).
-- Enregistrez-les sous `DATABASE_URL — PREPROD` et `DATABASE_URL — PROD`.
+   Le journal masque la cible : la ligne `Cible : base de migration configurée` ne permet pas de confirmer l'hôte ou le rôle. Le script peut modifier le mot de passe du rôle applicatif si `APP_DB_PASSWORD` est défini ; vérifiez ce point sans afficher sa valeur.
+5. Après validation des résultats en préproduction, une migration de production reste une opération séparée, par l'utilisateur et après autorisation explicite. Gardez les accès applicatifs et administratifs dans leurs environnements respectifs, jamais dans le navigateur ou dans les journaux.
 
 ---
 

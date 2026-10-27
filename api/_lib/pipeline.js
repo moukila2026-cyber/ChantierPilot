@@ -5,6 +5,7 @@ import { companyBilling, entitlement } from './billing.js';
 import { fail, handle, methodNotAllowed, sendJson } from './http.js';
 import { getSessionContext, touchSession } from './auth.js';
 import { translatePgError } from './db.js';
+import { logTechnicalError } from './safe-log.js';
 
 export { fail, handle, methodNotAllowed, sendJson };
 
@@ -47,11 +48,11 @@ export async function run(res, fn) {
       return fail(res, 503, mapped.code, mapped.message);
     }
     if (mapped.code === 'abonnement_requis' && (mapped.status === 502 || mapped.status === 503)) {
-      console.error('[api:billing]', mapped.status, mapped.message);
+      logTechnicalError('api:billing', err);
       return fail(res, mapped.status, mapped.code, mapped.message);
     }
     if (mapped.status >= 500) {
-      console.error('[api]', err);
+      logTechnicalError('api', err);
       return fail(res, 500, 'erreur_serveur', 'Erreur interne. L\'incident est journalisé ; réessayez ou contactez le support.');
     }
     return fail(res, mapped.status, mapped.code, mapped.message, err.fields);
@@ -85,6 +86,6 @@ export async function audit(client, ctx, action, entity, entityId, summary) {
       [ctx.companyId, ctx.userId, action, entity, entityId || null, String(summary || '').slice(0, 500)],
     );
   } catch (e) {
-    console.error('[audit]', e.message);
+    logTechnicalError('audit', e);
   }
 }

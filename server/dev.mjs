@@ -5,6 +5,7 @@ import { readRawBody } from '../api/_lib/body.js';
 import http from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { loadEnv } from './env.mjs';
+import { logTechnicalError } from '../api/_lib/safe-log.js';
 
 loadEnv();
 
@@ -62,7 +63,7 @@ export function createApiServer() {
     try {
       await dispatch(req, res);
     } catch (e) {
-      console.error('[dev-api]', e);
+      logTechnicalError('dev-api', e);
       if (!res.headersSent) {
         res.statusCode = 500;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');

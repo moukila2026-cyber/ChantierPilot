@@ -1,5 +1,7 @@
 # ChantierPilot — note de reprise
 
+> **Prudence — migration non validée pour une cible réelle.** Les commandes historiques ci-dessous ne doivent pas être lancées sur une base réelle sans revue, sauvegarde, restauration testée et autorisation. Le chemin général peut modifier des essais et des droits ; suivre d'abord [migration et préproduction](MIGRATIONS_ET_PREPROD.md). Le build ne lance plus de migration automatique.
+
 Dernière mise à jour : 19 octobre 2026.
 
 ## Comptes agents (rôle `member`) — matrice B

@@ -4,7 +4,7 @@ import { api } from '../lib/api.js';
 import { formatFcfa, formatDate } from '../lib/format.js';
 import { CATEGORIES, CATEGORY_LABELS } from '../lib/constants.js';
 import {
-  Alert, Badge, Button, Card, ConfirmDialog, EmptyState, Input, Modal, PageHeader,
+  ButtonLink, Alert, Badge, Button, Card, ConfirmDialog, EmptyState, Input, Modal, PageHeader,
   Pagination, Select, Spinner, StatCard, Toast,
 } from '../components/ui.jsx';
 import { ExpenseForm } from '../components/forms.jsx';
@@ -127,7 +127,7 @@ export default function ExpensesPage() {
         subtitle="Toutes les dépenses de votre entreprise, avec recherche instantanée et photos de reçus."
         actions={(
           <div className="flex flex-wrap gap-2">
-            <Link to="/photos"><Button variant="secondary">📷 Photos & reçus</Button></Link>
+            <ButtonLink to="/photos" variant="secondary">📷 Photos & reçus</ButtonLink>
             <Button onClick={() => { setEditTarget(null); setFields({}); setModalOpen(true); }} disabled={state.projects.length === 0}>+ Nouvelle dépense</Button>
           </div>
         )}

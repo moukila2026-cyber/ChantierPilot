@@ -1,9 +1,8 @@
 #!/usr/bin/env node
-// Pré-étape de build Vercel : vérifie l'état du schéma PostgreSQL cible et,
-// si une migration additive est nécessaire et autorisée par le rôle courant,
-// effectue d'abord une sauvegarde intégrale dans le schéma privé
-// `_backup_pre_migration` (aucune suppression, aucun secret journalisé),
-// applique `db/migrate.mjs`, puis contrôle la conservation exacte des lignes.
+// Aucun build Vercel ne doit modifier ni interroger une base automatiquement.
+// Le diagnostic historique ci-dessous n'est accessible qu'avec une confirmation
+// explicite et en mode test local. Sa copie de tables n'est PAS une sauvegarde
+// complète ni une restauration vérifiée ; ne pas l'utiliser sur une base réelle.
 
 import pg from 'pg';
 import { spawnSync } from 'node:child_process';
@@ -27,8 +26,15 @@ function quoteIdent(ident) {
 }
 
 async function run() {
-  if (process.env.VERCEL !== '1' && process.env.FORCE_SAFE_MIGRATE !== '1') {
+  // Un push peut lancer un build Preview alors que la séparation des bases n'a
+  // pas été vérifiée. N'effectuer AUCUN accès DB pendant un build ordinaire,
+  // même si d'anciennes variables de migration sont encore configurées.
+  if (!process.argv.includes('--cible-isolee-confirmee')) {
+    console.log('· [db-check] Aucun accès ou migration de base automatique pendant le build.');
     return;
+  }
+  if (process.env.VERCEL || process.env.NODE_ENV !== 'test') {
+    throw new Error('Diagnostic réservé à une base de test locale isolée.');
   }
 
   const url = process.env.DATABASE_URL_ADMIN
@@ -37,11 +43,17 @@ async function run() {
     || process.env.POSTGRES_URL
     || process.env.DATABASE_URL;
   if (!url) {
-    console.log('· [db-check] Aucune DATABASE_URL définie pendant le build — étape ignorée.');
+    console.log('· [db-check] Base de test non configurée — étape ignorée.');
     return;
   }
+  let target;
+  try { target = new URL(url); } catch { throw new Error('Cible de test invalide.'); }
+  if (!['postgres:', 'postgresql:'].includes(target.protocol)
+    || !['localhost', '127.0.0.1', '[::1]'].includes(target.hostname)) {
+    throw new Error('Diagnostic réservé à une base de test locale isolée.');
+  }
 
-  const ssl = /localhost|127\.0\.0\.1/.test(url) ? undefined : { rejectUnauthorized: true };
+  const ssl = undefined;
   const client = new pg.Client({ connectionString: url, ssl });
   await client.connect();
 
@@ -63,22 +75,18 @@ async function run() {
     const missing = EXPECTED_TABLES.filter((t) => !existing.has(t));
 
     if (missing.length === 0) {
-      console.log(`✓ [db-check] Schéma complet (${EXPECTED_TABLES.length}/${EXPECTED_TABLES.length} tables présentes, rôle « ${role} »).`);
+      console.log('✓ [db-check] Schéma de test vérifié.');
       return;
     }
 
-    console.log(`· [db-check] ${existing.size} table(s) présente(s), ${missing.length} table(s) manquante(s) : ${missing.join(', ')}`);
+    console.log('· [db-check] Le schéma de test doit être complété.');
 
     if (!canCreate || role === 'chantierpilot_app') {
-      console.warn(
-        `! [db-check] Le rôle configuré (« ${role} ») est un rôle applicatif sans privilège DDL sur public. ` +
-        'Ajoutez DATABASE_URL_ADMIN (rôle propriétaire Neon) dans Vercel pour exécuter la sauvegarde + migration automatique, ' +
-        'ou lancez : DATABASE_URL_ADMIN="postgresql://..." npm run migrate',
-      );
+      console.warn('! [db-check] Le rôle de test ne permet pas la migration.');
       return;
     }
 
-    // 1. Sauvegarde intégrale non destructive de toutes les tables existantes avant migration
+    // 1. Copie de tables de test seulement, insuffisante comme sauvegarde
     const stamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14);
     await client.query('CREATE SCHEMA IF NOT EXISTS _backup_pre_migration');
     await client.query('REVOKE ALL ON SCHEMA _backup_pre_migration FROM PUBLIC');
@@ -91,10 +99,7 @@ async function run() {
       beforeCounts.set(table, cRows[0].n);
       await client.query(`CREATE TABLE IF NOT EXISTS _backup_pre_migration.${snapName} AS TABLE public.${qTable}`);
     }
-    console.log(
-      `✓ [db-backup] Sauvegarde préalable créée dans _backup_pre_migration (${beforeCounts.size} table(s), ` +
-      `${[...beforeCounts.values()].reduce((a, b) => a + b, 0)} ligne(s) protégée(s)).`,
-    );
+    console.log('✓ [db-check] Copie locale de test créée ; elle ne remplace pas une sauvegarde vérifiée.');
 
     // 2. Exécution de la migration idempotente officielle (db/migrate.mjs)
     const res = spawnSync(process.execPath, [path.join(ROOT, 'db', 'migrate.mjs')], {
@@ -115,7 +120,7 @@ async function run() {
     for (const [table, expectedCount] of beforeCounts.entries()) {
       const { rows: afterRows } = await client.query(`SELECT COUNT(*)::int AS n FROM public.${quoteIdent(table)}`);
       if (afterRows[0].n < expectedCount) {
-        throw new Error(`Alerte intégrité sur ${table} : ${afterRows[0].n} < ${expectedCount}`);
+        throw new Error('Contrôle de conservation des lignes de test en échec.');
       }
     }
     const { rows: finalTables } = await client.query(
@@ -123,13 +128,14 @@ async function run() {
        WHERE table_schema = 'public' AND table_name = ANY($1::text[])`,
       [EXPECTED_TABLES],
     );
-    console.log(`✓ [db-check] Migration vérifiée sans perte : ${finalTables[0].n}/${EXPECTED_TABLES.length} tables actives.`);
+    if (finalTables[0].n !== EXPECTED_TABLES.length) throw new Error('Schéma de test incomplet.');
+    console.log('✓ [db-check] Contrôles de tables et de nombre de lignes de test terminés.');
   } finally {
     await client.end();
   }
 }
 
-run().catch((err) => {
-  console.error('✗ [db-check] Échec lors de la vérification/migration de base :', err.message);
+run().catch(() => {
+  console.error('✗ [db-check] Diagnostic refusé ou en échec ; aucun détail de connexion n’est affiché.');
   process.exit(1);
 });

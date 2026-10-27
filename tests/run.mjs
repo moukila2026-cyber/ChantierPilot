@@ -13,14 +13,15 @@ import { billingCases } from './billing-cases.mjs';
 // =====================================================================
 
 import path from 'node:path';
-import { readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { startEmbeddedPostgres, forceCleanup } from '../server/embedded-pg.mjs';
+import { freePort, isolatedTestEnv } from './helpers/isolation.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PG_PORT = 55434;
-const API_PORT = 8791;
+const [PG_PORT, API_PORT] = await Promise.all([freePort(), freePort()]);
 const BASE = `http://127.0.0.1:${API_PORT}`;
 
 let passed = 0;
@@ -87,9 +88,22 @@ async function main() {
   console.log('  TESTS D\'INTÉGRATION API — ChantierPilot');
   console.log('══════════════════════════════════════════════════════════\n');
 
-  const dataDir = path.join(ROOT, '.pgdata-apitest');
-  forceCleanup(dataDir);
-  rmSync(dataDir, { recursive: true, force: true });
+  // Ne supprimer que les données fictives créées par cette exécution.
+  const dataDir = mkdtempSync(path.join(tmpdir(), 'chantierpilot-apitest-'));
+  let api;
+  let cleaned = false;
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    if (api?.pid) {
+      try { process.kill(-api.pid, 'SIGKILL'); } catch { try { api.kill('SIGKILL'); } catch { /* déjà arrêté */ } }
+    }
+    try { forceCleanup(dataDir); } catch { /* déjà arrêté */ }
+    try { rmSync(dataDir, { recursive: true, force: true }); } catch { /* déjà supprimé */ }
+  };
+  process.once('exit', cleanup);
+  process.once('SIGINT', () => { cleanup(); process.exit(130); });
+  process.once('SIGTERM', () => { cleanup(); process.exit(143); });
 
   console.log('· Démarrage de PostgreSQL + migration…');
   const pgInst = await startEmbeddedPostgres({ dataDir, port: PG_PORT, persist: true });
@@ -101,7 +115,7 @@ async function main() {
     // Cible imposée explicitement : un éventuel DATABASE_URL_ADMIN du .env
     // (base réelle) ne doit JAMAIS être migré par les tests.
     const m = spawn(process.execPath, ['db/migrate.mjs'], {
-      cwd: ROOT, stdio: 'inherit', env: { ...process.env, DATABASE_URL_ADMIN: pgInst.url },
+      cwd: ROOT, stdio: 'inherit', env: isolatedTestEnv({ DATABASE_URL_ADMIN: pgInst.url }),
     });
     m.on('exit', (code) => (code === 0 ? resolve() : reject(new Error('migration échouée'))));
   });
@@ -110,22 +124,13 @@ async function main() {
   process.env.DATABASE_URL = pgInst.url.replace(/:\/\/([^@/]+)@/, '://chantierpilot_app@');
 
   console.log('· Démarrage de l\'API locale…');
-  const api = spawn(process.execPath, ['server/dev.mjs'], {
+  api = spawn(process.execPath, ['server/dev.mjs'], {
     cwd: ROOT,
-    env: { ...process.env, API_PORT: String(API_PORT) },
+    env: isolatedTestEnv({ DATABASE_URL: process.env.DATABASE_URL, DB_DRIVER: 'pg', API_PORT: String(API_PORT) }),
     stdio: ['ignore', 'pipe', 'pipe'],
     detached: true,
   });
   api.stderr.on('data', (d) => process.stderr.write(`[api] ${d}`));
-  // Nettoyage garanti quoi qu'il arrive (évite les zombies entre deux runs).
-  const cleanup = () => {
-    try { process.kill(-api.pid, 'SIGKILL'); } catch { try { api.kill('SIGKILL'); } catch { /* ignore */ } }
-    try { runCleanup(); } catch { /* ignore */ }
-  };
-  process.on('exit', cleanup);
-  process.on('SIGINT', () => { cleanup(); process.exit(130); });
-  const runCleanup = () => { forceCleanup(dataDir); };
-
   // Attendre que l'API réponde
   let ready = false;
   for (let i = 0; i < 50 && !ready; i++) {
@@ -178,6 +183,11 @@ async function main() {
     && session.data.user.email === 'koffi@btp-daloa.ci');
 
   // --- Chantiers ---
+  const badCalendarDate = await A.post('/api/projects', {
+    name: 'Chantier fictif', client_name: 'Client fictif', budget: 0, start_date: '2026-02-31',
+  });
+  check('Date calendaire impossible refusée avec un message français (422)',
+    badCalendarDate.status === 422 && /date/i.test(badCalendarDate.data.error.message));
   const projA = await A.post('/api/projects', {
     name: 'Villa Cocody — lot 3', client_name: 'M. Traoré', location: 'Cocody',
     budget: 15000000, start_date: '2026-01-05', end_date: '2026-06-30', status: 'en_cours', notes: 'Construction villa R+1',

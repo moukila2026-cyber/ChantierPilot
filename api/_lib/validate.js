@@ -3,6 +3,9 @@
 
 import { z } from 'zod';
 
+// Les erreurs par défaut de Zod doivent rester compréhensibles pour les utilisateurs.
+z.config(z.locales.fr());
+
 export const AMOUNT_MIN = 1;
 export const AMOUNT_MAX = 999999999999;
 
@@ -23,8 +26,9 @@ const budgetSchema = z.union([
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date attendue au format AAAA-MM-JJ.')
   .refine((d) => {
     const dt = new Date(`${d}T00:00:00Z`);
-    return !Number.isNaN(dt.getTime()) && dt.getUTCFullYear() >= 2000 && dt.getUTCFullYear() <= 2100;
-  }, 'La date doit être comprise entre 2000 et 2100.');
+    return !Number.isNaN(dt.getTime()) && dt.toISOString().slice(0, 10) === d
+      && dt.getUTCFullYear() >= 2000 && dt.getUTCFullYear() <= 2100;
+  }, 'La date doit être valide et comprise entre 2000 et 2100.');
 
 const trimmed = (min, max, label) =>
   z.string().transform((s) => s.trim()).refine((s) => s.length >= min && s.length <= max,
@@ -187,7 +191,7 @@ export const subcontractUpdateSchema = z.object({
 
 export const expenseSchema = z.object({
   project_id: uuid,
-  category: z.enum(CATEGORIES, { errorMap: () => ({ message: 'Catégorie invalide.' }) }),
+  category: z.enum(CATEGORIES, { error: 'Catégorie invalide.' }),
   amount: amountSchema,
   expense_date: dateSchema,
   supplier: optionalText(160),
@@ -210,7 +214,7 @@ export const paymentSchema = z.object({
   amount: amountSchema,
   payment_date: dateSchema,
   reference: trimmed(2, 120, 'La référence (n° de reçu, réf. de virement…)'),
-  payment_method: z.enum(PAYMENT_METHODS, { errorMap: () => ({ message: 'Mode de paiement invalide.' }) }),
+  payment_method: z.enum(PAYMENT_METHODS, { error: 'Mode de paiement invalide.' }),
   memo: optionalText(500),
   proof: fileSchema.nullable().optional().default(null),
 }).strict();

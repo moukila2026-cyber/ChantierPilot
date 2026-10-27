@@ -5,12 +5,15 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import { tmpdir } from 'node:os';
 import { spawn, spawnSync } from 'node:child_process';
 import { chromium as playwright } from 'playwright';
 import chromium, { inflate } from '@sparticuz/chromium';
-import { startEmbeddedPostgres } from '../server/embedded-pg.mjs';
+import { startEmbeddedPostgres, forceCleanup } from '../server/embedded-pg.mjs';
+import { freePort, isolatedTestEnv } from './helpers/isolation.mjs';
 
 const DIST = path.resolve('dist');
+const [API_PORT, PG_PORT] = await Promise.all([freePort(), freePort()]);
 const SCREENSHOTS_DIR = '/tmp/cp-screenshots';
 fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
 
@@ -39,7 +42,7 @@ const web = http.createServer((req, res) => {
   const pathname = new URL(req.url, 'http://localhost').pathname;
   if (req.url.startsWith('/api')) {
     const proxy = http.request(
-      { host: '127.0.0.1', port: 3699, path: req.url, method: req.method, headers: req.headers },
+      { host: '127.0.0.1', port: API_PORT, path: req.url, method: req.method, headers: req.headers },
       (up) => { res.writeHead(up.statusCode, up.headers); up.pipe(res); },
     );
     req.pipe(proxy);
@@ -72,33 +75,43 @@ const web = http.createServer((req, res) => {
   });
   fs.createReadStream(path.join(DIST, 'index.html')).pipe(res);
 });
-await new Promise((r) => web.listen(0, r));
+await new Promise((r) => web.listen(0, '127.0.0.1', r));
 const origin = `http://localhost:${web.address().port}`;
 
-const pg = await startEmbeddedPostgres({ dataDir: '/tmp/pg-theme-test', port: 55439, persist: false });
+// Base et répertoire temporaires créés exclusivement pour cette exécution.
+const dataDir = fs.mkdtempSync(path.join(tmpdir(), 'chantierpilot-theme-'));
+let apiProc;
+const cleanup = () => {
+  try { apiProc?.kill('SIGKILL'); } catch { /* déjà arrêté */ }
+  try { forceCleanup(dataDir); } catch { /* déjà arrêté */ }
+  try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch { /* déjà supprimé */ }
+};
+process.once('exit', cleanup);
+process.once('SIGINT', () => { cleanup(); process.exit(130); });
+process.once('SIGTERM', () => { cleanup(); process.exit(143); });
+const pg = await startEmbeddedPostgres({ dataDir, port: PG_PORT, persist: true });
 const mig = spawnSync(process.execPath, ['db/migrate.mjs'], {
-  env: { ...process.env, DB_DRIVER: 'pg', NODE_ENV: 'test', DATABASE_URL: pg.url, DATABASE_URL_ADMIN: pg.url },
+  env: isolatedTestEnv({ DB_DRIVER: 'pg', NODE_ENV: 'test', DATABASE_URL: pg.url, DATABASE_URL_ADMIN: pg.url }),
   encoding: 'utf8',
 });
 assert.equal(mig.status, 0, `Migration échouée : ${mig.stderr || mig.stdout}`);
 
-const apiProc = spawn(process.execPath, ['server/dev.mjs'], {
-  env: {
-    ...process.env,
+apiProc = spawn(process.execPath, ['server/dev.mjs'], {
+  env: isolatedTestEnv({
     NODE_ENV: 'test',
     DB_DRIVER: 'pg',
-    API_PORT: '3699',
+    API_PORT: String(API_PORT),
     APP_ORIGIN: origin,
     DATABASE_URL: pg.url.replace(/:\/\/([^@/]+)@/, '://chantierpilot_app@'),
     SESSION_SECRET: 'secret_test_theme_navigateur_32c_000001',
     SASPAY_WEBHOOK_SECRET: 'saspay_test_secret',
-  },
+  }),
   stdio: 'ignore',
 });
 
 for (let i = 0; i < 60; i++) {
   try {
-    const r = await fetch('http://127.0.0.1:3699/api/health');
+    const r = await fetch(`http://127.0.0.1:${API_PORT}/api/health`);
     if (r.ok) break;
   } catch { /* démarrage */ }
   await new Promise((r) => setTimeout(r, 150));
@@ -111,14 +124,15 @@ if (systemChrome) {
   browser = await playwright.launch({
     executablePath: systemChrome,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    env: isolatedTestEnv({ LD_LIBRARY_PATH: '/tmp/al2023/lib' }),
     headless: true,
   });
 } else {
   await inflate(path.resolve('node_modules/@sparticuz/chromium/bin/al2023.tar.br'));
-  process.env.LD_LIBRARY_PATH = `/tmp/al2023/lib:${process.env.LD_LIBRARY_PATH || ''}`;
   browser = await playwright.launch({
     executablePath: await chromium.executablePath(),
     args: chromium.args.filter((arg) => !arg.includes('disable-web-security') && !arg.includes('allow-running-insecure-content')),
+    env: isolatedTestEnv({ LD_LIBRARY_PATH: '/tmp/al2023/lib' }),
     headless: true,
   });
 }

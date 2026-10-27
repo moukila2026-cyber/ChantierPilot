@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { formatFcfa, formatDate } from '../lib/format.js';
 import { STATUS_LABELS, STATUS_STYLES, CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '../lib/constants.js';
-import { Alert, Badge, Button, Card, EmptyState, LoadingPage, Modal, StatCard, Toast } from '../components/ui.jsx';
+import { ButtonLink, Alert, Badge, Button, Card, EmptyState, LoadingPage, Modal, StatCard, Toast } from '../components/ui.jsx';
 import BtpVisual from '../components/BtpVisual.jsx';
 import { ProjectForm } from './ProjectsPage.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -88,9 +88,7 @@ export default function DashboardPage() {
                   + Nouveau chantier
                 </Button>
               ) : (
-                <Link to="/chantiers">
-                  <Button>Voir les chantiers</Button>
-                </Link>
+                <ButtonLink to="/chantiers">Voir les chantiers</ButtonLink>
               )}
               <Link
                 to="/chantiers"
@@ -331,7 +329,7 @@ export default function DashboardPage() {
                 message="Créez votre premier chantier pour commencer à suivre budget, dépenses et encaissements."
                 action={isAdmin
                   ? <Button onClick={() => { setFields({}); setModalOpen(true); }}>+ Nouveau chantier</Button>
-                  : <Link to="/chantiers"><Button>Voir les chantiers</Button></Link>}
+                  : <ButtonLink to="/chantiers">Voir les chantiers</ButtonLink>}
               />
             </div>
           ) : (

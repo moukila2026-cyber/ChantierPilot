@@ -7,6 +7,7 @@ export const config = { api: { bodyParser: false } };
 
 import { dispatch } from './_lib/router.js';
 import { fail } from './_lib/http.js';
+import { logTechnicalError } from './_lib/safe-log.js';
 
 export default async function handler(req, res) {
   try {
@@ -20,7 +21,7 @@ export default async function handler(req, res) {
     await dispatch(req, res);
   } catch (err) {
     if (err.status === 413) return fail(res, 413, 'corps_trop_volumineux', 'Corps trop volumineux.');
-    console.error('[api]', err);
+    logTechnicalError('api', err);
     if (!res.headersSent) {
       fail(res, 500, 'erreur_serveur', 'Erreur interne. L\'incident est journalisé ; réessayez ou contactez le support.');
     }

@@ -13,12 +13,14 @@
 
 import pg from 'pg';
 import path from 'node:path';
-import { readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { startEmbeddedPostgres, forceCleanup } from '../server/embedded-pg.mjs';
+import { freePort } from '../tests/helpers/isolation.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = 55433;
+const PORT = await freePort();
 
 let passed = 0;
 let failed = 0;
@@ -46,12 +48,19 @@ async function main() {
   console.log('  Deux entreprises fictives, accès croisés interdits.');
   console.log('══════════════════════════════════════════════════════════\n');
 
-  const dataDir = path.join(ROOT, '.pgdata-rlstest');
-  forceCleanup(dataDir);
-  rmSync(dataDir, { recursive: true, force: true });
-
+  // Un dossier propre à cette exécution : ne jamais effacer un répertoire local préexistant.
+  const dataDir = mkdtempSync(path.join(tmpdir(), 'chantierpilot-rlstest-'));
+  const cleanup = () => {
+    try { forceCleanup(dataDir); } catch { /* déjà arrêté */ }
+    try { rmSync(dataDir, { recursive: true, force: true }); } catch { /* déjà supprimé */ }
+  };
+  process.once('exit', cleanup);
+  process.once('SIGINT', () => { cleanup(); process.exit(130); });
+  process.once('SIGTERM', () => { cleanup(); process.exit(143); });
+  let pgInst;
+  try {
   console.log('· Démarrage de PostgreSQL (test isolé)…');
-  const pgInst = await startEmbeddedPostgres({ dataDir, port: PORT, persist: true });
+  pgInst = await startEmbeddedPostgres({ dataDir, port: PORT, persist: true });
   const adminUrl = pgInst.url;
   console.log('  ✓ PostgreSQL prêt\n');
 
@@ -295,12 +304,15 @@ async function main() {
   console.log(`  RÉSULTAT : ${passed} réussis, ${failed} échoués`);
   console.log('══════════════════════════════════════════════════════════');
 
-  await pgInst.stop();
   if (failed > 0) {
     console.error('✗ Des tests RLS ont échoué — NE PAS DÉPLOYER.');
-    process.exit(1);
+    process.exitCode = 1;
+  } else {
+    console.log('✓ Toutes les politiques RLS se comportent comme attendu.');
   }
-  console.log('✓ Toutes les politiques RLS se comportent comme attendu.');
+  } finally {
+    try { await pgInst?.stop(); } finally { cleanup(); }
+  }
 }
 
 main().catch((e) => {

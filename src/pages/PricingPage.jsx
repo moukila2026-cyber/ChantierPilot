@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Alert, Badge, Button, Card, Footer, Spinner } from '../components/ui.jsx';
+import { ButtonLink, Alert, Badge, Button, Card, Footer, Spinner } from '../components/ui.jsx';
 import Logo from '../components/Logo.jsx';
 import BtpVisual from '../components/BtpVisual.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -310,11 +310,9 @@ export default function PricingPage({ standalone = false }) {
 
               <div className="mt-auto pt-2">
                 {status !== 'auth' ? (
-                  <Link to="/inscription" className="block">
-                    <Button variant={featured ? 'primary' : 'dark'} className="w-full">
-                      Essayer 14 jours
-                    </Button>
-                  </Link>
+                  <ButtonLink to="/inscription" variant={featured ? 'primary' : 'dark'} className="w-full">
+                    Essayer 14 jours
+                  </ButtonLink>
                 ) : (
                   <Button
                     variant={featured ? 'primary' : 'dark'}

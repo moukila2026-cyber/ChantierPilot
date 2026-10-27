@@ -1,5 +1,7 @@
 # Abonnements, quotas et SasPay
 
+> **Prudence — migration non validée pour une cible réelle.** Les commandes historiques ci-dessous ne doivent pas être lancées sur une base réelle sans revue, sauvegarde, restauration testée et autorisation. Le chemin général peut modifier des essais et des droits ; suivre d'abord [migration et préproduction](MIGRATIONS_ET_PREPROD.md). Le build ne lance plus de migration automatique.
+
 ## Offre commerciale retenue
 
 | Forfait | Prix / 30 jours | Chantiers ouverts | Utilisateurs actifs |
@@ -30,7 +32,7 @@ Un changement de gamme nécessite l’expiration de la période payée. Pas de p
 
 ## Mise en service
 
-1. Sauvegarder la base, puis exécuter `npm run migrate` avec `DATABASE_URL_ADMIN` et `APP_DB_PASSWORD`, comme dans le guide d’installation. Le rôle applicatif reste limité, sans BYPASSRLS.
+1. Avant toute migration réelle, effectuer une sauvegarde, tester la restauration sur une cible isolée et faire revoir la migration générale et les droits. Ne pas lancer `npm run migrate` sans autorisation ; le rôle applicatif doit rester limité, sans BYPASSRLS.
 2. Dans l’environnement **serveur**, configurer :
    - `APP_URL` : origine publique canonique HTTPS de l’application ;
    - `SASPAY_SECRET_KEY` : clé `sk_test_...` pour les essais, puis `sk_live_...` pour encaisser ; scope Payin/All ;

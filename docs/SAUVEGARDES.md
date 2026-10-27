@@ -7,38 +7,33 @@
 | Offre Neon | Restauration instantanée (PITR) | Instantanés manuels |
 | --- | --- | --- |
 | Free | **6 heures** d'historique (1 Go de changements max) | 1 |
-| Launch (payant à l'usage) | jusqu'à **7 jours** (à régler dans *Settings → History*) | oui |
+| Launch (payant à l'usage) | jusqu'à **7 jours** (à régler dans *Settings → Postgres → History window*) | oui |
 | Scale | jusqu'à 30 jours | oui |
 
-**Avec de vrais clients, 6 heures ne suffisent pas** : passez la base de production en
-**Launch** avec 7 jours d'historique, et prenez un instantané avant chaque migration.
+**Avec de vrais clients, 6 heures peuvent être insuffisantes** : l'utilisateur doit vérifier le plan, configurer la fenêtre de récupération adaptée et prendre un instantané avant chaque migration. Sur Launch, la fenêtre peut atteindre 7 jours ; le défaut d'un projet payant est de 1 jour, à vérifier dans la console [9](https://neon.com/docs/postgres/backup-restore/history-window). Aucun changement de plan ou de paramètre n'est effectué par ce dépôt.
 
 ### 1.2 Copie indépendante (`pg_dump`) — attention au RLS forcé
 
 Toutes les tables ont `FORCE ROW LEVEL SECURITY`. `pg_dump` désactive `row_security`,
 ce qui exige un rôle **superuser** ou **BYPASSRLS**. Pour un propriétaire sans BYPASSRLS,
-PostgreSQL refuse le dump avec :
-`query would be affected by row-level security policy` (vérifié par `npm run test:migration`).
+PostgreSQL peut refuser le dump avec un message indiquant que la requête serait affectée par une politique RLS. Ce comportement découle du fonctionnement documenté de `pg_dump`, qui désactive `row_security` par défaut [1](https://www.postgresql.org/docs/current/app-pgdump.html). Aucun dump ni aucune restauration Neon n'a été testé dans cette session.
 
 1. Dans Neon → **SQL Editor** (branche `preprod`, rôle `neondb_owner`), exécutez :
    ```sql
    SELECT rolname, rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user;
    ```
-2. **Si `rolbypassrls` = `true`** : le dump fonctionne avec l'URL propriétaire.
-   **Testez-le sur `preprod`**, puis restaurez-le sur une branche jetable :
+2. **Si `rolbypassrls` = `true`** : préparez, par un canal privé, un service PostgreSQL de sauvegarde avec `PGSERVICE` et un fichier de mots de passe protégé. Ne placez pas de chaîne de connexion dans les arguments de la commande ou l'historique du shell. **Testez d'abord sur `preprod`** :
    ```bash
-   read -rs DATABASE_URL_ADMIN; export DATABASE_URL_ADMIN
-   pg_dump "$DATABASE_URL_ADMIN" --no-owner --no-privileges -Fc -f "chantierpilot-$(date +%F).dump"
+   pg_dump --no-owner --no-privileges -Fc -f "chantierpilot-$(date +%F).dump"
    pg_restore --list "chantierpilot-$(date +%F).dump" > /dev/null && echo "dump lisible"
-   unset DATABASE_URL_ADMIN
    ```
-   Utilisez un `pg_dump` de même version majeure que la base, ou plus récent.
+   Choisissez un nom de fichier qui n'écrase aucune sauvegarde existante. Une liste lisible ne prouve pas une restauration. Restaurez et contrôlez ensuite sur une cible jetable privée. Utilisez un `pg_dump` de même version majeure que la base, ou plus récent.
 3. **Si `rolbypassrls` = `false`** : pas de `pg_dump` complet possible avec ce rôle.
    Appuyez-vous sur la restauration instantanée et les instantanés Neon (offre Launch),
    et ouvrez une évolution dédiée pour un rôle de sauvegarde en lecture seule.
 
 **À ne jamais faire :**
-- `ALTER TABLE … NO FORCE ROW LEVEL SECURITY`, même si PostgreSQL le suggère : cela supprimerait l'isolation entre entreprises.
+- Ne désactivez pas manuellement le RLS pour contourner une sauvegarde. **Attention :** la migration actuelle contient elle-même un `NO FORCE ROW LEVEL SECURITY` temporaire autour d'une mise à jour des essais ; cette exception et ses effets doivent être examinés avant toute migration réelle.
 - Donner BYPASSRLS au rôle `chantierpilot_app`. L'API refuserait d'ailleurs de démarrer.
 
 ### 1.3 Rythme et stockage
@@ -51,8 +46,7 @@ PostgreSQL refuse le dump avec :
 
 ### 1.4 Restauration
 
-- **Erreur récente** (dans la fenêtre PITR) : Neon → *Backup & Restore* → restaurer la branche à l'instant voulu.
-  Ou créer une branche à cet instant pour comparer avant d'agir.
+- **Erreur récente** (dans la fenêtre PITR) : pour un exercice, créez une cible de restauration isolée et privée à partir de l'instantané ou de l'historique ; vérifiez les totaux et les droits. Ne restaurez pas en place sur la production pendant un test. La restauration instantanée en place écrase les données et le schéma de toutes les bases de la branche ciblée ([8](https://neon.com/docs/introduction/branch-restore)).
 - **Depuis un dump** : la procédure dépend du rôle disponible (le RLS forcé s'applique aussi à
   l'écriture). Elle doit être **écrite et testée sur une branche jetable avant le premier
   client réel** : restauration, puis contrôle des totaux (budgets, dépenses, encaissements)
@@ -68,17 +62,16 @@ Paramètres → **Export & sauvegarde** :
 | Dépenses (CSV) | Toutes les dépenses (montants FCFA, justificatif : oui/non) |
 | Encaissements (CSV) | Tous les encaissements (référence, mode, justificatif : oui/non) |
 | Export complet (CSV) | Les trois en un fichier |
-| Sauvegarde JSON | Structure complète (entreprise, chantiers, dépenses, encaissements) — base de restauration logique |
+| Export JSON (partiel) | Entreprise, chantiers, dépenses, encaissements et certaines données métier, y compris archives de paie ; certaines tables et les fichiers binaires sont exclus |
 
 Ces exports ne contiennent **que les données de l'entreprise connectée** (RLS).
 Format CSV : UTF-8 avec BOM (Excel francophone), séparateur `;`.
 
 ## 3. Justificatifs (pièces jointes)
 
-Les justificatifs sont stockés chiffrés en transit dans la base (colonne `BYTEA`).
-Ils apparaissent dans la sauvegarde `pg_dump` automatiquement. L'export JSON
-n'embarque pas les binaires (poids) — indiquez `has_receipt` / `has_proof` comme
-trace ; pour une extraction binaire complète, utilisez `pg_dump`.
+Les justificatifs sont stockés sous forme binaire dans la base (colonne `BYTEA`). Le chiffrement en transit dépend de la connexion TLS et le chiffrement au repos de la configuration de l'hébergeur ; aucun des deux n'a été vérifié ici.
+
+Un `pg_dump` complet avec les droits appropriés doit inclure ces colonnes, contrairement à l'export JSON qui n'embarque pas les binaires : il indique leur présence avec `has_receipt` / `has_proof`. Vérifiez le contenu et la restauration sur une cible isolée ; ne considérez pas l'export JSON comme une sauvegarde intégrale.
 
 ## 4. Restauration logique d'un client (import initial)
 

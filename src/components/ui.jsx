@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { PROOF_LEVEL } from '../lib/constants.js';
 
 export function Spinner({ className = 'h-5 w-5', label }) {
@@ -21,15 +22,24 @@ export function Spinner({ className = 'h-5 w-5', label }) {
   );
 }
 
+const buttonStyles = (variant) => ({
+  primary: 'cp-btn cp-btn-primary',
+  charcoal: 'cp-btn cp-btn-dark',
+  dark: 'cp-btn cp-btn-dark',
+  secondary: 'cp-btn cp-btn-secondary',
+  danger: 'cp-btn cp-btn-danger',
+  ghost: 'cp-btn cp-btn-ghost',
+}[variant] || 'cp-btn cp-btn-primary');
+
+/** Un lien conserve le style d'un bouton sans imbriquer deux contrôles interactifs. */
+export function ButtonLink({ to, href, variant = 'primary', children, className = '', ...props }) {
+  const classes = `${buttonStyles(variant)} ${className}`;
+  if (to != null) return <Link to={to} className={classes} {...props}>{children}</Link>;
+  return <a href={href} className={classes} {...props}>{children}</a>;
+}
+
 export function Button({ variant = 'primary', loading = false, disabled = false, type = 'button', children, className = '', ...props }) {
-  const styles = {
-    primary: 'cp-btn cp-btn-primary',
-    charcoal: 'cp-btn cp-btn-dark',
-    dark: 'cp-btn cp-btn-dark',
-    secondary: 'cp-btn cp-btn-secondary',
-    danger: 'cp-btn cp-btn-danger',
-    ghost: 'cp-btn cp-btn-ghost',
-  }[variant] || 'cp-btn cp-btn-primary';
+  const styles = buttonStyles(variant);
 
   return (
     <button

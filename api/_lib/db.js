@@ -5,8 +5,10 @@
 // d'entreprise dans la transaction — les politiques RLS font le reste.
 
 import pg from 'pg';
+import { logTechnicalError } from './safe-log.js';
 
 const pools = new Map();
+const openingPools = new Map();
 
 export class ConfigError extends Error {
   constructor(message) {
@@ -66,25 +68,39 @@ async function createPool() {
  */
 function watchIdleErrors(pool) {
   pool.on('error', (err) => {
-    console.warn('[db] connexion inactive fermée par le serveur :', err.message);
+    logTechnicalError('db', err, { level: 'warn' });
   });
   return pool;
 }
 
 export async function getPool() {
   const key = process.env.DATABASE_URL || 'unset';
-  if (!pools.has(key)) {
+  if (pools.has(key)) return pools.get(key);
+  // Plusieurs premières requêtes simultanées ne doivent pas créer chacune un
+  // pool indépendant avant la fin du contrôle de rôle.
+  if (openingPools.has(key)) return openingPools.get(key);
+  const opening = (async () => {
     const pool = await createPool();
-    // Vérification immédiate du rôle de connexion (défense en profondeur).
-    const client = await pool.connect();
     try {
-      await assertSafeDatabaseRole(client);
-    } finally {
-      client.release();
+      const client = await pool.connect();
+      try {
+        await assertSafeDatabaseRole(client);
+      } finally {
+        client.release();
+      }
+      pools.set(key, pool);
+      return pool;
+    } catch (error) {
+      await pool.end().catch(() => {});
+      throw error;
     }
-    pools.set(key, pool);
+  })();
+  openingPools.set(key, opening);
+  try {
+    return await opening;
+  } finally {
+    if (openingPools.get(key) === opening) openingPools.delete(key);
   }
-  return pools.get(key);
 }
 
 /** Requête hors contexte métier (fonctions SECURITY DEFINER, santé). */
@@ -95,6 +111,7 @@ export async function bootQuery(text, params = []) {
 
 /** Ferme proprement tous les pools ouverts (arrêt propre / tests de migration). */
 export async function closePools() {
+  await Promise.allSettled([...openingPools.values()]);
   for (const pool of pools.values()) {
     await pool.end().catch(() => {});
   }

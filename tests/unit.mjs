@@ -1,14 +1,24 @@
 import assert from 'node:assert/strict';
 import { inflateSync } from 'node:zlib';
 import { amountInWordsFcfa } from '../api/_lib/money.js';
-import { parsePagination, paginationMeta, isProductionEnv } from '../api/_lib/http.js';
+import { z } from 'zod';
+import { expenseSchema, paymentSchema, projectCreateSchema, parseOrThrow } from '../api/_lib/validate.js';
+import { parseBpuCsv, MAX_BPU_TEXT_LENGTH } from '../src/lib/bpuCsv.js';
+import { toCsv } from '../api/_lib/csv.js';
+import { parsePagination, paginationMeta, isProductionEnv, handle } from '../api/_lib/http.js';
+import { logTechnicalError } from '../api/_lib/safe-log.js';
+import { run, audit } from '../api/_lib/pipeline.js';
 import { ROUTES, resolvePath, dispatch } from '../api/_lib/router.js';
 import { readdirSync, readFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
+import { isolatedTestEnv } from './helpers/isolation.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildProjectReport } from '../api/_lib/pdf.js';
 import { api } from '../src/lib/api.js';
+import { runMonitor } from '../scripts/monitor.mjs';
+import { summarizeFailure } from '../scripts/ci-report-failure.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let passed = 0;
@@ -29,6 +39,70 @@ function streams(pdf) {
 }
 
 console.log('══ Tests unitaires — montants, pagination et PDF ══');
+await test('Validation : messages français et catégories explicites', () => {
+  const category = expenseSchema.shape.category.safeParse('inconnue');
+  const method = paymentSchema.shape.payment_method.safeParse('inconnu');
+  assert.equal(category.success, false);
+  assert.equal(category.error.issues[0].message, 'Catégorie invalide.');
+  assert.equal(method.success, false);
+  assert.equal(method.error.issues[0].message, 'Mode de paiement invalide.');
+  assert.throws(
+    () => parseOrThrow(z.object({ montant: z.number() }), { montant: 'invalide' }),
+    (err) => err.status === 422 && /nombre/i.test(err.fields.montant),
+  );
+});
+await test('Validation : une collection surdimensionnée est rejetée sans multiplier les erreurs', () => {
+  const schema = z.array(z.object({ nom: z.string() })).max(2);
+  const result = schema.safeParse(Array.from({ length: 10_000 }, () => ({ nom: false })));
+  assert.equal(result.success, false);
+  assert.equal(result.error.issues.length, 1);
+});
+await test('Validation : les dates calendaires impossibles sont refusées', () => {
+  const base = { name: 'Chantier fictif', client_name: 'Client fictif', budget: 0 };
+  for (const start_date of ['2026-02-31', '2025-02-29', '2026-04-31', '2101-01-01']) {
+    const result = projectCreateSchema.safeParse({ ...base, start_date });
+    assert.equal(result.success, false, `Date incorrecte acceptée : ${start_date}`);
+    assert.match(result.error.issues[0].message, /date/i);
+  }
+  assert.equal(projectCreateSchema.safeParse({ ...base, start_date: '2024-02-29' }).success, true);
+});
+await test('BPU CSV : guillemets, séparateurs et unités courtes conservés', () => {
+  const semicolon = parseBpuCsv('\uFEFFDésignation;Unité;Prix vente FCFA;Coût prévu FCFA\n"Câble, cuivre ""souple""";m;1 500;700');
+  assert.deepEqual(semicolon.errors, []);
+  assert.deepEqual(semicolon.items, [{ label: 'Câble, cuivre "souple"', unit: 'm', unit_price: 1500, unit_cost: 700 }]);
+  const comma = parseBpuCsv('"Béton, armé",m3,95000,70000');
+  assert.deepEqual(comma.errors, []);
+  assert.equal(comma.items[0].label, 'Béton, armé');
+  const tabs = parseBpuCsv('Poste\tUnité\tPrix\tCoût\nCâble\tm\t2\u00a0500\t1000');
+  assert.deepEqual(tabs.errors, []);
+  assert.equal(tabs.items[0].unit_price, 2500);
+});
+await test('BPU CSV : prix ambigus, lignes invalides et dépassement ne sont jamais importables silencieusement', () => {
+  const invalid = parseBpuCsv('Désignation;Unité;Prix;Coût\nLigne valide;m;100;0\nPrix négatif;m;-100;0\nPrix décimal;m;1,5;0\nPrix texte;m;abc;0\nEspacement invalide;m;1 5;0');
+  assert.equal(invalid.items.length, 1);
+  assert.equal(invalid.errors.length, 4);
+  assert.match(invalid.errors[0], /Ligne 3/);
+  assert.ok(parseBpuCsv('Ouvrage;m;"1200').errors.length);
+  const many = parseBpuCsv(Array.from({ length: 201 }, (_, i) => `Poste ${i};m;100;0`).join('\n'));
+  assert.match(many.errors[0], /200 postes/);
+  assert.ok(parseBpuCsv('x'.repeat(MAX_BPU_TEXT_LENGTH + 1)).errors.length);
+});
+await test('Export CSV : neutralise les formules sans modifier les nombres typés', () => {
+  const csv = toCsv(['Texte', 'Montant'], [
+    ['=1+1', -42],
+    ['  +FORMULE', 25],
+    ['@FORMULE', 0],
+    ['-2+3', 5],
+    ['\t=FORMULE', 6],
+    ['Texte; ordinaire', 7],
+  ]);
+  assert.match(csv, /'=1\+1;-42/);
+  assert.match(csv, /'  \+FORMULE;25/);
+  assert.match(csv, /'@FORMULE;0/);
+  assert.match(csv, /'-2\+3;5/);
+  assert.match(csv, /'\t=FORMULE;6/);
+  assert.match(csv, /"Texte; ordinaire";7/);
+});
 await test('FCFA : zéro et singulier', () => {
   assert.equal(amountInWordsFcfa(0), 'zéro franc CFA');
   assert.equal(amountInWordsFcfa(1), 'un franc CFA');
@@ -125,6 +199,35 @@ function vercelFunctions(dir = path.join(ROOT, 'api'), rel = 'api') {
   return out;
 }
 
+await test('CI : un résumé d’échec ne divulgue pas les valeurs des fixtures', () => {
+  const marker = 'fixture-privee-ne-pas-afficher';
+  const summary = summarizeFailure(`> chantierpilot@1.0.0 test:features\nTimeoutError ${marker}`, 'test:all');
+  assert.equal(summary.includes(marker), false);
+  assert.equal(summary.includes('test:features'), true);
+  assert.equal(summary.includes('TimeoutError'), true);
+});
+
+await test('Build : aucun accès automatique à la base, y compris sur Vercel', () => {
+  const marker = 'fixture-privee-ne-pas-afficher';
+  for (const extra of [
+    { VERCEL: '1', NODE_ENV: 'production', FORCE_SAFE_MIGRATE: '1' },
+    { NODE_ENV: 'test', FORCE_SAFE_MIGRATE: '1' },
+  ]) {
+    const child = spawnSync(process.execPath, ['scripts/build-vercel.mjs'], {
+      cwd: ROOT, env: isolatedTestEnv({ ...extra, DATABASE_URL_ADMIN: marker }),
+      encoding: 'utf8', timeout: 3000,
+    });
+    assert.equal(child.status, 0, 'Le build ne doit pas accéder à une base.');
+    assert.equal((child.stdout + child.stderr).includes(marker), false);
+  }
+  const refused = spawnSync(process.execPath, ['scripts/build-vercel.mjs', '--cible-isolee-confirmee'], {
+    cwd: ROOT, env: isolatedTestEnv({ VERCEL: '1', NODE_ENV: 'test', DATABASE_URL_ADMIN: marker }),
+    encoding: 'utf8', timeout: 3000,
+  });
+  assert.equal(refused.status, 1, 'Le diagnostic manuel doit être interdit sur Vercel.');
+  assert.equal((refused.stdout + refused.stderr).includes(marker), false);
+});
+
 await test('Vercel : au plus 12 fonctions serverless (limite du plan Hobby)', () => {
   const fns = vercelFunctions();
   assert.ok(fns.length <= 12, `Trop de fonctions (${fns.length}) : ${fns.join(', ')}`);
@@ -189,6 +292,137 @@ await test('Migration : refusée avec le rôle limité chantierpilot_app (avant 
   assert.equal(r.status, 1);
   assert.match(r.stderr, /PROPRIÉTAIRE/);
   assert.doesNotMatch(r.stdout + r.stderr, /fictif/, 'Aucun mot de passe ne doit être affiché');
+});
+
+await test('Les suites enfants ne reçoivent aucune configuration sensible du shell', () => {
+  const names = [
+    'DATABASE_URL', 'DATABASE_URL_ADMIN', 'RESEND_API_KEY', 'MAIL_FROM',
+    'MAIL_WEBHOOK_URL', 'SASPAY_SECRET_KEY', 'VERCEL_TOKEN', 'CHANTIERPILOT_TEST_SENTINEL',
+  ];
+  const sentinels = Object.fromEntries(names.map((name) => [name, 'fixture-non-sensible']));
+  const result = spawnSync(process.execPath, ['tests/helpers/isolated-exec.mjs', 'tests/helpers/isolation-probe.mjs'], {
+    cwd: ROOT,
+    env: { PATH: process.env.PATH, ...sentinels },
+    stdio: 'ignore',
+  });
+  assert.equal(result.status, 0, 'Le processus de test doit ignorer les variables héritées.');
+});
+
+await test('Les erreurs techniques ne divulguent ni message ni détail dans les journaux', async () => {
+  const marker = `fixture-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const failure = Object.assign(new Error(marker), { code: marker, detail: marker, stack: marker });
+  const inaccessibleCode = { get code() { throw new Error(marker); } };
+  const messages = [];
+  const previousError = console.error;
+  const previousWarn = console.warn;
+  console.error = (...args) => messages.push(args.join(' '));
+  console.warn = (...args) => messages.push(args.join(' '));
+  const outer = fakeRes();
+  const pipeline = fakeRes();
+  try {
+    logTechnicalError(marker, failure);
+    logTechnicalError('api', inaccessibleCode);
+    logTechnicalError('db', { code: 'ECONNRESET', message: marker }, { level: 'warn' });
+    await handle({ method: 'GET', headers: {} }, outer, async () => { throw failure; });
+    await run(pipeline, async () => { throw failure; });
+    await audit({ query: async () => { throw failure; } }, {}, 'test', 'test', null, marker);
+  } finally {
+    console.error = previousError;
+    console.warn = previousWarn;
+  }
+  const recorded = messages.join('\n');
+  assert.equal(recorded.includes(marker), false, 'Les erreurs brutes ne doivent pas être affichées.');
+  assert.match(recorded, /\[db\].*ECONNRESET/);
+  assert.equal(outer.statusCode, 500);
+  assert.equal(pipeline.statusCode, 500);
+  assert.equal(outer.body.includes(marker), false);
+  assert.equal(pipeline.body.includes(marker), false);
+});
+
+await test('Le moniteur distingue la santé de base de la disponibilité complète', async () => {
+  const marker = `surveillance-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const origin = `https://${marker}.invalid`;
+  const output = [];
+  const report = (message) => output.push(message);
+  let seen;
+  let payload = { status: 'ok', database: 'ok', schema: 'ok' };
+  const fetcher = async (url, options) => {
+    seen = { url, options };
+    return new Response(JSON.stringify(payload), { headers: { 'Content-Type': 'application/json' } });
+  };
+  assert.equal(await runMonitor({ env: { APP_URL: origin }, fetcher, report }), 0);
+  assert.equal(seen.url === `${origin}/api/health`, true);
+  assert.equal(seen.options.redirect, 'manual');
+  const strict = { APP_URL: origin, MONITOR_REQUIRE_READY: '1' };
+  assert.equal(await runMonitor({ env: strict, fetcher, report }), 1);
+  payload = { ...payload, ready: true };
+  assert.equal(await runMonitor({ env: strict, fetcher, report }), 0);
+  payload = { ...payload, schema: 'migration_requise' };
+  assert.equal(await runMonitor({ env: strict, fetcher, report }), 1);
+  assert.equal(output.join(' ').includes(marker), false, 'La cible ne doit jamais être affichée.');
+});
+
+await test('Le moniteur refuse les cibles ou réponses non sûres sans fuite', async () => {
+  const marker = `controle-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const output = [];
+  const report = (message) => output.push(message);
+  let calls = 0;
+  const fetcher = async () => { calls += 1; throw new Error(marker); };
+  assert.equal(await runMonitor({ env: {}, fetcher, report }), 1);
+  assert.equal(await runMonitor({ env: { APP_URL: `http://${marker}.invalid` }, fetcher, report }), 1);
+  assert.equal(await runMonitor({ env: { APP_URL: `https://${marker}@test.invalid` }, fetcher, report }), 1);
+  assert.equal(calls, 0);
+  const valid = { APP_URL: `https://${marker}.invalid` };
+  assert.equal(await runMonitor({ env: valid, fetcher, report }), 1);
+  const tooLarge = async () => new Response(' '.repeat(64 * 1024 + 1), {
+    headers: { 'Content-Type': 'application/json' },
+  });
+  assert.equal(await runMonitor({ env: valid, fetcher: tooLarge, report }), 1);
+  assert.equal(output.join(' ').includes(marker), false, 'Les valeurs et erreurs brutes ne doivent pas être affichées.');
+});
+
+await test('Le moniteur CLI sonde une API fictive sans exposer la cible', async () => {
+  let payload = { status: 'ok', database: 'ok', schema: 'ok' };
+  const server = createServer((request, response) => {
+    if (request.url !== '/api/health' || request.method !== 'GET') {
+      response.writeHead(404); response.end(); return;
+    }
+    response.writeHead(200, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify(payload));
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const invoke = (strict) => new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ['scripts/monitor.mjs'], {
+      cwd: ROOT,
+      env: isolatedTestEnv({ APP_URL: origin, ...(strict ? { MONITOR_REQUIRE_READY: '1' } : {}) }),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let output = '';
+    child.stdout.on('data', (chunk) => { output += chunk; });
+    child.stderr.on('data', (chunk) => { output += chunk; });
+    const timer = setTimeout(() => { child.kill(); reject(new Error('Moniteur de test interrompu.')); }, 15_000);
+    child.once('error', (error) => { clearTimeout(timer); reject(error); });
+    child.once('close', (code) => { clearTimeout(timer); resolve({ code, output }); });
+  });
+  try {
+    const basic = await invoke(false);
+    assert.equal(basic.code, 0);
+    assert.equal(basic.output.includes(origin), false);
+    const absent = await invoke(true);
+    assert.equal(absent.code, 1);
+    assert.equal(absent.output.includes(origin), false);
+    payload = { ...payload, ready: true };
+    assert.equal((await invoke(true)).code, 0);
+    payload = { ...payload, database: 'indisponible' };
+    assert.equal((await invoke(false)).code, 1);
+  } finally {
+    server.closeAllConnections?.();
+    await new Promise((resolve) => server.close(resolve));
+  }
 });
 
 console.log(`  RÉSULTAT : ${passed} réussis, 0 échoués`);

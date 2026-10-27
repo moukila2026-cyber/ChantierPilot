@@ -11,16 +11,18 @@
     "build": "node scripts/build-vercel.mjs && vite build",
     "preview": "vite preview",
     "migrate": "node db/migrate.mjs",
+    "monitor": "node scripts/monitor.mjs",
     "check:assets": "node scripts/check-assets.mjs",
-    "db:test-rls": "node db/test-rls.mjs",
-    "test:migration": "node tests/migration-neon.mjs",
-    "test": "node tests/run.mjs",
-    "test:unit": "node tests/unit.mjs",
-    "test:ui": "node tests/landing.mjs",
-    "test:all": "npm run check:assets && npm run db:test-rls && npm run test:migration && npm run test:unit && npm run test:ui && npm run test && npm run test:theme && npm run test:features",
-    "test:browser": "node tests/browser-business.mjs",
-    "test:theme": "node tests/browser-theme.mjs",
-    "test:features": "node tests/browser-features.mjs"
+    "db:test-rls": "node tests/helpers/isolated-exec.mjs db/test-rls.mjs",
+    "test:migration": "node tests/helpers/isolated-exec.mjs tests/migration-neon.mjs",
+    "test:rate-limit": "node tests/helpers/isolated-exec.mjs tests/register-rate-limit.mjs",
+    "test": "node tests/helpers/isolated-exec.mjs tests/run.mjs",
+    "test:unit": "node tests/helpers/isolated-exec.mjs tests/unit.mjs",
+    "test:ui": "node tests/helpers/isolated-exec.mjs tests/landing.mjs",
+    "test:all": "npm run check:assets && npm run db:test-rls && npm run test:migration && npm run test:rate-limit && npm run test:unit && npm run test:ui && npm run test && npm run test:theme && npm run test:features",
+    "test:browser": "node tests/helpers/isolated-exec.mjs tests/browser-business.mjs && node tests/helpers/isolated-exec.mjs tests/browser-interactions.mjs",
+    "test:theme": "node tests/helpers/isolated-exec.mjs tests/browser-theme.mjs",
+    "test:features": "node tests/helpers/isolated-exec.mjs tests/browser-features.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.0",
@@ -31,7 +33,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.0",
-    "zod": "^3.24.0"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@sparticuz/chromium": "^153.0.0",

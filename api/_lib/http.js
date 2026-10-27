@@ -1,6 +1,8 @@
 // Pipeline HTTP commun : en-têtes de sécurité, réponses JSON, contrôle
 // d'origine (anti-CSRF), limitation de débit, lecture de corps.
 
+import { logTechnicalError } from './safe-log.js';
+
 /**
  * Environnement déployé ? NODE_ENV=production, ou déploiement Vercel
  * (production comme préproduction) : cookie Secure/__Host-, HSTS et CSP.
@@ -152,7 +154,7 @@ export async function handle(req, res, fn) {
   } catch (err) {
     const status = err.status || 500;
     if (status >= 500) {
-      console.error('[api]', err);
+      logTechnicalError('api', err);
       return fail(res, 500, 'erreur_serveur', 'Erreur interne. L\'incident est journalisé ; réessayez ou contactez le support.');
     }
     return fail(res, status, err.code || 'requete_invalide', err.message || 'Requête invalide.', err.fields);

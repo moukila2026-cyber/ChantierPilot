@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Button, Footer } from '../components/ui.jsx';
+import { ButtonLink, Footer } from '../components/ui.jsx';
 import Logo from '../components/Logo.jsx';
 
 export default function NotFoundPage() {
@@ -21,12 +21,8 @@ export default function NotFoundPage() {
             Cette adresse n’existe pas ou a été déplacée. Retrouvez tous vos chantiers et documents depuis votre tableau de bord.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <Link to="/">
-              <Button>Retour au tableau de bord</Button>
-            </Link>
-            <Link to="/offres">
-              <Button variant="secondary">Offres &amp; tarifs</Button>
-            </Link>
+            <ButtonLink to="/">Retour au tableau de bord</ButtonLink>
+            <ButtonLink to="/offres" variant="secondary">Offres &amp; tarifs</ButtonLink>
           </div>
         </div>
       </main>
