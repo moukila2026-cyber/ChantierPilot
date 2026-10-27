@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { withTenant } from '../_lib/db.js';
 import { handle, sendJson, readJsonBody, securityHeaders } from '../_lib/http.js';
 import { requireAdmin, run } from '../_lib/pipeline.js';
-import { uuid, money, zeroMoney, text, date, businessError, projectRequired, command } from '../_lib/operations.js';
+import { uuid, money, zeroMoney, text, unit, date, businessError, projectRequired, command } from '../_lib/operations.js';
 import { optionalSql } from '../_lib/compat.js';
 import { kvGet, kvList, kvPut } from '../_lib/kv.js';
 import { checkQuota } from '../_lib/billing.js';
@@ -12,12 +12,12 @@ import { decodeFileAttachment } from '../_lib/files.js';
 import { quoteTotals, roundedRatio } from '../../shared/trade.js';
 import { documentPdf } from '../_lib/document-pdf.js';
 
-const line = z.object({ label: text(), unit: text(30), quantity: z.string().max(20), unit_price: zeroMoney, unit_cost: zeroMoney }).strict();
-const priceItem = z.object({ label: text(), unit: text(30), unit_price: zeroMoney, unit_cost: zeroMoney.default(0) }).strict();
+const line = z.object({ label: text(), unit, quantity: z.string().max(20), unit_price: zeroMoney, unit_cost: zeroMoney }).strict();
+const priceItem = z.object({ label: text(), unit, unit_price: zeroMoney, unit_cost: zeroMoney.default(0) }).strict();
 
 const schemas = {
   quote: z.object({ action: z.literal('quote'), project_id: uuid.nullable().default(null), title: text(), client_name: text(), client_address: z.string().trim().max(240).default(''), tax_bps: z.number().int().min(0).max(10000), lines: z.array(line).min(1).max(100), due_date: date }),
-  price: z.object({ action: z.literal('price'), label: text(), unit: text(30), unit_price: zeroMoney, unit_cost: zeroMoney }),
+  price: z.object({ action: z.literal('price'), label: text(), unit, unit_price: zeroMoney, unit_cost: zeroMoney }),
   price_import: z.object({ action: z.literal('price_import'), items: z.array(priceItem).min(1).max(200) }),
   duplicate: z.object({ action: z.literal('duplicate'), id: uuid }),
   issue: z.object({ action: z.literal('issue'), id: uuid }),

@@ -13,19 +13,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import net from 'node:net';
 import pg from 'pg';
 import { embeddedConfig } from '../server/embedded-pg.mjs';
-
-function freePort() {
-  return new Promise((resolve) => {
-    const s = net.createServer();
-    s.listen(0, '127.0.0.1', () => {
-      const { port } = s.address();
-      s.close(() => resolve(port));
-    });
-  });
-}
+import { freePort, isolatedTestEnv } from './helpers/isolation.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PGPORT = await freePort();
@@ -47,7 +37,7 @@ const pgBin = (() => {
   throw new Error('pg_ctl introuvable');
 })();
 
-const run = (bin, args) => execFileSync(bin, args, { stdio: 'pipe', env: { ...process.env, LC_ALL: 'C.UTF-8' } });
+const run = (bin, args) => execFileSync(bin, args, { stdio: 'pipe', env: isolatedTestEnv({ LC_ALL: 'C.UTF-8' }) });
 
 const MINI_JPEG = Buffer.from(
   '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=',
@@ -55,6 +45,16 @@ const MINI_JPEG = Buffer.from(
 ).toString('base64');
 
 let apiServer = null;
+// En cas d'interruption, nettoyer uniquement l'instance temporaire de ce test.
+const cleanup = () => {
+  spawnSync(join(pgBin, 'pg_ctl'), ['-D', pgData, '-m', 'immediate', 'stop'], {
+    stdio: 'ignore', env: isolatedTestEnv(),
+  });
+  rmSync(pgData, { recursive: true, force: true });
+};
+process.once('exit', cleanup);
+process.once('SIGINT', () => process.exit(130));
+process.once('SIGTERM', () => process.exit(143));
 
 async function execSql(dbName, sqlText) {
   const client = new pg.Client({ connectionString: `postgres://127.0.0.1:${PGPORT}/${dbName}` });
@@ -176,10 +176,11 @@ try {
     items: [
       { label: 'Béton armé C25/30', unit: 'm3', unit_price: 95_000, unit_cost: 70_000 },
       { label: 'Agglos creux 15', unit: 'm2', unit_price: 8_500, unit_cost: 6_000 },
+      { label: 'Câble', unit: 'm', unit_price: 1_500, unit_cost: 1_000 },
     ],
   });
   assert([200, 201].includes(bpuImport.status));
-  assert.equal(bpuImport.data.result.count, 2);
+  assert.equal(bpuImport.data.result.count, 3);
 
   const quoteCreate = await authed('/api/documents', 'POST', {
     action: 'quote',
@@ -288,11 +289,10 @@ try {
   execFileSync(process.execPath, [join(ROOT, 'db', 'migrate.mjs')], {
     cwd: ROOT,
     stdio: 'pipe',
-    env: {
-      ...process.env,
+    env: isolatedTestEnv({
       DATABASE_URL_ADMIN: `postgres://127.0.0.1:${PGPORT}/chantierpilot_neon`,
       DATABASE_URL: `postgres://chantierpilot_app:partial_test_pw@127.0.0.1:${PGPORT}/chantierpilot_neon`,
-    },
+    }),
   });
 
   const h2 = await fetch(`${BASE}/api/health`).then((r) => r.json());
@@ -306,7 +306,7 @@ try {
     apiServer.closeAllConnections?.();
     await new Promise((r) => apiServer.close(r));
   }
-  spawnSync(join(pgBin, 'pg_ctl'), ['-D', pgData, '-m', 'immediate', 'stop'], { stdio: 'ignore' });
-  rmSync(pgData, { recursive: true, force: true });
+  cleanup();
+  process.off('exit', cleanup);
 }
 process.exit(0);

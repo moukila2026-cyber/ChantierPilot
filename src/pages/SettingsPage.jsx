@@ -11,7 +11,7 @@ const EXPORTS = [
   ['/api/export?scope=expenses&format=csv', 'Dépenses (CSV)'],
   ['/api/export?scope=payments&format=csv', 'Encaissements (CSV)'],
   ['/api/export?scope=all&format=csv', 'Export complet (CSV)'],
-  ['/api/export?scope=all&format=json', 'Sauvegarde JSON'],
+  ['/api/export?scope=all&format=json', 'Export JSON (partiel)'],
 ];
 
 const ACTION_LABELS = {
@@ -29,10 +29,14 @@ function TeamSection({ onToast }) {
   const [fields, setFields] = useState({});
   const [resetFor, setResetFor] = useState(null);
   const [newPassword, setNewPassword] = useState('');
+  const [resetBusy, setResetBusy] = useState(false);
 
   const load = useCallback(() => {
-    api('/api/team').then((d) => setUsers(d.users)).catch(() => setUsers([]));
-  }, []);
+    api('/api/team').then((d) => setUsers(d.users)).catch((err) => {
+      setUsers([]);
+      onToast({ type: 'error', message: err.message });
+    });
+  }, [onToast]);
   useEffect(() => { load(); }, [load]);
 
   const create = async (e) => {
@@ -47,8 +51,27 @@ function TeamSection({ onToast }) {
   };
 
   const patchUser = async (id, body, message) => {
-    try { await api(`/api/team/${id}`, { method: 'PATCH', body }); onToast({ type: 'success', message }); load(); }
-    catch (err) { onToast({ type: 'error', message: err.message }); }
+    try {
+      await api(`/api/team/${id}`, { method: 'PATCH', body });
+      onToast({ type: 'success', message });
+      load();
+      return true;
+    } catch (err) {
+      onToast({ type: 'error', message: err.message });
+      return false;
+    }
+  };
+
+  const resetPassword = async (event, id) => {
+    event.preventDefault();
+    if (resetBusy) return;
+    setResetBusy(true);
+    try {
+      const saved = await patchUser(id, { password: newPassword }, 'Mot de passe réinitialisé : ses anciennes sessions sont déconnectées.');
+      if (saved) { setResetFor(null); setNewPassword(''); }
+    } finally {
+      setResetBusy(false);
+    }
   };
 
   return (
@@ -85,7 +108,7 @@ function TeamSection({ onToast }) {
                 </div>
                 {u.role === 'member' && (
                   <div className="flex gap-2">
-                    <Button variant="secondary" className="min-h-9 px-3 py-1 text-xs" onClick={() => { setResetFor(resetFor === u.id ? null : u.id); setNewPassword(''); }}>Réinitialiser le mot de passe</Button>
+                    <Button variant="secondary" className="min-h-9 px-3 py-1 text-xs" disabled={resetBusy} onClick={() => { setResetFor(resetFor === u.id ? null : u.id); setNewPassword(''); }}>Réinitialiser le mot de passe</Button>
                     {u.is_active
                       ? <Button variant="secondary" className="min-h-9 px-3 py-1 text-xs text-rose-600" onClick={() => patchUser(u.id, { is_active: false }, 'Compte désactivé : ses sessions sont coupées immédiatement.')}>Désactiver</Button>
                       : <Button variant="secondary" className="min-h-9 px-3 py-1 text-xs" onClick={() => patchUser(u.id, { is_active: true }, 'Compte réactivé.')}>Réactiver</Button>}
@@ -93,11 +116,11 @@ function TeamSection({ onToast }) {
                 )}
               </div>
               {resetFor === u.id && (
-                <form className="mt-3 flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); patchUser(u.id, { password: newPassword }, 'Mot de passe réinitialisé : ses anciennes sessions sont déconnectées.'); setResetFor(null); }}>
+                <form className="mt-3 flex flex-wrap items-end gap-2" onSubmit={(e) => resetPassword(e, u.id)}>
                   <Field label="Nouveau mot de passe provisoire" htmlFor={`rp-${u.id}`} required>
                     <PasswordInput id={`rp-${u.id}`} autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
                   </Field>
-                  <Button type="submit" className="min-h-9 px-3 py-1 text-xs">Valider</Button>
+                  <Button type="submit" loading={resetBusy} className="min-h-9 px-3 py-1 text-xs">Valider</Button>
                 </form>
               )}
             </li>
@@ -239,8 +262,8 @@ export default function SettingsPage() {
           {isAdmin && (<Card>
             <h2 className="font-bold text-[#141210]">Export &amp; sauvegarde</h2>
             <p className="mt-1 text-sm text-[#574f45]">
-              Exportez vos données à tout moment (uniquement celles de votre entreprise).
-              Pour une sauvegarde complète serveur, voir docs/SAUVEGARDES.md.
+              Ces exports concernent uniquement votre entreprise ; ils sont partiels et excluent les pièces jointes.
+              Ils ne remplacent pas une sauvegarde serveur restaurée et vérifiée (voir docs/SAUVEGARDES.md).
             </p>
             <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {EXPORTS.map(([href, label]) => (

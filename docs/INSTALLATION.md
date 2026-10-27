@@ -46,10 +46,7 @@ APP_DB_PASSWORD=<mot_de_passe_solide_pour_le_rôle_app>
 npm run dev
 ```
 
-`npm run dev` applique la migration avec `DATABASE_URL_ADMIN`, puis connecte l'API avec le
-rôle limité `chantierpilot_app` (URL construite avec `APP_DB_PASSWORD`). Pour migrer sans
-lancer l'application : `node db/migrate.mjs`. La migration est **idempotente**, vérifie que le
-RLS est activé **et forcé** partout, et n'affiche jamais de mot de passe.
+`npm run dev` peut appliquer la migration avec `DATABASE_URL_ADMIN`, puis démarrer l'API avec le rôle limité `chantierpilot_app`. **Ne le lancez jamais avec une cible réelle ou de production sans revue préalable :** la migration actuelle n'est pas strictement additive et peut modifier le rôle applicatif si `APP_DB_PASSWORD` est défini. Vérifiez la cible par un moyen indépendant ; les journaux ne l'identifient pas. Voir [CORRECTIONS_POST_AUDIT.md](CORRECTIONS_POST_AUDIT.md) et [SAUVEGARDES.md](SAUVEGARDES.md).
 
 > **Jamais** mettez l'URL du propriétaire/superuser dans `DATABASE_URL` : l'API refuse
 > catégoriquement un rôle qui pourrait contourner le cloisonnement des entreprises

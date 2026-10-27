@@ -6,6 +6,9 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export function loadEnv() {
+  // Les tests construisent leur configuration isolée explicitement : ne jamais
+  // charger une éventuelle configuration locale ou des services réels.
+  if (process.env.NODE_ENV === 'test') return process.env;
   const envPath = path.join(ROOT, '.env');
   if (existsSync(envPath)) {
     for (const line of readFileSync(envPath, 'utf8').split('\n')) {

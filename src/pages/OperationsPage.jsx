@@ -1,8 +1,8 @@
 import { useCallback,useEffect,useRef,useState } from 'react';
-import { Link,useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { Alert,Button,Card,Modal,PageHeader,StatCard,LoadingPage } from '../components/ui.jsx';
+import { ButtonLink, Alert,Button,Card,Modal,PageHeader,StatCard,LoadingPage } from '../components/ui.jsx';
 import BusinessForm from '../components/BusinessForm.jsx';
 import { formatFcfa,formatDate,todayIso } from '../lib/format.js';
 import { ownerKey,fieldSnapshot,readSnapshot,enqueue,pending,syncPending,removePending } from '../lib/offline.js';
@@ -62,7 +62,7 @@ export default function OperationsPage() {
   const change=(key,value)=>{const next=new URLSearchParams(params);value?next.set(key,value):next.delete(key);setParams(next);};
   const isFinancial=['cash','stock'].includes(tab);
   return <div>
-    <PageHeader eyebrow="Terrain & Coordination" title="Carnet de chantier" subtitle="Du terrain au bureau : travaux, équipes, caisse et approvisionnements." actions={<div className="flex flex-wrap gap-2"><Link to="/photos"><Button>📷 Photos & reçus</Button></Link><Link to="/documents"><Button variant="secondary">Devis & factures →</Button></Link></div>}/>
+    <PageHeader eyebrow="Terrain & Coordination" title="Carnet de chantier" subtitle="Du terrain au bureau : travaux, équipes, caisse et approvisionnements." actions={<div className="flex flex-wrap gap-2"><ButtonLink to="/photos">📷 Photos & reçus</ButtonLink>{admin&&<ButtonLink to="/documents" variant="secondary">Devis & factures →</ButtonLink>}</div>}/>
     <div className="cp-filter-bar mb-5 flex flex-wrap items-center gap-3"><label htmlFor="ops-project" className="text-sm font-bold text-[#141210]">Chantier</label><select id="ops-project" value={projectId} onChange={e=>change('chantier',e.target.value)} className="min-h-11 max-w-full rounded-xl border border-[#c7beae] bg-white px-3.5 text-sm font-semibold text-[#141210]"><option value="">Tous les chantiers</option>{data.projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select><span className={`rounded-full px-3 py-1 text-xs font-bold ${offline?'bg-amber-100 text-amber-900':'bg-emerald-100 text-emerald-900'}`}>{offline?'Hors connexion · copie locale':'Connecté · données serveur'}</span>{projectId&&!offline&&<a className="ml-auto rounded-xl bg-[#141210] px-3.5 py-2 text-xs font-bold text-[#eab956] ring-1 ring-[#eab956]/40 hover:bg-[#221e1a]" href={`/api/operations?report_project=${projectId}`}>Compte rendu terrain PDF</a>}</div>
     <p className="mb-4 text-xs leading-5 text-[#574f45]">Le carnet conserve une copie terrain sur cet appareil pour les coupures réseau. Utilisez un appareil personnel ; synchronisez avant de vous déconnecter. Les documents financiers ne sont pas mis en cache.</p>
     {offline && <div className="mb-4"><Alert type="info">Mode terrain hors connexion : journal et présences peuvent être mis en attente. Les données affichées sont une copie locale ; photos précédentes et actions financières nécessitent le réseau.</Alert></div>}

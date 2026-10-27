@@ -27,3 +27,7 @@ jobs:
             echo '```' >> "$GITHUB_STEP_SUMMARY"
             exit 1
           }
+      - name: Parcours navigateur isolés
+        run: npm run test:browser
+      - name: Audit des dépendances
+        run: npm audit --audit-level=high

@@ -13,13 +13,15 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import { tmpdir } from 'node:os';
 import { spawn, spawnSync } from 'node:child_process';
 import { chromium as playwright } from 'playwright';
 import chromium, { inflate } from '@sparticuz/chromium';
-import { startEmbeddedPostgres } from '../server/embedded-pg.mjs';
+import { startEmbeddedPostgres, forceCleanup } from '../server/embedded-pg.mjs';
+import { freePort, isolatedTestEnv } from './helpers/isolation.mjs';
 
 const DIST = path.resolve('dist');
-const API_PORT = 3705;
+const [API_PORT, PG_PORT] = await Promise.all([freePort(), freePort()]);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -63,19 +65,29 @@ const web = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
   fs.createReadStream(path.join(DIST, 'index.html')).pipe(res);
 });
-await new Promise((r) => web.listen(0, r));
+await new Promise((r) => web.listen(0, '127.0.0.1', r));
 const origin = `http://localhost:${web.address().port}`;
 
-const pg = await startEmbeddedPostgres({ dataDir: '/tmp/pg-features-test', port: 55441, persist: false });
+// Base et répertoire temporaires créés exclusivement pour cette exécution.
+const dataDir = fs.mkdtempSync(path.join(tmpdir(), 'chantierpilot-features-'));
+let apiProc;
+const cleanup = () => {
+  try { apiProc?.kill('SIGKILL'); } catch { /* déjà arrêté */ }
+  try { forceCleanup(dataDir); } catch { /* déjà arrêté */ }
+  try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch { /* déjà supprimé */ }
+};
+process.once('exit', cleanup);
+process.once('SIGINT', () => { cleanup(); process.exit(130); });
+process.once('SIGTERM', () => { cleanup(); process.exit(143); });
+const pg = await startEmbeddedPostgres({ dataDir, port: PG_PORT, persist: true });
 const mig = spawnSync(process.execPath, ['db/migrate.mjs'], {
-  env: { ...process.env, DB_DRIVER: 'pg', NODE_ENV: 'test', DATABASE_URL: pg.url, DATABASE_URL_ADMIN: pg.url },
+  env: isolatedTestEnv({ DB_DRIVER: 'pg', NODE_ENV: 'test', DATABASE_URL: pg.url, DATABASE_URL_ADMIN: pg.url }),
   encoding: 'utf8',
 });
 assert.equal(mig.status, 0, `Migration échouée : ${mig.stderr || mig.stdout}`);
 
-const apiProc = spawn(process.execPath, ['server/dev.mjs'], {
-  env: {
-    ...process.env,
+apiProc = spawn(process.execPath, ['server/dev.mjs'], {
+  env: isolatedTestEnv({
     NODE_ENV: 'test',
     DB_DRIVER: 'pg',
     API_PORT: String(API_PORT),
@@ -83,7 +95,7 @@ const apiProc = spawn(process.execPath, ['server/dev.mjs'], {
     DATABASE_URL: pg.url.replace(/:\/\/([^@/]+)@/, '://chantierpilot_app@'),
     SESSION_SECRET: 'secret_test_features_navigateur_32c_001',
     SASPAY_WEBHOOK_SECRET: 'saspay_test_secret',
-  },
+  }),
   stdio: 'ignore',
 });
 
@@ -102,14 +114,15 @@ if (systemChrome) {
   browser = await playwright.launch({
     executablePath: systemChrome,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    env: isolatedTestEnv({ LD_LIBRARY_PATH: '/tmp/al2023/lib' }),
     headless: true,
   });
 } else {
   await inflate(path.resolve('node_modules/@sparticuz/chromium/bin/al2023.tar.br'));
-  process.env.LD_LIBRARY_PATH = `/tmp/al2023/lib:${process.env.LD_LIBRARY_PATH || ''}`;
   browser = await playwright.launch({
     executablePath: await chromium.executablePath(),
     args: chromium.args.filter((arg) => !arg.includes('disable-web-security') && !arg.includes('allow-running-insecure-content')),
+    env: isolatedTestEnv({ LD_LIBRARY_PATH: '/tmp/al2023/lib' }),
     headless: true,
   });
 }
@@ -126,8 +139,20 @@ try {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
 
+  // Liens publics : vrais liens, utilisables au clavier et sans bouton imbriqué.
+  await page.goto(`${origin}/adresse-inconnue`, { waitUntil: 'networkidle' });
+  assert.equal(await page.locator('a button, button a').count(), 0);
+  await page.getByRole('link', { name: 'Retour au tableau de bord' }).focus();
+  await page.keyboard.press('Enter');
+  await page.waitForURL(`${origin}/`);
+  await page.goto(`${origin}/adresse-inconnue`);
+  await page.getByRole('link', { name: 'Offres & tarifs' }).click();
+  await page.waitForURL(`${origin}/offres`);
+  await page.getByRole('link', { name: 'Essayer 14 jours' }).first().click();
+  await page.waitForURL(`${origin}/inscription`);
+  console.log('  ✓ Liens publics 404 et offres activables au clavier ou au clic');
+
   // 1. Inscription d'une entreprise cliente
-  await page.goto(`${origin}/inscription`, { waitUntil: 'networkidle' });
   await page.fill('#c-name', 'Lagune Bâtiment CI');
   await page.fill('#c-phone', '+225 07 01 02 03 04');
   await page.fill('#u-name', 'Kouadio Yao');
@@ -161,7 +186,30 @@ try {
   assert.equal(pvRes.status(), 200);
   const pvBytes = await pvRes.body();
   assert.equal(pvBytes.subarray(0, 5).toString(), '%PDF-');
-  console.log('  ✓ Chantier, retenue de garantie 10 %, lien WhatsApp +225 et PV réception PDF vérifiés');
+  // Les deux PDF doivent aussi se télécharger par activation clavier du lien.
+  for (const name of ['Rapport PDF', 'PV réception PDF']) {
+    const link = page.getByRole('link', { name, exact: true });
+    assert.equal(await link.locator('button').count(), 0);
+    await link.focus();
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.keyboard.press('Enter'),
+    ]);
+    const bytes = fs.readFileSync(await download.path());
+    assert.equal(bytes.subarray(0, 5).toString(), '%PDF-');
+  }
+  console.log('  ✓ Chantier, retenue, WhatsApp et téléchargements PDF par clavier vérifiés');
+
+  // Parcours mobile : le lien Carnet terrain est cliquable et conserve le chantier.
+  const projectUrl = page.url();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('link', { name: 'Carnet terrain', exact: true }).click();
+  await page.waitForURL(/\/terrain\?chantier=/);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await page.goto(projectUrl);
+  await page.getByRole('link', { name: 'Carnet terrain', exact: true }).waitFor();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  console.log('  ✓ Navigation mobile du chantier vers son carnet terrain');
 
   // 3. Compression photo WebP sur <canvas> + visionneuse modale zoomable
   await page.getByRole('button', { name: /\+ Dépense/i }).click();
@@ -211,7 +259,17 @@ try {
   // 6. Import BPU CSV + création devis + duplication 1 clic + WhatsApp sur /documents
   await page.goto(`${origin}/documents`);
   await page.getByRole('button', { name: /Importer BPU \(CSV\)/i }).click();
-  await page.getByRole('button', { name: /Importer 5 poste\(s\)/i }).click();
+  let importDialog = page.getByRole('dialog', { name: /Importer un bordereau/ });
+  const bpuText = importDialog.getByLabel('Ou collez / ajustez directement vos lignes BPU ci-dessous');
+  await bpuText.fill('Désignation;Unité;Prix;Coût\nOuvrage valide;m;100;0\nPrix négatif;m;-100;0');
+  await importDialog.getByRole('alert').getByText(/Ligne 3/).waitFor();
+  assert.equal(await importDialog.getByRole('button', { name: /Importer 1 poste\(s\)/ }).isDisabled(), true);
+  await bpuText.fill('Désignation;Unité;Prix;Coût\n"Câble, cuivre";m;1 500;700');
+  await importDialog.getByRole('button', { name: /Importer 1 poste\(s\)/ }).click();
+  await page.getByText(/1 ouvrage\(s\) ajouté\(s\)/i).first().waitFor();
+  await page.getByRole('button', { name: /Importer BPU \(CSV\)/i }).click();
+  importDialog = page.getByRole('dialog', { name: /Importer un bordereau/ });
+  await importDialog.getByRole('button', { name: /Importer 5 poste\(s\)/i }).click();
   await page.getByText(/5 ouvrage\(s\) ajouté\(s\)/i).first().waitFor();
 
   await page.getByRole('button', { name: /\+ Devis/i }).click();

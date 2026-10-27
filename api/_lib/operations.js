@@ -9,6 +9,8 @@ export const uuid = z.string().uuid('Identifiant invalide.');
 export const money = z.number().int().min(1).max(999999999999);
 export const zeroMoney = z.number().int().min(0).max(999999999999);
 export const text = (max=160) => z.string().trim().min(2).max(max);
+// Les unités métier usuelles « m », « u » ou « j » font un seul caractère.
+export const unit = z.string().trim().min(1).max(30);
 export const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(s => {
   const d = new Date(`${s}T00:00:00Z`); return !isNaN(d) && d.toISOString().slice(0,10) === s && s>='2000-01-01' && s<='2100-12-31';
 }, 'Date invalide.');

@@ -1,7 +1,8 @@
 // GET /api/export?scope=projects|expenses|payments|all&format=csv|json
 // Export des données de L'ENTREPRISE CONNECTÉE uniquement (RLS).
-// scope=all&format=json produit une sauvegarde structurée complète
-// (hors binaires de justificatifs — voir docs/SAUVEGARDES.md).
+// scope=all&format=json exporte une partie des données métier de l'entreprise.
+// Ce n'est pas une sauvegarde complète : certaines tables et les binaires sont
+// exclus. Voir docs/SAUVEGARDES.md pour la sauvegarde et la restauration.
 
 import { withTenant } from '../_lib/db.js';
 import { toCsv, sendCsv } from '../_lib/csv.js';

@@ -3,7 +3,14 @@
 export function toCsv(headers, rows) {
   const escape = (v) => {
     if (v === null || v === undefined) return '';
-    const s = String(v);
+    let s = String(v);
+    // Excel et d'autres tableurs interprètent certaines cellules texte comme
+    // des formules. Préfixer ces valeurs par une apostrophe sans altérer les
+    // nombres réellement typés ni les données enregistrées en base.
+    if (typeof v !== 'number' && typeof v !== 'bigint' && (
+      /^[\u0000-\u0020\u00a0\u200b-\u200d\u2060\ufeff]*[=+\-@]/u.test(s)
+      || /^[ \u00a0]*[\t\r\n]/u.test(s)
+    )) s = `'${s}`;
     return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const lines = [headers.map(escape).join(';')];

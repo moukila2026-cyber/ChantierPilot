@@ -122,7 +122,7 @@ Partie technique détaillée : [VERCEL_PAS_A_PAS.md](VERCEL_PAS_A_PAS.md).
 
 - Aucun secret dans un chat, un e-mail, WhatsApp ou Git. Les secrets ne vont que dans Neon, Vercel, le gestionnaire de mots de passe ou le terminal de migration.
 - L'application ne se connecte **qu'avec** `chantierpilot_app` (ni superuser, ni BYPASSRLS).
-- Jamais de `NO FORCE ROW LEVEL SECURITY`, même pour une sauvegarde.
+- Ne désactivez pas manuellement le RLS pour une sauvegarde. La migration actuelle comporte un `NO FORCE ROW LEVEL SECURITY` temporaire : ses effets doivent être revus avant toute migration réelle.
 - Un encaissement n'est « Prouvé » qu'avec un justificatif joint.
 - Interface en français, montants en FCFA entiers, pied de page SHOPIN30 + téléphone sur toutes les pages.
 - Hors périmètre : lotissement, comptabilité complète, paiement automatique.

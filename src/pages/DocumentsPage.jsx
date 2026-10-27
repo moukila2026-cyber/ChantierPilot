@@ -6,6 +6,7 @@ import { quoteTotals } from '../../shared/trade.js';
 import { Alert, Button, Card, Field, Input, Select, Textarea, Modal, PageHeader, StatCard, LoadingPage } from '../components/ui.jsx';
 import BusinessForm from '../components/BusinessForm.jsx';
 import { formatFcfa, formatDate, todayIso } from '../lib/format.js';
+import { parseBpuCsv, MAX_BPU_TEXT_LENGTH } from '../lib/bpuCsv.js';
 import { buildDocumentSummaryText, whatsappHref } from '../lib/whatsapp.js';
 
 const LABELS = {
@@ -22,28 +23,6 @@ const BPU_SAMPLE_CSV = [
   'Pose de carrelage grès cérame 60x60;m2;12500;8800',
   'Peinture vinylique 2 couches sur enduit;m2;2800;1700',
 ].join('\n');
-
-function parseBpuCsv(raw) {
-  const rows = String(raw || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const items = [];
-  for (let i = 0; i < rows.length; i += 1) {
-    const sep = rows[i].includes(';') ? ';' : rows[i].includes('\t') ? '\t' : ',';
-    const cols = rows[i].split(sep).map((c) => c.trim().replace(/^"|"$/g, ''));
-    if (cols.length < 3) continue;
-    const price = Number(cols[2].replace(/[^\d]/g, ''));
-    const cost = cols[3] ? Number(cols[3].replace(/[^\d]/g, '')) : 0;
-    if (i === 0 && (Number.isNaN(price) || /prix|montant/i.test(cols[2]))) continue;
-    if (cols[0].length >= 2 && cols[1].length >= 1 && Number.isFinite(price)) {
-      items.push({
-        label: cols[0].slice(0, 160),
-        unit: cols[1].slice(0, 30),
-        unit_price: Math.max(0, Math.round(price)),
-        unit_cost: Math.max(0, Math.round(Number.isFinite(cost) ? cost : 0)),
-      });
-    }
-  }
-  return items.slice(0, 200);
-}
 
 const emptyLine = () => ({ label: '', unit: 'unité', quantity: '1', unit_price: 0, unit_cost: 0 });
 
@@ -166,7 +145,9 @@ function QuoteForm({ data, busy, onSubmit, onCancel, initial }) {
 
 function BpuImportModal({ busy, onImport, onCancel }) {
   const [csvText, setCsvText] = useState(BPU_SAMPLE_CSV);
-  const parsed = parseBpuCsv(csvText);
+  const [fileError, setFileError] = useState('');
+  const { items: parsed, errors: parseErrors } = parseBpuCsv(csvText);
+  const errors = fileError ? [fileError, ...parseErrors] : parseErrors;
 
   const downloadSample = () => {
     const blob = new Blob([`\uFEFF${BPU_SAMPLE_CSV}`], { type: 'text/csv;charset=utf-8' });
@@ -179,7 +160,7 @@ function BpuImportModal({ busy, onImport, onCancel }) {
   };
 
   return (
-    <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (parsed.length) onImport({ items: parsed }); }}>
+    <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (parsed.length && !errors.length) onImport({ items: parsed }); }}>
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#e3ddd0] bg-[#faf7f0] p-3 text-xs text-[#574f45]">
         <span>Colonnes attendues : <strong>Désignation ; Unité ; Prix vente FCFA ; Coût prévu FCFA</strong> (séparateur <code>;</code>, <code>,</code> ou copier-coller Excel).</span>
         <Button variant="secondary" className="min-h-8 px-3 py-1 text-xs" onClick={downloadSample}>
@@ -187,24 +168,48 @@ function BpuImportModal({ busy, onImport, onCancel }) {
         </Button>
       </div>
 
-      <Field label="Charger un fichier .csv depuis votre ordinateur ou téléphone">
+      <Field label="Charger un fichier .csv depuis votre ordinateur ou téléphone" htmlFor="bpu-file">
         <input
+          id="bpu-file"
           type="file"
           accept=".csv,.txt,text/csv,text/plain"
           className="block w-full text-sm text-[#574f45] file:mr-3 file:rounded-xl file:border file:border-[#e6ce96] file:bg-[#fdf8ec] file:px-4 file:py-2 file:text-xs file:font-bold file:text-[#141210]"
           onChange={async (e) => {
-            const f = e.target.files?.[0];
-            if (f) setCsvText(await f.text());
+            const input = e.currentTarget;
+            const file = input.files?.[0];
+            if (!file) return;
+            try {
+              if (file.size > MAX_BPU_TEXT_LENGTH) {
+                setFileError('Le fichier dépasse la limite de 2 Mo.');
+                return;
+              }
+              setCsvText(await file.text());
+              setFileError('');
+            } catch {
+              setFileError('Impossible de lire ce fichier. Vérifiez son accès et réessayez.');
+            } finally {
+              input.value = '';
+            }
           }}
         />
       </Field>
 
-      <Field label="Ou collez / ajustez directement vos lignes BPU ci-dessous">
-        <Textarea rows={6} value={csvText} onChange={(e) => setCsvText(e.target.value)} />
+      <Field label="Ou collez / ajustez directement vos lignes BPU ci-dessous" htmlFor="bpu-text">
+        <Textarea id="bpu-text" rows={6} value={csvText} onChange={(e) => { setCsvText(e.target.value); setFileError(''); }} />
       </Field>
 
+      {errors.length > 0 && (
+        <Alert type="error">
+          <p>Import bloqué : corrigez les lignes signalées avant de continuer.</p>
+          <ul className="mt-1 list-disc pl-5">
+            {errors.slice(0, 5).map((message, index) => <li key={`${index}-${message}`}>{message}</li>)}
+          </ul>
+          {errors.length > 5 && <p>Et {errors.length - 5} autre(s) erreur(s).</p>}
+        </Alert>
+      )}
+
       <div className="rounded-xl border border-[#e3ddd0] bg-white p-3 text-xs">
-        <p className="font-bold text-[#141210]">{parsed.length} ouvrage(s) détecté(s) prêt(s) à importer :</p>
+        <p className="font-bold text-[#141210]">{parsed.length} ouvrage(s) détecté(s){errors.length ? ' (import bloqué)' : ' prêt(s) à importer'} :</p>
         {parsed.length > 0 && (
           <ul className="mt-2 max-h-36 space-y-1 overflow-y-auto text-[#574f45]">
             {parsed.slice(0, 12).map((it, idx) => (
@@ -219,7 +224,7 @@ function BpuImportModal({ busy, onImport, onCancel }) {
 
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onCancel}>Annuler</Button>
-        <Button type="submit" loading={busy} disabled={parsed.length === 0}>
+        <Button type="submit" loading={busy} disabled={parsed.length === 0 || errors.length > 0}>
           Importer {parsed.length} poste(s)
         </Button>
       </div>

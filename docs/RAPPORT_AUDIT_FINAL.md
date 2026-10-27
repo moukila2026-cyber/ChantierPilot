@@ -1,0 +1,90 @@
+# Rapport d'audit — ChantierPilot, reprise partielle
+
+**Date : 27 octobre 2026 — Statut : non prêt pour la production.**
+
+Les vérifications locales de compilation, de tests et de dépendances passent, mais elles ne valident ni la production ni l'ensemble des parcours. Le commit `be100e7` annoncé, son patch et les livrables associés ne sont pas disponibles dans l'arbre reçu ; la recherche du commit sur GitHub n'a pas trouvé cet objet. Il est donc impossible de garantir que les corrections annoncées précédemment sont présentes. L'arbre examiné part du commit `3efe370`, sur la branche `arena/db806f43-chantierpilot`.
+
+L'[inventaire détaillé des interactions](INVENTAIRE_BOUTONS.md) contient **500 occurrences statiques**, dont **477 restent à vérifier** ; les 23 autres sont corrigées ou testées partiellement, sans garantie sur tous leurs états. Les contrôles et menus dynamiques peuvent représenter davantage d'actions que ces occurrences. Il ne s'agit pas d'une validation exhaustive.
+
+## 1. Corrections réalisées dans cette reprise
+
+| Sujet | Résultat | Références |
+| --- | --- | --- |
+| Dépendances et validation | Zod mis à jour pour corriger l'avis GHSA-mrhx-c7xc-m3w5 ; messages courants en français, collections bornées et dates impossibles refusées. | `package.json`, `package-lock.json`, `api/_lib/validate.js`, `tests/unit.mjs`, `tests/run.mjs` |
+| Navigation et PDF | 17 boutons imbriqués dans des liens remplacés par des liens stylés ; navigation clavier, deux téléchargements PDF et navigation mobile exercés. | `src/components/ui.jsx`, pages concernées, `tests/browser-features.mjs` |
+| Droits et équipe | Raccourci vers les documents masqué aux agents ; erreur de chargement d'équipe visible ; réinitialisation d'un agent non fermée en cas d'échec et envoi simultané évité. | `src/pages/OperationsPage.jsx`, `src/pages/SettingsPage.jsx`, `tests/browser-interactions.mjs` |
+| BPU CSV | Analyse des délimiteurs et guillemets, refus des montants invalides ou ambigus et du dépassement de 200 postes, sans import partiel ; unités d'un caractère acceptées. Il ne s'agit pas d'un import DQE/BGP. | `src/lib/bpuCsv.js`, `src/pages/DocumentsPage.jsx`, routes et tests correspondants |
+| Exports | Cellules texte à risque de formule neutralisées dans les CSV ; cinq téléchargements administrateur exercés. L'interface signale que l'export JSON est partiel et ne remplace pas une sauvegarde serveur. | `api/_lib/csv.js`, `api/_routes/export.js`, `src/pages/SettingsPage.jsx`, `tests/browser-interactions.mjs` |
+| Journaux et tests isolés | Les journaux de migration ne publient plus de chaîne de connexion ni l'erreur brute du pilote. Les suites npm lancent leurs enfants avec un environnement minimal ; en mode test, `.env` n'est pas chargé. Bases, ports et comptes utilisés sont temporaires ou fictifs. | `db/migrate.mjs`, `server/env.mjs`, `tests/helpers/`, `db/test-rls.mjs`, suites de test |
+| Documentation et CI | Documentation de sauvegarde et de reprise corrigée ; étapes navigateur et audit ajoutées à la configuration CI. **La CI distante n'a pas été exécutée ici.** | `CHANGELOG.md`, `CORRECTIONS_POST_AUDIT.md`, `SAUVEGARDES.md`, `.github/workflows/ci.yml` |
+
+## 2. Dernière vérification locale
+
+Exécutée après les corrections ci-dessus, avec PostgreSQL isolé et données fictives :
+
+| Commande / contrôle | Résultat |
+| --- | --- |
+| `npm ci` | Réussi, code 0 |
+| `npm run build` | Réussi, code 0 |
+| `npm run test:all` | Réussi, code 0 : 22 tests RLS, 21 unitaires, 45 interface et 207 intégration réussis, zéro échec ; simulation de migration, thème et fonctionnalités navigateur réussis |
+| `npm run test:browser` | Réussi, code 0 : parcours isolés métier et interactions, rôles, isolation entre entreprises, erreurs, exports et vérifications mobiles ciblées |
+| `npm audit` | Réussi, code 0 ; 0 vulnérabilité signalée |
+| `git diff --check` | Réussi, code 0 |
+| Préflight strict | **Non disponible.** Une tentative antérieure a échoué avec `MODULE_NOT_FOUND` parce que `scripts/preflight.mjs` est absent ; il n'a pas été relancé lors de la vérification finale. |
+| Nettoyage | Aucune instance PostgreSQL temporaire des suites ni aucun de leurs répertoires temporaires détecté après les tests. |
+
+Les tests navigateur couvrent notamment des scénarios desktop et mobile, la création d'entreprise et de chantier, les droits agent, les erreurs d'équipe, cinq exports et 13 routes mobiles. Ils ne prouvent pas que chaque bouton, formulaire, erreur, rôle, format d'écran ou interaction dynamique fonctionne.
+
+Les tests ne vérifient pas la configuration réelle de Neon ou Vercel, la délivrabilité d'e-mails, les paiements réels, la conformité juridique, la restauration d'une sauvegarde réelle ou la CI GitHub distante. La limitation d'inscription actuelle est en mémoire par instance : sa portée globale sur plusieurs instances n'est pas démontrée.
+
+## 3. Bloquants techniques et fonctionnels
+
+- Le commit `be100e7`, ses fichiers et le patch annoncés manquent. Fournir l'archive, le patch ou l'arbre exact pour comparer et intégrer fidèlement les corrections.
+- `scripts/preflight.mjs`, `scripts/backup-dump.mjs`, `docs/MIGRATIONS_ET_PREPROD.md` et la commande `npm run monitor` annoncés sont absents. Les tables `password_resets`, `rate_limit_counters`, `kv_store` et les fonctions `api_rate_limit_hit`, `api_password_reset_create`, `api_password_reset_consume` annoncées ne figurent pas dans le schéma et les politiques disponibles.
+- Le parcours de mot de passe oublié par e-mail, une politique de confidentialité et des mentions légales complètes, les exports XLSX/DOCX et les imports DQE/BGP sont absents de cet arbre. Une réinitialisation d'agent par un administrateur et un import BPU CSV existent, mais ne remplacent pas ces fonctions.
+- L'export JSON inclut une partie des données métier et les archives historiques de paie, mais exclut des tables et des fichiers binaires. Un téléchargement JSON réussi n'est pas une sauvegarde complète ni une restauration testée.
+
+## 4. Migration : ce qui doit être revu avant toute cible réelle
+
+Une migration **additive** vise à ajouter des structures compatibles, sans supprimer ni modifier silencieusement des données existantes. **La migration courante ne peut pas être décrite comme purement additive ou sans risque** :
+
+- `db/schema.sql` ajoute des tables et colonnes, mais modifie aussi `companies.trial_until` pour certaines entreprises existantes ; il désactive puis réactive temporairement le RLS forcé sur cette table et recrée des déclencheurs.
+- `db/rls.sql` recrée des politiques. Le script lance le schéma et les politiques séparément, sans transaction globale explicite couvrant les deux ; l'atomicité et le comportement en cas d'erreur sur la cible réelle restent à examiner.
+- Si `APP_DB_PASSWORD` est défini, le script peut modifier le mot de passe du rôle applicatif. Ses journaux masquent la cible ; ils ne suffisent pas à vérifier indépendamment la base visée.
+
+Aucune migration réelle, sauvegarde ou restauration n'a été exécutée pendant cette session. **Avant toute exécution**, faire revoir les effets sur les données et les droits, préparer un retour arrière, disposer d'une sauvegarde vérifiée et tester une restauration sur une cible privée isolée. Ensuite seulement, tester la migration en préproduction, contrôler les données et l'isolation, puis envisager séparément la production par l'utilisateur après autorisation explicite. La [procédure de sauvegarde](SAUVEGARDES.md) décrit notamment les limites de `pg_dump` avec le RLS forcé.
+
+## 5. Ce qui reste à faire, par priorité
+
+1. **Fournir les corrections manquantes** : patch, ZIP ou arbre contenant `be100e7` et les livrables d'audit. Ne transmettre aucun secret. Les intégrer et reprendre l'inventaire et les tests restants.
+2. **Sécuriser le plan de migration** : revoir la migration pour qu'elle soit additive ou faire approuver explicitement ses effets sur les données ; préparer un retour arrière. Faire une sauvegarde et tester la restauration **avant** toute migration, puis valider la préproduction et, séparément, la production par vos soins.
+3. **Sauvegardes Neon** : vérifier l'offre Launch, les instantanés, la rétention et les coûts ; définir une fenêtre de récupération adaptée et tester une restauration isolée. Sur Launch, l'historique est réglable jusqu'à sept jours et la valeur initiale payante indiquée par Neon est d'un jour [1](https://neon.com/docs/postgres/backup-restore/history-window). Une restauration en place écrase la branche ciblée [8](https://neon.com/docs/postgres/backup-restore/branch-restore).
+4. **Séparer Preview, préproduction et production** : vérifier effectivement bases, accès et variables pour chaque environnement avant tout push susceptible de déclencher un aperçu Vercel. L'historique Vercel consulté montre des déploiements Git de ce projet en production depuis `main` ; une fusion peut donc mettre le code en production automatiquement. Ne jamais partager les valeurs de configuration dans le chat.
+5. **Hébergement commercial** : l'équipe Vercel consultée était sur l'offre Hobby au moment de la vérification ; celle-ci est réservée à l'usage personnel non commercial selon Vercel [1](https://vercel.com/docs/limits/fair-use-guidelines). Vérifier l'offre adaptée avec Vercel. L'achat de domaine, le forfait et l'hébergement restent à votre charge ; vérifier aussi l'alignement du domaine, de `APP_URL` et de `vercel.json`.
+6. **E-mail et juridique** : après récupération ou création des fonctions correspondantes, configurer en privé soit `RESEND_API_KEY` avec `MAIL_FROM`, soit `MAIL_WEBHOOK_URL` ; tester l'envoi. Compléter l'identité légale et la confidentialité avec un juriste ivoirien, puis vérifier les démarches applicables auprès de l'ARTCI.
+7. **Préflight et supervision** : récupérer et examiner le vrai script de préflight, terminer les prérequis, puis lancer le contrôle strict. Prévoir une supervision et des alertes 5xx, ainsi qu'une exécution planifiée de `npm run monitor` une fois cet outil disponible. Après déploiement autorisé, relancer le préflight et le moniteur en mode `MONITOR_REQUIRE_READY` activé, sans publier de valeur de variable.
+8. **Revue et publication** : finir les interactions restantes sur desktop et mobile, pour chaque rôle, entreprise et erreur pertinente. Une PR pourra ensuite être revue après vérification de l'isolation Preview ; aucune fusion ni mise en production sans accord explicite.
+
+## 6. Commandes de reprise sans valeurs de configuration
+
+Après intégration du patch manquant et sur des données de test isolées :
+
+```bash
+npm ci
+npm run build
+npm run test:all
+npm run test:browser
+npm audit
+```
+
+Exécuter la commande suivante **uniquement lorsque le véritable script aura été récupéré et examiné** :
+
+```bash
+node scripts/preflight.mjs --strict
+```
+
+`npm run monitor` est actuellement absent ; ne pas interpréter son absence comme un contrôle réussi. Toute commande de migration ou de restauration doit rester conditionnée aux vérifications et autorisations ci-dessus.
+
+## 7. Actions non effectuées
+
+Au moment des vérifications, aucun secret, identifiant, fichier de configuration d'environnement ou réglage Vercel n'avait été modifié. Aucun déploiement, migration, sauvegarde ou restauration de production n'avait été réalisé dans cette session. La séparation des environnements distants n'a pas été vérifiée ; consulter GitHub pour l'état actuel du commit, du push et de la PR.

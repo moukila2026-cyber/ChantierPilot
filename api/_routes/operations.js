@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { withTenant } from '../_lib/db.js';
 import { handle, sendJson, readJsonBody, securityHeaders, fail } from '../_lib/http.js';
 import { requireAuth, run } from '../_lib/pipeline.js';
-import { uuid, money, text, date, businessError, adminOnly, projectRequired, activeUser, command, insertExpense } from '../_lib/operations.js';
+import { uuid, money, text, unit, date, businessError, adminOnly, projectRequired, activeUser, command, insertExpense } from '../_lib/operations.js';
 import { optionalSql } from '../_lib/compat.js';
 import { kvGet, kvList, kvPut } from '../_lib/kv.js';
 import { fileSchema, CATEGORIES } from '../_lib/validate.js';
@@ -23,7 +23,7 @@ const schemas = {
   task: z.object({ action: action('task'), project_id: uuid, title: text(), description: z.string().trim().max(2000).default(''), kind: z.enum(['task', 'reserve']), assignee_id: uuid, due_date: date }),
   task_status: z.object({ action: action('task_status'), id: uuid, status: z.enum(['todo', 'doing', 'done', 'validated']) }),
   journal: z.object({ action: action('journal'), project_id: uuid, date, title: text(), notes: z.string().trim().max(2000).default(''), progress: z.number().int().min(0).max(100), photo: fileSchema.nullable().default(null) }),
-  item: z.object({ action: action('item'), name: text(), unit: text(30), minimum: z.string().max(20).default('0') }),
+  item: z.object({ action: action('item'), name: text(), unit, minimum: z.string().max(20).default('0') }),
   purchase: z.object({ action: action('purchase'), project_id: uuid, item_id: uuid, supplier: text(), quantity: z.string().max(20), unit_price: money, delivery_date: date }),
   purchase_review: z.object({ action: action('purchase_review'), id: uuid, approve: z.boolean() }),
   purchase_receive: z.object({ action: action('purchase_receive'), id: uuid, reference: text(120), date, receipt: fileSchema.nullable().default(null) }),

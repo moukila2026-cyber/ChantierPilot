@@ -1,20 +1,27 @@
-// À lancer après npm run build, avec API locale + npm run preview sur 4173.
-// Test isolé par inscription d'une entreprise fictive, uniquement sur localhost.
+// Après npm run build : PostgreSQL, API et interface de test sont éphémères et isolés.
 import { mkdirSync } from 'node:fs';
 mkdirSync('.arena', { recursive: true });
 import { chromium as playwright } from 'playwright';
+import { startIsolatedBrowserApp } from './helpers/isolated-browser.mjs';
+import { isolatedTestEnv } from './helpers/isolation.mjs';
 import chromium, { inflate } from '@sparticuz/chromium';
-await inflate(new URL('../node_modules/@sparticuz/chromium/bin/al2023.tar.br',import.meta.url).pathname);
-process.env.LD_LIBRARY_PATH = `/tmp/al2023/lib:${process.env.LD_LIBRARY_PATH||''}`;
 import assert from 'node:assert/strict';
 import PDFDocument from 'pdfkit';
 import crypto from 'node:crypto';
-const browser=await playwright.launch({executablePath:await chromium.executablePath(),args:chromium.args.filter(arg=>!arg.includes('disable-web-security')&&!arg.includes('allow-running-insecure-content')),headless:true});
-const context=await browser.newContext({baseURL:'http://localhost:4173',viewport:{width:1440,height:1000}});
-const page=await context.newPage();
-const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.log('PAGE ERROR',e.message);});page.on('console',m=>{if(m.type()==='error'){console.log('CONSOLE',m.text());if(!m.text().includes('net::ERR_INTERNET_DISCONNECTED'))errors.push(m.text());}});
-const stamp=Date.now();
+const app = await startIsolatedBrowserApp();
+let browser, page;
 try {
+  await inflate(new URL('../node_modules/@sparticuz/chromium/bin/al2023.tar.br',import.meta.url).pathname);
+  browser=await playwright.launch({executablePath:await chromium.executablePath(),args:chromium.args.filter(arg=>!arg.includes('disable-web-security')&&!arg.includes('allow-running-insecure-content')),headless:true,env:isolatedTestEnv({ LD_LIBRARY_PATH: '/tmp/al2023/lib' })});
+  // Une adresse non routable distincte évite de saturer le quota d'inscription.
+  const ipBytes = crypto.randomBytes(2);
+  const testIp = `198.18.${ipBytes[0]}.${ipBytes[1]}`;
+  const context=await browser.newContext({baseURL:app.origin,viewport:{width:1440,height:1000},extraHTTPHeaders:{'x-forwarded-for':testIp}});
+  page=await context.newPage();
+  const errors=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  page.on('console',m=>{if(m.type()==='error'&&!m.text().includes('net::ERR_INTERNET_DISCONNECTED'))errors.push(m.text());});
+  const stamp=Date.now();
   const r=await context.request.post('/api/auth/register',{data:{company:{name:'Test navigateur métier',city:'Abidjan'},user:{full_name:'Responsable Test',email:`browser-${stamp}@example.ci`,password:'BrowserTest2026!'}}});
   assert.equal(r.status(),201,await r.text());
   await page.goto('/documents');
@@ -66,7 +73,7 @@ try {
   assert.equal(ops.journal.filter(j=>j.title==='Note hors connexion test').length,1);
   console.log('✓ Navigateur : synchronisation automatique au retour réseau, sans doublon');
   await page.goto(`/gestion?onglet=gantt&chantier=${project}`);
-  await page.getByRole('button',{name:'Nouvelle tâche Gantt',exact:true}).click();
+  await page.getByRole('button',{name:'+ Nouvelle tâche Gantt',exact:true}).click();
   await page.locator('#business-title').fill('Fondations navigateur');
   const advanced=await (await context.request.get('/api/advanced')).json();
   await page.locator('#business-assignee_id').selectOption(advanced.users[0].id);
@@ -78,7 +85,7 @@ try {
   await page.getByRole('dialog').getByRole('button',{name:'Enregistrer',exact:true}).click();
   await page.getByRole('img',{name:'Fondations navigateur : avancement 50 %'}).waitFor();
   await page.getByRole('button',{name:'Multi-dépôts',exact:true}).click();
-  await page.getByRole('button',{name:'Nouveau dépôt',exact:true}).click();
+  await page.getByRole('button',{name:'+ Nouveau dépôt',exact:true}).click();
   await page.locator('#business-name').fill('Dépôt navigateur');
   await page.getByRole('dialog').getByRole('button',{name:'Enregistrer',exact:true}).click();
   await page.getByRole('heading',{name:'Dépôt navigateur',exact:true}).waitFor();
@@ -108,4 +115,10 @@ try {
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'Débordement mobile');
   assert.deepEqual(errors,[]);
   console.log('✓ Navigateur : vue mobile sans débordement et aucune erreur React');
-} catch(e) { console.log('URL',page.url(),'ERRORS',errors,'HTML',(await page.content()).slice(0,2000));console.log((await page.locator('body').innerText()).slice(-5000)); await page.screenshot({path:'.arena/browser-failure.png',fullPage:true}); throw e; } finally {await browser.close();}
+} catch (error) {
+  if (page) await page.screenshot({path:'.arena/browser-failure.png',fullPage:true}).catch(()=>{});
+  throw error;
+} finally {
+  await browser?.close();
+  await app.stop();
+}

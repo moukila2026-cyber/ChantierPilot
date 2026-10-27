@@ -55,8 +55,8 @@ car elle injecterait le rôle propriétaire.
 ## Mises à jour
 
 - **Code** : Pull Request → CI verte → vérification sur la prévisualisation → fusion dans `main` → production.
-- **Schéma** : migration sur `preprod`, puis production, **avant** de fusionner le code qui en dépend (idempotente).
-- **Mot de passe applicatif** : relancer la migration avec le nouvel `APP_DB_PASSWORD`, mettre à jour `DATABASE_URL` dans Vercel, redéployer.
+- **Schéma** : la migration actuelle n'est pas purement additive. La faire revoir, sauvegarder et tester une restauration, puis valider sur `preprod` avant toute opération séparée sur production, réalisée par l'utilisateur après autorisation explicite. Voir [CORRECTIONS_POST_AUDIT.md](CORRECTIONS_POST_AUDIT.md).
+- **Mot de passe applicatif** : la migration peut le modifier si `APP_DB_PASSWORD` est défini. Tout changement d'accès nécessite une décision et une procédure séparées ; ne jamais afficher les valeurs.
 
 ## Limites connues (volontaires)
 

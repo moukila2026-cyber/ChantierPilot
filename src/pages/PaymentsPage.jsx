@@ -4,7 +4,7 @@ import { api } from '../lib/api.js';
 import { formatFcfa, formatDate } from '../lib/format.js';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../lib/constants.js';
 import {
-  Alert, Badge, Button, Card, ConfirmDialog, EmptyState, Input, Modal, PageHeader,
+  ButtonLink, Alert, Badge, Button, Card, ConfirmDialog, EmptyState, Input, Modal, PageHeader,
   Pagination, Select, Spinner, StatCard, Toast,
 } from '../components/ui.jsx';
 import { PaymentForm } from '../components/forms.jsx';
@@ -128,7 +128,7 @@ export default function PaymentsPage() {
         subtitle="Paiements clients déclarés, documentés par une référence — prouvés lorsqu’un justificatif est joint."
         actions={(
           <div className="flex flex-wrap gap-2">
-            <Link to="/photos"><Button variant="secondary">📷 Photos & reçus</Button></Link>
+            <ButtonLink to="/photos" variant="secondary">📷 Photos & reçus</ButtonLink>
             <Button onClick={() => { setEditTarget(null); setFields({}); setModalOpen(true); }} disabled={state.projects.length === 0}>+ Nouvel encaissement</Button>
           </div>
         )}

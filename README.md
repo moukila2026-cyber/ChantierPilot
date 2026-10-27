@@ -58,12 +58,13 @@ npm run dev
 Sans base configurée (ni `DATABASE_URL` ni `DATABASE_URL_ADMIN`), `npm run dev` démarre un **PostgreSQL embarqué local** (binaires officiels, données dans `.pgdata/`), applique le schéma et les politiques RLS, puis lance l'API et l'interface. Pour un développement réel sur Neon, renseignez `.env` (voir [docs/INSTALLATION.md](docs/INSTALLATION.md)).
 
 ```bash
-npm run test:all        # toutes les suites ci-dessous (à lancer avant toute livraison)
-npm run db:test-rls     # 22 tests d'isolation RLS avec deux entreprises fictives
-npm run test:migration  # migration avec un propriétaire NON superuser, comme sur Neon
-npm run test:unit       # montants en lettres, pagination, PDF, routeur et limites Vercel
-npm run test            # tests d'intégration API, quotas, facturation et console opérateur (deux entreprises, permissions, calculs, exports, PDF…)
-npm run build           # build de production (Vite)
+npm run build           # nécessaire avant les tests navigateur
+npm run test:all        # suites API, migrations, unitaires et navigateurs existantes
+npm run test:browser    # parcours produit supplémentaires, PostgreSQL temporaire isolé
+npm run db:test-rls     # tests d'isolation RLS avec deux entreprises fictives
+npm run test:migration  # simulation de migration sur base isolée
+npm run test:unit       # validation, CSV, montants, PDF, routeur et limites Vercel
+npm run test            # intégration API, quotas, facturation et droits
 ```
 
 > Les suites tournent sur un vrai PostgreSQL. Les réponses de SasPay sont simulées dans les tests du contrat de paiement ; aucun débit réel n’est effectué.
@@ -80,7 +81,7 @@ npm run build           # build de production (Vite)
 ├── db/
 │   ├── schema.sql          # Schéma PostgreSQL (contraintes CHECK, relations)
 │   ├── rls.sql             # Politiques RLS + rôles + fonctions d'authentification
-│   ├── migrate.mjs         # Migration idempotente + vérification RLS forcée
+│   ├── migrate.mjs         # Réapplication du schéma/RLS à revoir avant cible réelle
 │   └── test-rls.mjs        # Test d'isolation : deux entreprises, accès croisés
 ├── server/                 # Serveur API local + PostgreSQL embarqué (dev/tests)
 ├── tests/                  # Intégration de bout en bout, unitaires, migration « comme Neon »

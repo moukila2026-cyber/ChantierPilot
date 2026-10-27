@@ -6,7 +6,7 @@ import { STATUS_LABELS, STATUS_STYLES } from '../lib/constants.js';
 import { ExpenseForm, PaymentForm, FileField } from '../components/forms.jsx';
 import { AttachmentPreviewModal } from '../components/AttachmentPreviewModal.jsx';
 import {
-  Alert, Badge, Button, Card, ConfirmDialog, EmptyState, Field, Input, LoadingPage,
+  ButtonLink, Alert, Badge, Button, Card, ConfirmDialog, EmptyState, Field, Input, LoadingPage,
   Modal, Select, StatCard, Textarea, Toast,
 } from '../components/ui.jsx';
 import { ProjectForm } from './ProjectsPage.jsx';
@@ -159,7 +159,7 @@ export default function ProjectDetailPage() {
     return (
       <div className="space-y-4">
         <Alert type="error">{error}</Alert>
-        <Link to="/chantiers"><Button variant="secondary">← Retour aux chantiers</Button></Link>
+        <ButtonLink to="/chantiers" variant="secondary">← Retour aux chantiers</ButtonLink>
       </div>
     );
   }
@@ -345,15 +345,11 @@ export default function ProjectDetailPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link to={`/terrain?chantier=${project.id}`}><Button variant="secondary">Carnet terrain</Button></Link>
+            <ButtonLink to={`/terrain?chantier=${project.id}`} variant="secondary">Carnet terrain</ButtonLink>
             {isAdmin && (
               <>
-                <a href={`/api/projects/${project.id}/report`} download>
-                  <Button variant="secondary">Rapport PDF</Button>
-                </a>
-                <a href={`/api/projects/${project.id}/reception`} download>
-                  <Button variant="secondary">PV réception PDF</Button>
-                </a>
+                <ButtonLink href={`/api/projects/${project.id}/report`} download variant="secondary">Rapport PDF</ButtonLink>
+                <ButtonLink href={`/api/projects/${project.id}/reception`} download variant="secondary">PV réception PDF</ButtonLink>
                 <a
                   href={whatsappHref(project.client_phone, summaryText)}
                   target="_blank"

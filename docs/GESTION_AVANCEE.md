@@ -50,7 +50,7 @@ Le parcours chantier reste autonome :
 
 ### Données historiques
 
-Aucune table contenant d’éventuelles données de paie n’est détruite. Les tables historiques `payroll_profiles` et `payroll_slips` restent isolées par RLS et disponibles uniquement dans l’export complet administrateur et les sauvegardes PostgreSQL. Elles ne sont plus lues ni modifiées par les parcours métier. Leur maintien technique assure les migrations idempotentes et la récupération des données, sans réactiver les fonctionnalités. La suppression définitive de ces archives nécessiterait une décision distincte après sauvegarde et contrôle des obligations de conservation.
+Aucune table contenant d’éventuelles données de paie n’est détruite. Les tables historiques `payroll_profiles` et `payroll_slips` restent isolées par RLS et disponibles uniquement dans l’export complet administrateur et les sauvegardes PostgreSQL. Elles ne sont plus lues ni modifiées par les parcours métier. Leur maintien technique évite la suppression de ces tables et préserve leur récupération, sans réactiver les fonctionnalités ; la migration dans son ensemble doit néanmoins être revue avant toute exécution réelle. La suppression définitive de ces archives nécessiterait une décision distincte après sauvegarde et contrôle des obligations de conservation.
 
 ## Entreprises immatriculées et factures officielles
 
