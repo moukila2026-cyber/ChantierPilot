@@ -74,15 +74,20 @@ function watchIdleErrors(pool) {
 export async function getPool() {
   const key = process.env.DATABASE_URL || 'unset';
   if (!pools.has(key)) {
-    const pool = await createPool();
-    // Vérification immédiate du rôle de connexion (défense en profondeur).
-    const client = await pool.connect();
-    try {
-      await assertSafeDatabaseRole(client);
-    } finally {
-      client.release();
-    }
-    pools.set(key, pool);
+    // Partager l'initialisation entre requêtes concurrentes d'une même instance.
+    const initializing = (async () => {
+      const pool = await createPool();
+      try {
+        const client = await pool.connect();
+        try { await assertSafeDatabaseRole(client); } finally { client.release(); }
+        return pool;
+      } catch (err) {
+        await pool.end().catch(() => {});
+        throw err;
+      }
+    })();
+    pools.set(key, initializing);
+    initializing.catch(() => { if (pools.get(key) === initializing) pools.delete(key); });
   }
   return pools.get(key);
 }
@@ -95,8 +100,9 @@ export async function bootQuery(text, params = []) {
 
 /** Ferme proprement tous les pools ouverts (arrêt propre / tests de migration). */
 export async function closePools() {
-  for (const pool of pools.values()) {
-    await pool.end().catch(() => {});
+  for (const initializing of pools.values()) {
+    const pool = await initializing.catch(() => null);
+    if (pool) await pool.end().catch(() => {});
   }
   pools.clear();
 }

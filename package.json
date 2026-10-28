@@ -17,7 +17,7 @@
     "test": "node tests/run.mjs",
     "test:unit": "node tests/unit.mjs",
     "test:ui": "node tests/landing.mjs",
-    "test:all": "npm run check:assets && npm run db:test-rls && npm run test:migration && npm run test:unit && npm run test:ui && npm run test && npm run test:theme && npm run test:features",
+    "test:all": "npm run build && npm run check:assets && npm run db:test-rls && npm run test:migration && npm run test:unit && npm run test:ui && npm run test && npm run test:theme && npm run test:features",
     "test:browser": "node tests/browser-business.mjs",
     "test:theme": "node tests/browser-theme.mjs",
     "test:features": "node tests/browser-features.mjs"
@@ -31,7 +31,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.0",
-    "zod": "^3.24.0"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@sparticuz/chromium": "^153.0.0",

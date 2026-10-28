@@ -116,14 +116,7 @@ Authentification managée (Neon Auth, optionnel) : [docs/NEON_AUTH.md](docs/NEON
 
 ## Offres de lancement
 
-Grille testée auprès des premiers prospects — sans prétention de tarif moyen du marché (également visible dans l'app, menu « Offres & tarifs ») :
-
-| Offre | Installation | Puis |
-| --- | --- | --- |
-| **Pilote fondateur** (premier client) | **75 000 FCFA** — configuration, import si données propres, formation, assistance 14 jours | 25 000 FCFA/mois |
-| **Offre Standard** (plusieurs chantiers) | **150 000 FCFA** — configuration personnalisée, import convenu, formation dirigeant + équipe, rapport PDF personnalisé | 35 000 à 50 000 FCFA/mois |
-
-Services complémentaires : site web professionnel à partir de **100 000 FCFA** (selon contenu et fonctions) · catalogue de réalisations avec photos (devis séparé) · fonctionnalité sur mesure (devis après analyse).
+Les forfaits Essentiel, Équipe et Entreprise sont présentés dans [la grille des abonnements](docs/ABONNEMENTS_SASPAY.md). L’import, la formation et l’accompagnement sont facultatifs et proposés sur devis. Les prix et les quotas applicables sont ceux affichés dans l’application.
 
 ## Technologies
 

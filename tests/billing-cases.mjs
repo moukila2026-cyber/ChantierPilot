@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
 import billingRoute from '../api/_routes/billing.js';
 import { reconcile, validSignature, checkoutUrl } from '../api/_lib/saspay.js';
+import { checkQuota } from '../api/_lib/billing.js';
+import { PLANS } from '../shared/plans.js';
 import { entitlement, TRIAL_ROLLOUT_MS, TRIAL_DURATION_MS } from '../shared/plans.js';
 import { projectAlerts } from '../shared/alerts.js';
 
@@ -119,6 +121,45 @@ export async function billingCases({ A, B, adminUrl, check }) {
     const replayed = await transaction(c => reconcile(c, { companyId }, orderId));
     check('SasPay : paiement confirmé active le bon forfait', paid.status === 'paid' && (await admin.query('SELECT billing_plan FROM companies WHERE id=$1',[companyId])).rows[0].billing_plan === 'equipe');
     check('SasPay : replay ne prolonge pas l’abonnement', paid.access_until.getTime() === replayed.access_until.getTime());
+    // Une deuxième session, créée avant le premier règlement, ne doit jamais
+    // convertir les jours déjà payés d'une autre gamme.
+    const otherOrder = crypto.randomUUID(), otherSession = crypto.randomUUID(), otherPayment = crypto.randomUUID();
+    await admin.query("INSERT INTO billing_orders(id,company_id,plan,amount,session_id) VALUES($1,$2,'entreprise',39900,$3)", [otherOrder, companyId, otherSession]);
+    globalThis.fetch = async (url) => new Response(JSON.stringify({ success: true, data: url.includes('checkout-sessions')
+      ? { id: otherSession, status: 'PAID', transaction_status: 'SUCCESS', transaction_id: otherPayment }
+      : { id: otherPayment, status: 'SUCCESS', requested_amount: '39900.00', currency: 'XOF', description: `ChantierPilot:${otherOrder}`, transaction_type: 'PAIEMENT', flow_direction: 'INBOUND' }
+    }), { status: 200 });
+    await assert.rejects(() => transaction(c => reconcile(c, { companyId }, otherOrder)), /autre forfait/);
+    const beforeExpiry = (await admin.query('SELECT billing_plan, paid_until FROM companies WHERE id=$1', [companyId])).rows[0];
+    check('SasPay : deux forfaits payés en concurrence ne convertissent pas la période active', beforeExpiry.billing_plan === 'equipe' && beforeExpiry.paid_until.getTime() === paid.access_until.getTime() && (await admin.query('SELECT status FROM billing_orders WHERE id=$1', [otherOrder])).rows[0].status === 'pending');
+    await admin.query("UPDATE companies SET paid_until=now()-interval '1 second' WHERE id=$1", [companyId]);
+    const later = await transaction(c => reconcile(c, { companyId }, otherOrder));
+    check('SasPay : paiement différé peut être crédité après échéance', later.status === 'paid' && (await admin.query('SELECT billing_plan FROM companies WHERE id=$1', [companyId])).rows[0].billing_plan === 'entreprise');
+    await admin.query("UPDATE companies SET billing_plan='equipe', paid_until=$2 WHERE id=$1", [companyId, paid.access_until]);
+
+    // Test des plafonds de chaque offre dans de vraies transactions RLS,
+    // annulées ensuite pour ne pas polluer les autres parcours de test.
+    for (const [slug, plan] of Object.entries(PLANS)) {
+      await admin.query("UPDATE companies SET billing_plan=$2, paid_until=now()+interval '30 days' WHERE id=$1", [companyId, slug]);
+      await client.query('BEGIN');
+      try {
+        await client.query("SELECT set_config('app.company_id',$1,true), set_config('app.user_id',$2,true), set_config('app.role','admin',true)", [companyId,userId]);
+        for (const kind of ['projects', 'users']) {
+          const countSql = kind === 'projects' ? "SELECT count(*)::int n FROM projects WHERE status NOT IN ('archive','termine')" : 'SELECT count(*)::int n FROM app_users WHERE is_active';
+          let n = (await client.query(countSql)).rows[0].n;
+          if (n < plan[kind]) await checkQuota(client, { companyId, userId }, kind);
+          while (n < plan[kind]) {
+            if (kind === 'projects') await client.query("INSERT INTO projects(company_id,name,client_name,budget,start_date) VALUES($1,'Quota','Client',100,'2026-01-01')", [companyId]);
+            else await client.query("INSERT INTO app_users(company_id,email,password_hash,full_name,role) VALUES($1,$2,'test','Quota test','member')", [companyId, `${crypto.randomUUID()}@quota.test`]);
+            n++;
+          }
+          await assert.rejects(() => checkQuota(client, { companyId, userId }, kind), /Limite du forfait atteinte/);
+          check(`Forfait ${slug} : limite ${kind} appliquée à ${plan[kind]}`, true);
+        }
+      } finally { await client.query('ROLLBACK'); }
+    }
+    await admin.query("UPDATE companies SET billing_plan='equipe', paid_until=$2 WHERE id=$1", [companyId, paid.access_until]);
+
     globalThis.fetch = originalFetch;
     check('SasPay : accès en modification rétabli après paiement', (await A.patch('/api/company', { name: session.company.name })).status === 200);
     const raw = Buffer.from('{ "event": "transaction.success" }'), timestamp = String(Math.floor(Date.now()/1000));

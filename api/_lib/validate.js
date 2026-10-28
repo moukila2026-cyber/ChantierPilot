@@ -187,7 +187,7 @@ export const subcontractUpdateSchema = z.object({
 
 export const expenseSchema = z.object({
   project_id: uuid,
-  category: z.enum(CATEGORIES, { errorMap: () => ({ message: 'Catégorie invalide.' }) }),
+  category: z.enum(CATEGORIES, { error: 'Catégorie invalide.' }),
   amount: amountSchema,
   expense_date: dateSchema,
   supplier: optionalText(160),
@@ -210,7 +210,7 @@ export const paymentSchema = z.object({
   amount: amountSchema,
   payment_date: dateSchema,
   reference: trimmed(2, 120, 'La référence (n° de reçu, réf. de virement…)'),
-  payment_method: z.enum(PAYMENT_METHODS, { errorMap: () => ({ message: 'Mode de paiement invalide.' }) }),
+  payment_method: z.enum(PAYMENT_METHODS, { error: 'Mode de paiement invalide.' }),
   memo: optionalText(500),
   proof: fileSchema.nullable().optional().default(null),
 }).strict();
