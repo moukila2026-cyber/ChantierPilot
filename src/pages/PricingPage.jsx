@@ -15,19 +15,11 @@ const PLAN_FEATURES = (plan) => [
   'Dépenses, avances de caisse et justificatifs',
   'Photos terrain, reçus caméra, présences & tâches',
   'Achats fournisseurs et stock multi-dépôts',
-  'Saisie terrain hors ligne avec synchronisation auto',
+  'Journal et présences hors ligne, synchronisés au retour réseau',
   'Suivi des soldes clients déclarés & retenues',
   'Alertes budget, trésorerie et échéances',
   'Rapports PDF, PV de réception & exports CSV / JSON',
   'Journal d’audit et traçabilité par entreprise',
-];
-
-const PAYMENT_CHANNELS = [
-  'Wave Côte d’Ivoire',
-  'Orange Money',
-  'MTN MoMo',
-  'Moov Money',
-  'Carte bancaire',
 ];
 
 export default function PricingPage({ standalone = false }) {
@@ -45,20 +37,22 @@ export default function PricingPage({ standalone = false }) {
     if (status !== 'auth') return undefined;
     let live = true;
     (async () => {
-      try {
-        if (params.get('commande')) {
+      if (params.get('commande') && user?.role === 'admin') {
+        try {
           const result = await api('/api/billing', {
             method: 'POST',
             body: { action: 'verify', order_id: params.get('commande') },
           });
-          if (live) {
-            setMessage(
-              result.status === 'paid'
-                ? 'Paiement confirmé. Votre forfait est activé immédiatement.'
-                : 'Paiement en attente de confirmation. Vous pouvez le revérifier ci-dessous.',
-            );
-          }
+          if (live) setMessage(result.status === 'paid'
+            ? 'Paiement confirmé. Votre forfait est activé immédiatement.'
+            : 'Paiement en attente de confirmation. Vous pouvez le revérifier ci-dessous.');
+        } catch (e) {
+          if (live) setError(e.message);
         }
+      }
+      // Même si la vérification échoue, l'historique et les boutons de
+      // rapprochement doivent rester accessibles.
+      try {
         const result = await api('/api/billing');
         if (live) setData(result);
       } catch (e) {
@@ -66,7 +60,7 @@ export default function PricingPage({ standalone = false }) {
       }
     })();
     return () => { live = false; };
-  }, [status, params]);
+  }, [status, params, user?.role]);
 
   const revealFeedback = () => {
     requestAnimationFrame(() => {
@@ -132,16 +126,9 @@ export default function PricingPage({ standalone = false }) {
             <p className="mt-3 text-sm leading-6 text-[#dfd9ce] sm:text-base">
               2 semaines (14 jours) d’essai gratuit sans carte bancaire. Pas de frais d’installation obligatoires. Dépenses, photos chantier, justificatifs, encaissements déclarés et rapports PDF inclus dans chaque offre.
             </p>
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              {PAYMENT_CHANNELS.map((channel) => (
-                <span
-                  key={channel}
-                  className="inline-flex items-center rounded-lg border border-white/12 bg-white/[0.06] px-2.5 py-1 text-xs font-semibold text-[#dfd9ce]"
-                >
-                  {channel}
-                </span>
-              ))}
-            </div>
+            <p className="mt-4 text-xs leading-5 text-[#dfd9ce]">
+              Les moyens de paiement disponibles et les frais éventuels sont indiqués sur la page SasPay avant validation.
+            </p>
           </div>
           <div className="min-w-0 lg:col-span-5">
             <div className="overflow-hidden rounded-2xl border border-[#eab956]/40 bg-[#12100e] shadow-xl">

@@ -26,7 +26,7 @@ Le dirigeant compte comme utilisateur. Les chantiers terminés/archivés ne cons
 
 **Pas encore de débit récurrent sans intervention.** La documentation API publique consultée décrit checkout/softpay, mais pas de mandat, token de carte ou endpoint de prélèvement d’abonnement. Les « subscriptions » documentées dans Webhooks sont des abonnements à des événements, pas des prélèvements financiers. Le client valide chaque renouvellement sur SasPay. Aucune donnée bancaire n’est collectée par ChantierPilot. Ne pas vendre un prélèvement mensuel autonome avant confirmation et documentation de cette capacité par SasPay.
 
-Un changement de gamme nécessite l’expiration de la période payée. Pas de prorata ni de remboursement automatique. Les remboursements/litiges et changements de gamme urgents se traitent avec le support. Un renouvellement au même forfait ajoute 30 jours, sans perdre les jours restants. Aucun e-mail/SMS de relance n’est actuellement envoyé : les rappels sont affichés dans l’application.
+Un changement de gamme nécessite l’expiration de la période payée. Si deux sessions de gammes différentes ont été ouvertes avant le premier paiement, le second paiement confirmé ne remplace pas le forfait actif : il reste à vérifier après son échéance ou à traiter avec le support. Pas de prorata ni de remboursement automatique. Les remboursements/litiges et changements de gamme urgents se traitent avec le support. Un renouvellement au même forfait ajoute 30 jours, sans perdre les jours restants. Aucun e-mail/SMS de relance n’est actuellement envoyé : les rappels sont affichés dans l’application.
 
 ## Mise en service
 

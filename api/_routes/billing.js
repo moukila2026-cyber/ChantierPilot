@@ -55,7 +55,7 @@ export default async function handler(req, res) {
       if (!order) return fail(res, 404, 'introuvable', 'Commande introuvable.');
       return sendJson(res, 200, { status: order.status });
     }
-    if (!PLANS[body.plan]) throw billingError('Offre inconnue.', 422);
+    if (typeof body.plan !== 'string' || !Object.hasOwn(PLANS, body.plan)) throw billingError('Offre inconnue.', 422);
     if (!configured()) throw billingError('Paiement SasPay non configuré. Contactez le support.', 503);
     const appOrigin = normalizeAppOrigin(process.env.APP_URL);
     const result = await withTenant(ctx, async client => {

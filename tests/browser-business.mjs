@@ -66,7 +66,7 @@ try {
   assert.equal(ops.journal.filter(j=>j.title==='Note hors connexion test').length,1);
   console.log('✓ Navigateur : synchronisation automatique au retour réseau, sans doublon');
   await page.goto(`/gestion?onglet=gantt&chantier=${project}`);
-  await page.getByRole('button',{name:'Nouvelle tâche Gantt',exact:true}).click();
+  await page.getByRole('button',{name:'+ Nouvelle tâche Gantt',exact:true}).click();
   await page.locator('#business-title').fill('Fondations navigateur');
   const advanced=await (await context.request.get('/api/advanced')).json();
   await page.locator('#business-assignee_id').selectOption(advanced.users[0].id);
@@ -78,7 +78,7 @@ try {
   await page.getByRole('dialog').getByRole('button',{name:'Enregistrer',exact:true}).click();
   await page.getByRole('img',{name:'Fondations navigateur : avancement 50 %'}).waitFor();
   await page.getByRole('button',{name:'Multi-dépôts',exact:true}).click();
-  await page.getByRole('button',{name:'Nouveau dépôt',exact:true}).click();
+  await page.getByRole('button',{name:'+ Nouveau dépôt',exact:true}).click();
   await page.locator('#business-name').fill('Dépôt navigateur');
   await page.getByRole('dialog').getByRole('button',{name:'Enregistrer',exact:true}).click();
   await page.getByRole('heading',{name:'Dépôt navigateur',exact:true}).waitFor();
@@ -108,4 +108,21 @@ try {
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'Débordement mobile');
   assert.deepEqual(errors,[]);
   console.log('✓ Navigateur : vue mobile sans débordement et aucune erreur React');
+  // Un échec au retour SasPay ne doit pas masquer l'historique ni son bouton Vérifier.
+  const billingId = crypto.randomUUID(); let verificationAttempts = 0;
+  await page.route('**/api/billing', async route => {
+    if (route.request().method() === 'POST') {
+      verificationAttempts++;
+      return route.fulfill({ status: verificationAttempts === 1 ? 409 : 200, contentType: 'application/json', body: JSON.stringify(verificationAttempts === 1 ? { error: { message: 'Vérification temporairement impossible' } } : { status: 'paid' }) });
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'essai', writable: true, configured: true, trial_days_remaining: 14, trial_until: '2099-01-01', plan: { name: 'Essentiel', projects: 3, users: 2 }, usage: { projects: 1, users: 1 }, orders: [{ id: billingId, plan: 'essentiel', amount: 9900, status: 'pending', created_at: '2026-01-01' }] }) });
+  });
+  await page.goto(`/offres?commande=${billingId}`);
+  await page.getByText('Vérification temporairement impossible').waitFor();
+  await page.getByRole('heading',{name:'Historique des paiements d’abonnement'}).waitFor();
+  await page.getByRole('button',{name:'Vérifier',exact:true}).click();
+  await page.getByText('Paiement confirmé et forfait activé.').waitFor();
+  assert.equal(verificationAttempts, 2);
+  console.log('✓ Navigateur : retour SasPay en erreur puis vérification manuelle disponible');
+
 } catch(e) { console.log('URL',page.url(),'ERRORS',errors,'HTML',(await page.content()).slice(0,2000));console.log((await page.locator('body').innerText()).slice(-5000)); await page.screenshot({path:'.arena/browser-failure.png',fullPage:true}); throw e; } finally {await browser.close();}

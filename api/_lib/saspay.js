@@ -201,7 +201,10 @@ export function checkoutUrl(value) {
 
 // Réconciliation : seules les preuves relues chez SasPay activent un forfait.
 export async function reconcile(client, ctx, orderId) {
-  await client.query('SELECT id FROM companies WHERE id=$1 FOR UPDATE', [ctx.companyId]);
+  const company = (await client.query(
+    'SELECT id, billing_plan, paid_until > now() AS paid_active FROM companies WHERE id=$1 FOR UPDATE',
+    [ctx.companyId],
+  )).rows[0];
   const order = (await client.query('SELECT * FROM billing_orders WHERE id=$1 FOR UPDATE', [orderId])).rows[0];
   if (!order || order.status === 'paid' || !order.session_id) return order;
   const session = await saspay(`/checkout-sessions/${encodeURIComponent(order.session_id)}/status/`);
@@ -223,9 +226,13 @@ export async function reconcile(client, ctx, orderId) {
   ) {
     throw billingError('Le paiement ne correspond pas à la commande. Contactez le support.', 422);
   }
-  // Un forfait actif ne peut pas changer de gamme en cours de période (pas de prorata caché).
-  // Le choix de gamme est bloqué à la création ; chaque paiement reste honoré en cas de course.
-  const company = (await client.query(
+  // Plusieurs sessions de gammes différentes peuvent avoir été ouvertes avant le
+  // premier règlement. Ne jamais convertir les jours déjà payés vers une autre
+  // gamme : la commande reste vérifiable après l'échéance ou par le support.
+  if (company?.paid_active && company.billing_plan !== order.plan) {
+    throw billingError('Paiement confirmé par SasPay, mais un autre forfait est encore actif. Contactez le support ou vérifiez à nouveau cette commande après son échéance ; aucun jour payé n’a été modifié.', 409);
+  }
+  const creditedCompany = (await client.query(
     `UPDATE companies SET billing_plan=$1,
      paid_until=GREATEST(COALESCE(paid_until,now()),now()) + interval '30 days'
      WHERE id=$2 RETURNING paid_until`,
@@ -234,6 +241,6 @@ export async function reconcile(client, ctx, orderId) {
   return (await client.query(
     `UPDATE billing_orders SET status='paid', transaction_id=$2,
      credited_at=now(), access_until=$3 WHERE id=$1 RETURNING *`,
-    [order.id, payment.id, company.paid_until],
+    [order.id, payment.id, creditedCompany.paid_until],
   )).rows[0];
 }
